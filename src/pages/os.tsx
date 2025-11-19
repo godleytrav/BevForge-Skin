@@ -19,7 +19,7 @@ export default function OSPage() {
               background: 'rgba(15, 23, 42, 0.3)',
               backdropFilter: 'blur(12px)',
               WebkitBackdropFilter: 'blur(12px)',
-              border: '2px solid hsl(190, 95%, 60%)',
+              border: '1px solid hsl(190, 95%, 60%)',
               boxShadow: '0 0 0 rgba(0, 229, 255, 0)'
             }}
             onMouseEnter={(e) => {
@@ -38,7 +38,7 @@ export default function OSPage() {
               background: 'rgba(15, 23, 42, 0.3)',
               backdropFilter: 'blur(12px)',
               WebkitBackdropFilter: 'blur(12px)',
-              border: '2px solid hsl(190, 95%, 60%)',
+              border: '1px solid hsl(190, 95%, 60%)',
               boxShadow: '0 0 0 rgba(0, 229, 255, 0)'
             }}
             onMouseEnter={(e) => {
