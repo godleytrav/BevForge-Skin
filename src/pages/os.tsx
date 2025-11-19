@@ -33,8 +33,11 @@ export default function OSPage() {
             <p className="text-sm text-muted-foreground">All systems operational</p>
           </div>
           <div 
-            className="group rounded-lg bg-card p-4 transition-all duration-300"
+            className="group rounded-lg p-4 transition-all duration-300"
             style={{
+              background: 'rgba(15, 23, 42, 0.3)',
+              backdropFilter: 'blur(12px)',
+              WebkitBackdropFilter: 'blur(12px)',
               border: '2px solid hsl(190, 95%, 60%)',
               boxShadow: '0 0 0 rgba(0, 229, 255, 0)'
             }}
@@ -49,8 +52,11 @@ export default function OSPage() {
             <p className="text-sm text-muted-foreground">Access common tasks</p>
           </div>
           <div 
-            className="group rounded-lg bg-card p-4 transition-all duration-300"
+            className="group rounded-lg p-4 transition-all duration-300"
             style={{
+              background: 'rgba(15, 23, 42, 0.3)',
+              backdropFilter: 'blur(12px)',
+              WebkitBackdropFilter: 'blur(12px)',
               border: '2px solid hsl(190, 95%, 60%)',
               boxShadow: '0 0 0 rgba(0, 229, 255, 0)'
             }}
