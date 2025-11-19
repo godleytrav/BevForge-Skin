@@ -70,7 +70,7 @@ export function AppShell({ children, pageTitle = 'Dashboard', currentSuite }: Ap
       data-suite={suiteId}
       style={{
         background: suiteId === 'os' 
-          ? 'linear-gradient(135deg, hsl(210, 50%, 25%) 0%, hsl(200, 40%, 30%) 50%, hsl(210, 35%, 20%) 100%)'
+          ? 'linear-gradient(135deg, hsl(220, 70%, 35%) 0%, hsl(215, 60%, 25%) 50%, hsl(220, 50%, 15%) 100%)'
           : 'hsl(var(--background))'
       }}
     >
