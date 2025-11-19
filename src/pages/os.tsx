@@ -13,15 +13,15 @@ export default function OSPage() {
         </div>
 
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          <div className="group rounded-lg border border-primary/30 bg-card p-4 transition-all duration-300 hover:border-primary hover:shadow-[0_0_20px_rgba(0,229,255,0.3)]">
+          <div className="group rounded-lg border border-primary bg-card p-4 transition-all duration-300 hover:shadow-[0_0_20px_rgba(0,229,255,0.3)]">
             <h3 className="mb-2 font-semibold text-foreground">System Status</h3>
             <p className="text-sm text-muted-foreground">All systems operational</p>
           </div>
-          <div className="group rounded-lg border border-primary/30 bg-card p-4 transition-all duration-300 hover:border-primary hover:shadow-[0_0_20px_rgba(0,229,255,0.3)]">
+          <div className="group rounded-lg border border-primary bg-card p-4 transition-all duration-300 hover:shadow-[0_0_20px_rgba(0,229,255,0.3)]">
             <h3 className="mb-2 font-semibold text-foreground">Quick Actions</h3>
             <p className="text-sm text-muted-foreground">Access common tasks</p>
           </div>
-          <div className="group rounded-lg border border-primary/30 bg-card p-4 transition-all duration-300 hover:border-primary hover:shadow-[0_0_20px_rgba(0,229,255,0.3)]">
+          <div className="group rounded-lg border border-primary bg-card p-4 transition-all duration-300 hover:shadow-[0_0_20px_rgba(0,229,255,0.3)]">
             <h3 className="mb-2 font-semibold text-foreground">Recent Activity</h3>
             <p className="text-sm text-muted-foreground">View latest updates</p>
           </div>
