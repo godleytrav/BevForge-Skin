@@ -52,8 +52,20 @@ export function AppShell({ children, pageTitle = 'Dashboard', currentSuite }: Ap
 
   const activeSuite = getCurrentSuite();
 
+  // Determine suite ID from currentSuite prop or route
+  const getSuiteId = () => {
+    if (currentSuite) {
+      return currentSuite.toLowerCase();
+    }
+    const path = location.pathname;
+    const suite = suites.find((s) => path.startsWith(s.route));
+    return suite?.id;
+  };
+
+  const suiteId = getSuiteId();
+
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background" data-suite={suiteId}>
       {/* Header */}
       <header className="fixed top-0 left-0 right-0 z-50 h-16 border-b border-border bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/80">
         <div className="flex h-full items-center justify-between px-4">

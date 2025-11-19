@@ -33,7 +33,7 @@
     --input: 220 15% 22%;
     --ring: 190 95% 60%; /* Matches primary */
 
-    /* Per-Suite Accent Colors */
+    /* Per-Suite Accent Colors (for reference) */
     --suite-os: 190 95% 60%; /* Tron blue / electric cyan */
     --suite-flow-primary: 180 95% 55%; /* Cyan */
     --suite-flow-secondary: 85 85% 55%; /* Lime */
@@ -74,6 +74,54 @@
     font-feature-settings:
       'rlig' 1,
       'calt' 1;
+  }
+}
+
+/* Per-Suite Dynamic Theming */
+@layer base {
+  /* OS Suite - Tron Blue/Cyan Theme */
+  [data-suite="os"] {
+    --primary: 190 95% 60%; /* Tron blue/cyan */
+    --primary-foreground: 220 15% 8%;
+    --accent: 190 95% 60%;
+    --accent-foreground: 220 15% 8%;
+    --ring: 190 95% 60%;
+  }
+
+  /* Flow Suite - Cyan + Lime Theme */
+  [data-suite="flow"] {
+    --primary: 180 95% 55%; /* Cyan */
+    --primary-foreground: 220 15% 8%;
+    --accent: 85 85% 55%; /* Lime */
+    --accent-foreground: 220 15% 8%;
+    --ring: 180 95% 55%;
+  }
+
+  /* Lab Suite - Indigo + Amber Theme */
+  [data-suite="lab"] {
+    --primary: 240 70% 60%; /* Indigo */
+    --primary-foreground: 220 15% 8%;
+    --accent: 40 95% 60%; /* Amber */
+    --accent-foreground: 220 15% 8%;
+    --ring: 240 70% 60%;
+  }
+
+  /* Ops Suite - Teal + Gold Theme */
+  [data-suite="ops"] {
+    --primary: 175 70% 50%; /* Teal */
+    --primary-foreground: 220 15% 8%;
+    --accent: 45 90% 55%; /* Gold */
+    --accent-foreground: 220 15% 8%;
+    --ring: 175 70% 50%;
+  }
+
+  /* Connect Suite - Violet + Soft Orange Theme */
+  [data-suite="connect"] {
+    --primary: 270 70% 60%; /* Violet */
+    --primary-foreground: 220 15% 8%;
+    --accent: 25 90% 60%; /* Soft Orange */
+    --accent-foreground: 220 15% 8%;
+    --ring: 270 70% 60%;
   }
 }
 
