@@ -4,7 +4,12 @@ export default function OSPage() {
   return (
     <AppShell pageTitle="OS Dashboard" currentSuite="OS">
       <div className="space-y-6">
-        <div className="rounded-lg border border-border bg-card/30 backdrop-blur-xl p-6">
+        <div 
+          className="rounded-lg bg-card/30 backdrop-blur-xl p-6"
+          style={{
+            border: '1px solid hsl(190, 95%, 60%)'
+          }}
+        >
           <h2 className="mb-2 text-2xl font-bold text-foreground">OS – System Core</h2>
           <p className="text-muted-foreground">
             Welcome to the Operating System suite. This is your central hub for system management
