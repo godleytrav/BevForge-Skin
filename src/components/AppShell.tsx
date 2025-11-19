@@ -65,7 +65,15 @@ export function AppShell({ children, pageTitle = 'Dashboard', currentSuite }: Ap
   const suiteId = getSuiteId();
 
   return (
-    <div className="min-h-screen bg-background" data-suite={suiteId}>
+    <div 
+      className="min-h-screen" 
+      data-suite={suiteId}
+      style={{
+        background: suiteId === 'os' 
+          ? 'linear-gradient(135deg, hsl(220, 15%, 8%) 0%, hsl(210, 25%, 12%) 50%, hsl(200, 30%, 10%) 100%)'
+          : 'hsl(var(--background))'
+      }}
+    >
       {/* Header */}
       <header className="fixed top-0 left-0 right-0 z-50 h-16 border-b border-border bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/80">
         <div className="flex h-full items-center justify-between px-4">
