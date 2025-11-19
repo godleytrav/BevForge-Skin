@@ -1,31 +1,122 @@
-import { AppShell } from '@/components/AppShell';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { DollarSign, TrendingUp, Package, Users } from 'lucide-react';
+import { useState } from 'react';
 
 export default function OpsPage() {
-  return (
-    <AppShell pageTitle="Ops – Business Overview" currentSuite="Ops">
-      <div className="space-y-6">
-        <div className="rounded-lg border border-border bg-card/30 backdrop-blur-xl p-6">
-          <h2 className="mb-2 text-2xl font-bold text-foreground">Ops – Business Operations</h2>
-          <p className="text-muted-foreground">
-            Manage inventory, finances, compliance, and all business operations.
-          </p>
-        </div>
+  const [hoveredCard, setHoveredCard] = useState<string | null>(null);
 
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          <div className="rounded-lg border border-border bg-card/30 backdrop-blur-xl p-4">
-            <h3 className="mb-2 font-semibold text-foreground">Inventory</h3>
-            <p className="text-sm text-muted-foreground">Track stock levels</p>
-          </div>
-          <div className="rounded-lg border border-border bg-card/30 backdrop-blur-xl p-4">
-            <h3 className="mb-2 font-semibold text-foreground">Financials</h3>
-            <p className="text-sm text-muted-foreground">View reports</p>
-          </div>
-          <div className="rounded-lg border border-border bg-card/30 backdrop-blur-xl p-4">
-            <h3 className="mb-2 font-semibold text-foreground">Compliance</h3>
-            <p className="text-sm text-muted-foreground">Regulatory tracking</p>
-          </div>
-        </div>
+  return (
+    <div className="p-8 space-y-8">
+      {/* Page Header */}
+      <div className="mb-8">
+        <h1 className="text-4xl font-bold mb-2">Ops – Business Operations</h1>
+        <p className="text-muted-foreground">
+          Welcome to the Ops suite. Manage finances, inventory, sales, and business analytics.
+        </p>
       </div>
-    </AppShell>
+
+      {/* Feature Cards Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {/* Financial Management */}
+        <Card 
+          className="backdrop-blur-xl transition-all duration-300"
+          style={{
+            background: 'rgba(255, 255, 255, 0.05)',
+            border: '1px solid hsl(175, 70%, 50%)',
+            backdropFilter: 'blur(12px)',
+            boxShadow: hoveredCard === 'finance' ? '0 0 20px rgba(20, 184, 166, 0.4)' : 'none'
+          }}
+          onMouseEnter={() => setHoveredCard('finance')}
+          onMouseLeave={() => setHoveredCard(null)}
+        >
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <DollarSign className="h-5 w-5" style={{ color: 'hsl(175, 70%, 50%)' }} />
+              Financial Management
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-muted-foreground">
+              Track revenue, expenses, profit margins, and financial forecasting.
+            </p>
+          </CardContent>
+        </Card>
+
+        {/* Sales Analytics */}
+        <Card 
+          className="backdrop-blur-xl transition-all duration-300"
+          style={{
+            background: 'rgba(255, 255, 255, 0.05)',
+            border: '1px solid hsl(175, 70%, 50%)',
+            backdropFilter: 'blur(12px)',
+            boxShadow: hoveredCard === 'sales' ? '0 0 20px rgba(20, 184, 166, 0.4)' : 'none'
+          }}
+          onMouseEnter={() => setHoveredCard('sales')}
+          onMouseLeave={() => setHoveredCard(null)}
+        >
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <TrendingUp className="h-5 w-5" style={{ color: 'hsl(175, 70%, 50%)' }} />
+              Sales Analytics
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-muted-foreground">
+              Analyze sales trends, customer behavior, and revenue optimization.
+            </p>
+          </CardContent>
+        </Card>
+
+        {/* Inventory Management */}
+        <Card 
+          className="backdrop-blur-xl transition-all duration-300"
+          style={{
+            background: 'rgba(255, 255, 255, 0.05)',
+            border: '1px solid hsl(175, 70%, 50%)',
+            backdropFilter: 'blur(12px)',
+            boxShadow: hoveredCard === 'inventory' ? '0 0 20px rgba(20, 184, 166, 0.4)' : 'none'
+          }}
+          onMouseEnter={() => setHoveredCard('inventory')}
+          onMouseLeave={() => setHoveredCard(null)}
+        >
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Package className="h-5 w-5" style={{ color: 'hsl(175, 70%, 50%)' }} />
+              Inventory Management
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-muted-foreground">
+              Monitor stock levels, reorder points, and supply chain operations.
+            </p>
+          </CardContent>
+        </Card>
+
+        {/* Customer Relations */}
+        <Card 
+          className="backdrop-blur-xl transition-all duration-300"
+          style={{
+            background: 'rgba(255, 255, 255, 0.05)',
+            border: '1px solid hsl(175, 70%, 50%)',
+            backdropFilter: 'blur(12px)',
+            boxShadow: hoveredCard === 'customers' ? '0 0 20px rgba(20, 184, 166, 0.4)' : 'none'
+          }}
+          onMouseEnter={() => setHoveredCard('customers')}
+          onMouseLeave={() => setHoveredCard(null)}
+        >
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Users className="h-5 w-5" style={{ color: 'hsl(175, 70%, 50%)' }} />
+              Customer Relations
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-muted-foreground">
+              Manage customer data, loyalty programs, and relationship tracking.
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
   );
 }

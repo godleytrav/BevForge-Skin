@@ -71,6 +71,12 @@ export function AppShell({ children, pageTitle = 'Dashboard', currentSuite }: Ap
       style={{
         background: suiteId === 'os' 
           ? 'linear-gradient(180deg, hsl(0, 0%, 8%) 0%, hsl(220, 60%, 18%) 60%, hsl(220, 70%, 22%) 100%)'
+          : suiteId === 'flow'
+          ? 'linear-gradient(180deg, hsl(0, 0%, 8%) 0%, hsl(180, 60%, 18%) 60%, hsl(180, 70%, 22%) 100%)'
+          : suiteId === 'lab'
+          ? 'linear-gradient(180deg, hsl(0, 0%, 8%) 0%, hsl(240, 60%, 18%) 60%, hsl(240, 70%, 22%) 100%)'
+          : suiteId === 'ops'
+          ? 'linear-gradient(180deg, hsl(0, 0%, 8%) 0%, hsl(175, 60%, 18%) 60%, hsl(175, 70%, 22%) 100%)'
           : suiteId === 'connect'
           ? 'linear-gradient(180deg, hsl(0, 0%, 8%) 0%, hsl(270, 50%, 18%) 60%, hsl(270, 60%, 22%) 100%)'
           : 'hsl(var(--background))'

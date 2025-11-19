@@ -8,15 +8,8 @@ export default function ConnectPage() {
   return (
     <div className="p-8 space-y-8">
       {/* Page Header */}
-      <div 
-        className="p-6 rounded-lg backdrop-blur-xl"
-        style={{
-          background: 'rgba(255, 255, 255, 0.05)',
-          border: '1px solid hsl(270, 70%, 60%)',
-          backdropFilter: 'blur(12px)'
-        }}
-      >
-        <h1 className="text-3xl font-bold mb-2">Connect – Employee Hub</h1>
+      <div className="mb-8">
+        <h1 className="text-4xl font-bold mb-2">Connect – Employee Hub</h1>
         <p className="text-muted-foreground">
           Welcome to the Connect suite. Manage your team, schedule shifts, and foster communication.
         </p>
