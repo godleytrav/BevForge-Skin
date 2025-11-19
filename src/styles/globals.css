@@ -4,94 +4,160 @@
 
 @layer base {
   :root {
-    /* Core Colors */
-    --background: 26 28% 97%;
-    --foreground: 16 29% 15%;
-    --card: 26 28% 97%;
-    --card-foreground: 16 29% 15%;
-    --popover: 26 28% 97%;
-    --popover-foreground: 16 29% 15%;
-    --primary: 122 39% 19%;
-    --primary-foreground: 0 0% 100%;
-    --secondary: 120 22% 91%;
-    --secondary-foreground: 125 60% 12%;
-    --muted: 25 18% 94%;
-    --muted-foreground: 16 18% 39%;
-    --accent: 120 23% 78%;
-    --accent-foreground: 125 60% 12%;
-    --destructive: 0 68% 42%;
-    --destructive-foreground: 0 0% 100%;
-    --border: 22 23% 87%;
-    --input: 22 23% 87%;
-    --ring: 122 39% 19%;
+    /* Tron-inspired Dark Base Theme */
+    --background: 220 15% 8%; /* Very dark gray / near-black */
+    --foreground: 210 20% 95%; /* Light gray to white */
 
-    /* Extended Colors */
-    --chart-1: 122 39% 49%;
-    --chart-2: 122 39% 34%;
-    --chart-3: 122 39% 19%;
-    --chart-4: 125 60% 12%;
-    --chart-5: 120 100% 4%;
+    --card: 220 15% 12%; /* Slightly lighter dark gray */
+    --card-foreground: 210 20% 95%;
 
-    /* Sidebar Colors */
-    --sidebar: 25 18% 94%;
-    --sidebar-foreground: 16 29% 15%;
-    --sidebar-primary: 122 39% 19%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 120 23% 78%;
-    --sidebar-accent-foreground: 125 60% 12%;
-    --sidebar-border: 22 23% 87%;
-    --sidebar-ring: 122 39% 19%;
+    --popover: 220 15% 12%;
+    --popover-foreground: 210 20% 95%;
 
-    /* Typography */
-    --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-    --font-serif: ui-serif, Georgia, "Times New Roman", serif;
-    --font-mono: ui-monospace, "SF Mono", Monaco, "Cascadia Code", "Roboto Mono", Consolas, "Courier New", monospace;
+    --primary: 190 95% 60%; /* Tron blue / electric cyan - default */
+    --primary-foreground: 220 15% 8%;
 
-    /* Border Radius */
+    --secondary: 220 15% 18%;
+    --secondary-foreground: 210 20% 95%;
+
+    --muted: 220 15% 18%; /* Medium gray for muted backgrounds */
+    --muted-foreground: 210 10% 60%; /* Medium gray for muted text */
+
+    --accent: 190 95% 60%; /* Matches primary for consistency */
+    --accent-foreground: 220 15% 8%;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 210 20% 95%;
+
+    --border: 220 15% 22%; /* Subtle lines using slightly lighter gray */
+    --input: 220 15% 22%;
+    --ring: 190 95% 60%; /* Matches primary */
+
+    /* Per-Suite Accent Colors */
+    --suite-os: 190 95% 60%; /* Tron blue / electric cyan */
+    --suite-flow-primary: 180 95% 55%; /* Cyan */
+    --suite-flow-secondary: 85 85% 55%; /* Lime */
+    --suite-lab-primary: 240 70% 60%; /* Indigo */
+    --suite-lab-secondary: 40 95% 60%; /* Amber */
+    --suite-ops-primary: 175 70% 50%; /* Teal */
+    --suite-ops-secondary: 45 90% 55%; /* Gold */
+    --suite-connect-primary: 270 70% 60%; /* Violet */
+    --suite-connect-secondary: 25 90% 60%; /* Soft Orange */
+
     --radius: 0.5rem;
 
-    /* Shadows */
-    --shadow-2xs: 0 1px 3px 0px hsl(0 0% 0% / 0.05);
-    --shadow-xs: 0 1px 3px 0px hsl(0 0% 0% / 0.05);
-    --shadow-sm: 0 1px 3px 0px hsl(0 0% 0% / 0.10), 0 1px 2px -1px hsl(0 0% 0% / 0.10);
-    --shadow: 0 1px 3px 0px hsl(0 0% 0% / 0.10), 0 1px 2px -1px hsl(0 0% 0% / 0.10);
-    --shadow-md: 0 1px 3px 0px hsl(0 0% 0% / 0.10), 0 2px 4px -1px hsl(0 0% 0% / 0.10);
-    --shadow-lg: 0 1px 3px 0px hsl(0 0% 0% / 0.10), 0 4px 6px -1px hsl(0 0% 0% / 0.10);
-    --shadow-xl: 0 1px 3px 0px hsl(0 0% 0% / 0.10), 0 8px 10px -1px hsl(0 0% 0% / 0.10);
-    --shadow-2xl: 0 1px 3px 0px hsl(0 0% 0% / 0.25);
-  }
+    /* Chart colors */
+    --chart-1: 190 95% 60%;
+    --chart-2: 180 95% 55%;
+    --chart-3: 240 70% 60%;
+    --chart-4: 175 70% 50%;
+    --chart-5: 270 70% 60%;
 
+    /* Sidebar colors for Dashboard layout */
+    --sidebar: 220 15% 10%;
+    --sidebar-foreground: 210 20% 95%;
+    --sidebar-primary: 190 95% 60%;
+    --sidebar-primary-foreground: 220 15% 8%;
+    --sidebar-accent: 220 15% 18%;
+    --sidebar-accent-foreground: 210 20% 95%;
+    --sidebar-border: 220 15% 22%;
+    --sidebar-ring: 190 95% 60%;
+  }
+}
+
+@layer base {
   * {
     @apply border-border;
   }
-
   body {
     @apply bg-background text-foreground;
+    font-feature-settings:
+      'rlig' 1,
+      'calt' 1;
   }
 }
 
-/* Custom utility classes */
-@layer utilities {
-  .animate-in {
-    animation-duration: 0.2s;
-    animation-fill-mode: both;
+/* Suite-specific accent styling */
+@layer components {
+  /* OS Suite - Tron Blue/Cyan */
+  .suite-os-icon {
+    color: hsl(var(--suite-os));
+  }
+  .suite-os-active {
+    border-left: 3px solid hsl(var(--suite-os));
+    background: hsl(var(--suite-os) / 0.05);
+  }
+  .suite-os-card:hover {
+    box-shadow: 0 0 20px hsl(var(--suite-os) / 0.2);
   }
 
-  .fade-in {
-    animation-name: fadeIn;
+  /* Flow Suite - Cyan + Lime */
+  .suite-flow-icon {
+    background: linear-gradient(135deg, hsl(var(--suite-flow-primary)), hsl(var(--suite-flow-secondary)));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .suite-flow-active {
+    border-left: 3px solid hsl(var(--suite-flow-primary));
+    background: linear-gradient(90deg, hsl(var(--suite-flow-primary) / 0.05), hsl(var(--suite-flow-secondary) / 0.05));
+  }
+  .suite-flow-card:hover {
+    box-shadow: 0 0 20px hsl(var(--suite-flow-primary) / 0.2);
   }
 
-  @keyframes fadeIn {
-    from {
-      opacity: 0;
-    }
-    to {
-      opacity: 1;
-    }
+  /* Lab Suite - Indigo + Amber */
+  .suite-lab-icon {
+    background: linear-gradient(135deg, hsl(var(--suite-lab-primary)), hsl(var(--suite-lab-secondary)));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
   }
-}
+  .suite-lab-active {
+    border-left: 3px solid hsl(var(--suite-lab-primary));
+    background: linear-gradient(90deg, hsl(var(--suite-lab-primary) / 0.05), hsl(var(--suite-lab-secondary) / 0.05));
+  }
+  .suite-lab-card:hover {
+    box-shadow: 0 0 20px hsl(var(--suite-lab-primary) / 0.2);
+  }
 
-/* Unless told otherwise, keep it for smooth scrolling */
-html {
-  scroll-behavior: smooth;
+  /* Ops Suite - Teal + Gold */
+  .suite-ops-icon {
+    background: linear-gradient(135deg, hsl(var(--suite-ops-primary)), hsl(var(--suite-ops-secondary)));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .suite-ops-active {
+    border-left: 3px solid hsl(var(--suite-ops-primary));
+    background: linear-gradient(90deg, hsl(var(--suite-ops-primary) / 0.05), hsl(var(--suite-ops-secondary) / 0.05));
+  }
+  .suite-ops-card:hover {
+    box-shadow: 0 0 20px hsl(var(--suite-ops-primary) / 0.2);
+  }
+
+  /* Connect Suite - Violet + Soft Orange */
+  .suite-connect-icon {
+    background: linear-gradient(135deg, hsl(var(--suite-connect-primary)), hsl(var(--suite-connect-secondary)));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .suite-connect-active {
+    border-left: 3px solid hsl(var(--suite-connect-primary));
+    background: linear-gradient(90deg, hsl(var(--suite-connect-primary) / 0.05), hsl(var(--suite-connect-secondary) / 0.05));
+  }
+  .suite-connect-card:hover {
+    box-shadow: 0 0 20px hsl(var(--suite-connect-primary) / 0.2);
+  }
+
+  /* Hover effects with subtle glow */
+  .hover\:glow-primary:hover {
+    box-shadow: 0 0 15px hsl(var(--primary) / 0.3);
+  }
+
+  /* Smooth transitions */
+  .transition-glow {
+    transition: box-shadow 0.3s ease, border-color 0.3s ease;
+  }
 }

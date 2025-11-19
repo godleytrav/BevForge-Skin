@@ -1,23 +1,51 @@
-import { RouteObject } from 'react-router-dom';
 import { lazy } from 'react';
-import HomePage from './pages/index';
+import type { RouteObject } from 'react-router-dom';
 
-// Lazy load components for code splitting (except HomePage for instant loading)
-const isDevelopment = (import.meta.env as any).DEV;
-const NotFoundPage = isDevelopment ? lazy(() => import('../dev-tools/src/PageNotFound')) : lazy(() => import('./pages/_404'));
+const IndexPage = lazy(() => import('./pages/index'));
+const NotFoundPage = lazy(() => import('./pages/_404'));
+const OSPage = lazy(() => import('./pages/os'));
+const FlowPage = lazy(() => import('./pages/flow'));
+const LabPage = lazy(() => import('./pages/lab'));
+const OpsPage = lazy(() => import('./pages/ops'));
+const ConnectPage = lazy(() => import('./pages/connect'));
+const ReportsPage = lazy(() => import('./pages/reports'));
+const SettingsPage = lazy(() => import('./pages/settings'));
 
 export const routes: RouteObject[] = [
   {
     path: '/',
-    element: <HomePage />,
+    element: <IndexPage />,
+  },
+  {
+    path: '/os',
+    element: <OSPage />,
+  },
+  {
+    path: '/flow',
+    element: <FlowPage />,
+  },
+  {
+    path: '/lab',
+    element: <LabPage />,
+  },
+  {
+    path: '/ops',
+    element: <OpsPage />,
+  },
+  {
+    path: '/connect',
+    element: <ConnectPage />,
+  },
+  {
+    path: '/reports',
+    element: <ReportsPage />,
+  },
+  {
+    path: '/settings',
+    element: <SettingsPage />,
   },
   {
     path: '*',
     element: <NotFoundPage />,
   },
 ];
-
-// Types for type-safe navigation
-export type Path = '/';
-
-export type Params = Record<string, string | undefined>;

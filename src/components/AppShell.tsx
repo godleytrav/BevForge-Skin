@@ -1,0 +1,221 @@
+import { useState } from 'react';
+import { Link, useLocation } from 'react-router-dom';
+import { Menu, Bell, Calendar, Settings, User, Home, FileText, Cog } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+
+interface Suite {
+  id: string;
+  label: string;
+  subtitle: string;
+  route: string;
+  icon: string;
+}
+
+const suites: Suite[] = [
+  { id: 'os', label: 'OS', subtitle: 'System Core & Home', route: '/os', icon: '⬡' },
+  { id: 'flow', label: 'Flow', subtitle: 'Keg / Tap Management', route: '/flow', icon: '◈' },
+  { id: 'lab', label: 'Lab', subtitle: 'Recipes & Brewing Science', route: '/lab', icon: '◆' },
+  { id: 'ops', label: 'Ops', subtitle: 'Business Operations', route: '/ops', icon: '◇' },
+  { id: 'connect', label: 'Connect', subtitle: 'Employee Hub', route: '/connect', icon: '◉' },
+];
+
+const globalLinks = [
+  { label: 'Dashboard Home', route: '/', icon: Home },
+  { label: 'Reports', route: '/reports', icon: FileText },
+  { label: 'Settings', route: '/settings', icon: Cog },
+];
+
+interface AppShellProps {
+  children: React.ReactNode;
+  pageTitle?: string;
+  currentSuite?: string;
+}
+
+export function AppShell({ children, pageTitle = 'Dashboard', currentSuite }: AppShellProps) {
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const location = useLocation();
+
+  const getCurrentSuite = () => {
+    if (currentSuite) return currentSuite;
+    const path = location.pathname;
+    const suite = suites.find((s) => path.startsWith(s.route));
+    return suite?.label;
+  };
+
+  const activeSuite = getCurrentSuite();
+
+  return (
+    <div className="min-h-screen bg-background">
+      {/* Header */}
+      <header className="fixed top-0 left-0 right-0 z-50 h-16 border-b border-border bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/80">
+        <div className="flex h-full items-center justify-between px-4">
+          {/* Left: Hamburger + Branding */}
+          <div className="flex items-center gap-3">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setDrawerOpen(true)}
+              className="hover:bg-accent/10"
+            >
+              <Menu className="h-5 w-5" />
+            </Button>
+            <Link to="/" className="flex items-center gap-2">
+              <div className="flex h-8 w-8 items-center justify-center rounded bg-primary/20 text-primary">
+                <span className="text-lg font-bold">⬡</span>
+              </div>
+              <div className="flex flex-col">
+                <span className="text-sm font-bold leading-none text-foreground">BevForge</span>
+                {activeSuite && (
+                  <span className="text-xs leading-none text-muted-foreground">{activeSuite}</span>
+                )}
+              </div>
+            </Link>
+          </div>
+
+          {/* Center: Page Title */}
+          <div className="hidden md:block">
+            <h1 className="text-lg font-semibold text-foreground">{pageTitle}</h1>
+          </div>
+
+          {/* Right: Utility Icons */}
+          <div className="flex items-center gap-2">
+            <Button variant="ghost" size="icon" className="hover:bg-accent/10">
+              <Bell className="h-5 w-5" />
+            </Button>
+            <Button variant="ghost" size="icon" className="hover:bg-accent/10">
+              <Calendar className="h-5 w-5" />
+            </Button>
+            <Button variant="ghost" size="icon" className="hover:bg-accent/10">
+              <Settings className="h-5 w-5" />
+            </Button>
+
+            {/* User Menu */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="rounded-full hover:bg-accent/10"
+                >
+                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/20 text-primary">
+                    <User className="h-4 w-4" />
+                  </div>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuItem>Profile</DropdownMenuItem>
+                <DropdownMenuItem>Account Settings</DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem>Logout</DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        </div>
+      </header>
+
+      {/* Navigation Drawer */}
+      <Sheet open={drawerOpen} onOpenChange={setDrawerOpen}>
+        <SheetContent side="left" className="w-[280px] sm:w-[320px] p-0">
+          <SheetHeader className="border-b border-border p-4">
+            <div className="flex items-center gap-2">
+              <div className="flex h-8 w-8 items-center justify-center rounded bg-primary/20 text-primary">
+                <span className="text-lg font-bold">⬡</span>
+              </div>
+              <SheetTitle className="text-foreground">BevForge Navigation</SheetTitle>
+            </div>
+          </SheetHeader>
+
+          <div className="flex flex-col gap-6 p-4">
+            {/* Suites Section */}
+            <div>
+              <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                Suites
+              </h3>
+              <nav className="flex flex-col gap-1">
+                {suites.map((suite) => {
+                  const isActive = location.pathname.startsWith(suite.route);
+                  return (
+                    <Link
+                      key={suite.id}
+                      to={suite.route}
+                      onClick={() => setDrawerOpen(false)}
+                      className={`group flex items-center gap-3 rounded-lg border border-transparent px-3 py-2.5 transition-all hover:border-border hover:bg-accent/10 ${
+                        isActive ? `suite-${suite.id}-active border-border bg-accent/5` : ''
+                      }`}
+                    >
+                      <span className={`text-xl suite-${suite.id}-icon`}>{suite.icon}</span>
+                      <div className="flex flex-col">
+                        <span className="text-sm font-medium text-foreground">{suite.label}</span>
+                        <span className="text-xs text-muted-foreground">{suite.subtitle}</span>
+                      </div>
+                    </Link>
+                  );
+                })}
+              </nav>
+            </div>
+
+            {/* Global Section */}
+            <div>
+              <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                Global
+              </h3>
+              <nav className="flex flex-col gap-1">
+                {globalLinks.map((link) => {
+                  const Icon = link.icon;
+                  const isActive = location.pathname === link.route;
+                  return (
+                    <Link
+                      key={link.route}
+                      to={link.route}
+                      onClick={() => setDrawerOpen(false)}
+                      className={`flex items-center gap-3 rounded-lg px-3 py-2 transition-colors hover:bg-accent/10 ${
+                        isActive ? 'bg-accent/5 text-primary' : 'text-foreground'
+                      }`}
+                    >
+                      <Icon className="h-4 w-4" />
+                      <span className="text-sm font-medium">{link.label}</span>
+                    </Link>
+                  );
+                })}
+              </nav>
+            </div>
+
+            {/* Help Section */}
+            <div>
+              <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                Help & Support
+              </h3>
+              <nav className="flex flex-col gap-1">
+                <a
+                  href="#"
+                  className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent/10"
+                >
+                  Docs
+                </a>
+                <a
+                  href="#"
+                  className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent/10"
+                >
+                  Support
+                </a>
+              </nav>
+            </div>
+          </div>
+        </SheetContent>
+      </Sheet>
+
+      {/* Main Content */}
+      <main className="pt-16">
+        <div className="container mx-auto p-6">{children}</div>
+      </main>
+    </div>
+  );
+}
