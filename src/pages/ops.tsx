@@ -22,9 +22,9 @@ export default function OpsPage() {
           className="backdrop-blur-xl transition-all duration-300"
           style={{
             background: 'rgba(255, 255, 255, 0.05)',
-            border: '1px solid hsl(175, 70%, 50%)',
+            border: '1px solid hsl(200, 15%, 65%)',
             backdropFilter: 'blur(12px)',
-            boxShadow: hoveredCard === 'finance' ? '0 0 20px rgba(20, 184, 166, 0.4)' : 'none'
+            boxShadow: hoveredCard === 'finance' ? '0 0 20px rgba(147, 167, 178, 0.4)' : 'none'
           }}
           onMouseEnter={() => setHoveredCard('finance')}
           onMouseLeave={() => setHoveredCard(null)}
@@ -47,9 +47,9 @@ export default function OpsPage() {
           className="backdrop-blur-xl transition-all duration-300"
           style={{
             background: 'rgba(255, 255, 255, 0.05)',
-            border: '1px solid hsl(175, 70%, 50%)',
+            border: '1px solid hsl(200, 15%, 65%)',
             backdropFilter: 'blur(12px)',
-            boxShadow: hoveredCard === 'sales' ? '0 0 20px rgba(20, 184, 166, 0.4)' : 'none'
+            boxShadow: hoveredCard === 'sales' ? '0 0 20px rgba(147, 167, 178, 0.4)' : 'none'
           }}
           onMouseEnter={() => setHoveredCard('sales')}
           onMouseLeave={() => setHoveredCard(null)}
@@ -72,9 +72,9 @@ export default function OpsPage() {
           className="backdrop-blur-xl transition-all duration-300"
           style={{
             background: 'rgba(255, 255, 255, 0.05)',
-            border: '1px solid hsl(175, 70%, 50%)',
+            border: '1px solid hsl(200, 15%, 65%)',
             backdropFilter: 'blur(12px)',
-            boxShadow: hoveredCard === 'inventory' ? '0 0 20px rgba(20, 184, 166, 0.4)' : 'none'
+            boxShadow: hoveredCard === 'inventory' ? '0 0 20px rgba(147, 167, 178, 0.4)' : 'none'
           }}
           onMouseEnter={() => setHoveredCard('inventory')}
           onMouseLeave={() => setHoveredCard(null)}
@@ -97,9 +97,9 @@ export default function OpsPage() {
           className="backdrop-blur-xl transition-all duration-300"
           style={{
             background: 'rgba(255, 255, 255, 0.05)',
-            border: '1px solid hsl(175, 70%, 50%)',
+            border: '1px solid hsl(200, 15%, 65%)',
             backdropFilter: 'blur(12px)',
-            boxShadow: hoveredCard === 'customers' ? '0 0 20px rgba(20, 184, 166, 0.4)' : 'none'
+            boxShadow: hoveredCard === 'customers' ? '0 0 20px rgba(147, 167, 178, 0.4)' : 'none'
           }}
           onMouseEnter={() => setHoveredCard('customers')}
           onMouseLeave={() => setHoveredCard(null)}

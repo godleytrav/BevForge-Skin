@@ -22,9 +22,9 @@ export default function LabPage() {
           className="backdrop-blur-xl transition-all duration-300"
           style={{
             background: 'rgba(255, 255, 255, 0.05)',
-            border: '1px solid hsl(240, 70%, 60%)',
+            border: '1px solid hsl(160, 75%, 50%)',
             backdropFilter: 'blur(12px)',
-            boxShadow: hoveredCard === 'recipes' ? '0 0 20px rgba(99, 102, 241, 0.4)' : 'none'
+            boxShadow: hoveredCard === 'recipes' ? '0 0 20px rgba(16, 185, 129, 0.4)' : 'none'
           }}
           onMouseEnter={() => setHoveredCard('recipes')}
           onMouseLeave={() => setHoveredCard(null)}
@@ -47,9 +47,9 @@ export default function LabPage() {
           className="backdrop-blur-xl transition-all duration-300"
           style={{
             background: 'rgba(255, 255, 255, 0.05)',
-            border: '1px solid hsl(240, 70%, 60%)',
+            border: '1px solid hsl(160, 75%, 50%)',
             backdropFilter: 'blur(12px)',
-            boxShadow: hoveredCard === 'experiments' ? '0 0 20px rgba(99, 102, 241, 0.4)' : 'none'
+            boxShadow: hoveredCard === 'experiments' ? '0 0 20px rgba(16, 185, 129, 0.4)' : 'none'
           }}
           onMouseEnter={() => setHoveredCard('experiments')}
           onMouseLeave={() => setHoveredCard(null)}
@@ -72,9 +72,9 @@ export default function LabPage() {
           className="backdrop-blur-xl transition-all duration-300"
           style={{
             background: 'rgba(255, 255, 255, 0.05)',
-            border: '1px solid hsl(240, 70%, 60%)',
+            border: '1px solid hsl(160, 75%, 50%)',
             backdropFilter: 'blur(12px)',
-            boxShadow: hoveredCard === 'quality' ? '0 0 20px rgba(99, 102, 241, 0.4)' : 'none'
+            boxShadow: hoveredCard === 'quality' ? '0 0 20px rgba(16, 185, 129, 0.4)' : 'none'
           }}
           onMouseEnter={() => setHoveredCard('quality')}
           onMouseLeave={() => setHoveredCard(null)}
@@ -97,9 +97,9 @@ export default function LabPage() {
           className="backdrop-blur-xl transition-all duration-300"
           style={{
             background: 'rgba(255, 255, 255, 0.05)',
-            border: '1px solid hsl(240, 70%, 60%)',
+            border: '1px solid hsl(160, 75%, 50%)',
             backdropFilter: 'blur(12px)',
-            boxShadow: hoveredCard === 'archive' ? '0 0 20px rgba(99, 102, 241, 0.4)' : 'none'
+            boxShadow: hoveredCard === 'archive' ? '0 0 20px rgba(16, 185, 129, 0.4)' : 'none'
           }}
           onMouseEnter={() => setHoveredCard('archive')}
           onMouseLeave={() => setHoveredCard(null)}

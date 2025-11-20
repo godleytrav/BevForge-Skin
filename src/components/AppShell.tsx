@@ -72,11 +72,11 @@ export function AppShell({ children, pageTitle = 'Dashboard', currentSuite }: Ap
         background: suiteId === 'os' 
           ? 'linear-gradient(180deg, hsl(0, 0%, 8%) 0%, hsl(220, 60%, 18%) 60%, hsl(220, 70%, 22%) 100%)'
           : suiteId === 'flow'
-          ? 'linear-gradient(180deg, hsl(0, 0%, 8%) 0%, hsl(180, 60%, 18%) 60%, hsl(180, 70%, 22%) 100%)'
+          ? 'linear-gradient(180deg, hsl(0, 0%, 8%) 0%, hsl(45, 60%, 18%) 60%, hsl(45, 70%, 22%) 100%)'
           : suiteId === 'lab'
-          ? 'linear-gradient(180deg, hsl(0, 0%, 8%) 0%, hsl(240, 60%, 18%) 60%, hsl(240, 70%, 22%) 100%)'
+          ? 'linear-gradient(180deg, hsl(0, 0%, 8%) 0%, hsl(160, 60%, 18%) 60%, hsl(160, 70%, 22%) 100%)'
           : suiteId === 'ops'
-          ? 'linear-gradient(180deg, hsl(0, 0%, 8%) 0%, hsl(175, 60%, 18%) 60%, hsl(175, 70%, 22%) 100%)'
+          ? 'linear-gradient(180deg, hsl(0, 0%, 8%) 0%, hsl(200, 15%, 18%) 60%, hsl(200, 15%, 22%) 100%)'
           : suiteId === 'connect'
           ? 'linear-gradient(180deg, hsl(0, 0%, 8%) 0%, hsl(270, 50%, 18%) 60%, hsl(270, 60%, 22%) 100%)'
           : 'hsl(var(--background))'
@@ -180,7 +180,7 @@ export function AppShell({ children, pageTitle = 'Dashboard', currentSuite }: Ap
                       }`}
                     >
                       <div className="flex flex-col">
-                        <span className="text-sm font-medium" style={{ color: suite.id === 'os' ? 'hsl(190, 95%, 60%)' : suite.id === 'flow' ? 'hsl(180, 95%, 55%)' : suite.id === 'lab' ? 'hsl(240, 70%, 60%)' : suite.id === 'ops' ? 'hsl(175, 70%, 50%)' : 'hsl(270, 70%, 60%)' }}>{suite.label}</span>
+                        <span className="text-sm font-medium" style={{ color: suite.id === 'os' ? 'hsl(190, 95%, 60%)' : suite.id === 'flow' ? 'hsl(45, 95%, 55%)' : suite.id === 'lab' ? 'hsl(160, 75%, 50%)' : suite.id === 'ops' ? 'hsl(200, 15%, 65%)' : 'hsl(270, 70%, 60%)' }}>{suite.label}</span>
                         <span className="text-xs text-muted-foreground">{suite.subtitle}</span>
                       </div>
                     </Link>

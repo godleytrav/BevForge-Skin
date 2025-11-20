@@ -22,9 +22,9 @@ export default function FlowPage() {
           className="backdrop-blur-xl transition-all duration-300"
           style={{
             background: 'rgba(255, 255, 255, 0.05)',
-            border: '1px solid hsl(180, 95%, 55%)',
+            border: '1px solid hsl(45, 95%, 55%)',
             backdropFilter: 'blur(12px)',
-            boxShadow: hoveredCard === 'taps' ? '0 0 20px rgba(0, 229, 255, 0.4)' : 'none'
+            boxShadow: hoveredCard === 'taps' ? '0 0 20px rgba(255, 193, 7, 0.4)' : 'none'
           }}
           onMouseEnter={() => setHoveredCard('taps')}
           onMouseLeave={() => setHoveredCard(null)}
@@ -47,9 +47,9 @@ export default function FlowPage() {
           className="backdrop-blur-xl transition-all duration-300"
           style={{
             background: 'rgba(255, 255, 255, 0.05)',
-            border: '1px solid hsl(180, 95%, 55%)',
+            border: '1px solid hsl(45, 95%, 55%)',
             backdropFilter: 'blur(12px)',
-            boxShadow: hoveredCard === 'kegs' ? '0 0 20px rgba(0, 229, 255, 0.4)' : 'none'
+            boxShadow: hoveredCard === 'kegs' ? '0 0 20px rgba(255, 193, 7, 0.4)' : 'none'
           }}
           onMouseEnter={() => setHoveredCard('kegs')}
           onMouseLeave={() => setHoveredCard(null)}
@@ -72,9 +72,9 @@ export default function FlowPage() {
           className="backdrop-blur-xl transition-all duration-300"
           style={{
             background: 'rgba(255, 255, 255, 0.05)',
-            border: '1px solid hsl(180, 95%, 55%)',
+            border: '1px solid hsl(45, 95%, 55%)',
             backdropFilter: 'blur(12px)',
-            boxShadow: hoveredCard === 'analytics' ? '0 0 20px rgba(0, 229, 255, 0.4)' : 'none'
+            boxShadow: hoveredCard === 'analytics' ? '0 0 20px rgba(255, 193, 7, 0.4)' : 'none'
           }}
           onMouseEnter={() => setHoveredCard('analytics')}
           onMouseLeave={() => setHoveredCard(null)}
@@ -97,9 +97,9 @@ export default function FlowPage() {
           className="backdrop-blur-xl transition-all duration-300"
           style={{
             background: 'rgba(255, 255, 255, 0.05)',
-            border: '1px solid hsl(180, 95%, 55%)',
+            border: '1px solid hsl(45, 95%, 55%)',
             backdropFilter: 'blur(12px)',
-            boxShadow: hoveredCard === 'metrics' ? '0 0 20px rgba(0, 229, 255, 0.4)' : 'none'
+            boxShadow: hoveredCard === 'metrics' ? '0 0 20px rgba(255, 193, 7, 0.4)' : 'none'
           }}
           onMouseEnter={() => setHoveredCard('metrics')}
           onMouseLeave={() => setHoveredCard(null)}
