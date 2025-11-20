@@ -179,9 +179,8 @@ export function AppShell({ children, pageTitle = 'Dashboard', currentSuite }: Ap
                         isActive ? `suite-${suite.id}-active border-border bg-accent/5` : ''
                       }`}
                     >
-                      <span className={`text-xl suite-${suite.id}-icon`}>{suite.icon}</span>
                       <div className="flex flex-col">
-                        <span className="text-sm font-medium text-foreground">{suite.label}</span>
+                        <span className="text-sm font-medium" style={{ color: suite.id === 'os' ? 'hsl(190, 95%, 60%)' : suite.id === 'flow' ? 'hsl(180, 95%, 55%)' : suite.id === 'lab' ? 'hsl(240, 70%, 60%)' : suite.id === 'ops' ? 'hsl(175, 70%, 50%)' : 'hsl(270, 70%, 60%)' }}>{suite.label}</span>
                         <span className="text-xs text-muted-foreground">{suite.subtitle}</span>
                       </div>
                     </Link>
