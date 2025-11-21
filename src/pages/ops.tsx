@@ -1,12 +1,12 @@
 import { AppShell } from '@/components/AppShell';
+import { Link } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ArrowUpRight, TrendingUp, TrendingDown, AlertCircle, CheckCircle2, Package, ShoppingCart, DollarSign, FileText, Calendar, Download } from 'lucide-react';
+import { ArrowUpRight, TrendingUp, TrendingDown, AlertCircle, CheckCircle2, Package, ShoppingCart, DollarSign, FileText, Download } from 'lucide-react';
 
 export default function OpsPage() {
   // Mock data
-  const dateRange = 'Today';
   const salesTotal = '$2,847.50';
   const ordersCount = 23;
   const ordersUnfulfilled = 3;
@@ -61,6 +61,7 @@ export default function OpsPage() {
         {/* Quick-Look Tiles */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {/* Sales Tile */}
+          <Link to="/ops/sales">
           <Card 
             className="cursor-pointer transition-all hover:shadow-lg"
             style={{
@@ -89,8 +90,10 @@ export default function OpsPage() {
               </Button>
             </CardContent>
           </Card>
+          </Link>
 
           {/* Orders Tile */}
+          <Link to="/ops/orders">
           <Card 
             className="cursor-pointer transition-all hover:shadow-lg"
             style={{
@@ -119,8 +122,10 @@ export default function OpsPage() {
               </Button>
             </CardContent>
           </Card>
+          </Link>
 
           {/* Inventory Tile */}
+          <Link to="/ops/inventory">
           <Card 
             className="cursor-pointer transition-all hover:shadow-lg"
             style={{
@@ -149,8 +154,10 @@ export default function OpsPage() {
               </Button>
             </CardContent>
           </Card>
+          </Link>
 
           {/* Trends Tile */}
+          <Link to="/ops/reports">
           <Card 
             className="cursor-pointer transition-all hover:shadow-lg"
             style={{
@@ -183,8 +190,10 @@ export default function OpsPage() {
               </Button>
             </CardContent>
           </Card>
+          </Link>
 
           {/* Compliance Tile */}
+          <Link to="/ops/compliance">
           <Card 
             className="cursor-pointer transition-all hover:shadow-lg"
             style={{
@@ -217,8 +226,10 @@ export default function OpsPage() {
               </Button>
             </CardContent>
           </Card>
+          </Link>
 
           {/* Tax Tile */}
+          <Link to="/ops/tax">
           <Card 
             className="cursor-pointer transition-all hover:shadow-lg"
             style={{
@@ -247,6 +258,7 @@ export default function OpsPage() {
               </Button>
             </CardContent>
           </Card>
+          </Link>
         </div>
 
         {/* Action Center */}
