@@ -1,134 +1,391 @@
 import { AppShell } from '@/components/AppShell';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Search, Plus, AlertTriangle } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Badge } from '@/components/ui/badge';
+import { Search, Plus, Package, TrendingDown, AlertCircle } from 'lucide-react';
+import { useState } from 'react';
 
-// Mock data
-const mockInventory = [
-  { id: 'SKU-001', name: 'Honeycrisp Cider', category: 'Cider', stock: 45, reorderPoint: 20, unit: 'cases', status: 'good' },
-  { id: 'SKU-002', name: 'Dry Hopped Cider', category: 'Cider', stock: 12, reorderPoint: 15, unit: 'cases', status: 'low' },
-  { id: 'SKU-003', name: 'Pear Cider', category: 'Cider', stock: 0, reorderPoint: 10, unit: 'cases', status: 'out' },
-  { id: 'SKU-004', name: 'Rosé Cider', category: 'Cider', stock: 28, reorderPoint: 15, unit: 'cases', status: 'good' },
-  { id: 'SKU-005', name: 'Barrel-Aged Reserve', category: 'Premium', stock: 8, reorderPoint: 5, unit: 'cases', status: 'good' },
-  { id: 'SKU-006', name: 'Seasonal Blend', category: 'Seasonal', stock: 5, reorderPoint: 10, unit: 'cases', status: 'low' },
+// Mock product data
+const mockProducts = [
+  {
+    id: 'P001',
+    name: 'Heritage Dry Cider',
+    sku: 'HDC-750',
+    category: 'Cider',
+    location: 'Taproom',
+    onHand: 48,
+    allocated: 12,
+    available: 36,
+    reorderPoint: 24,
+    status: 'Active',
+    description: 'Traditional dry cider made from heritage apples',
+    channels: { website: true, taproom: true, wholesale: true },
+    recentMovements: [
+      { date: '2025-11-20', type: 'Sold', quantity: -6, reference: 'Order #1234' },
+      { date: '2025-11-18', type: 'Received', quantity: 24, reference: 'PO-2025-11' },
+      { date: '2025-11-15', type: 'Adjusted', quantity: -2, reference: 'Inventory count' },
+    ]
+  },
+  {
+    id: 'P002',
+    name: 'Hopped Cider',
+    sku: 'HC-750',
+    category: 'Cider',
+    location: 'Warehouse',
+    onHand: 12,
+    allocated: 8,
+    available: 4,
+    reorderPoint: 24,
+    status: 'Low Stock',
+    description: 'Dry cider with Cascade hops',
+    channels: { website: true, taproom: true, wholesale: false },
+    recentMovements: [
+      { date: '2025-11-19', type: 'Sold', quantity: -12, reference: 'Order #1245' },
+      { date: '2025-11-10', type: 'Received', quantity: 24, reference: 'PO-2025-10' },
+    ]
+  },
+  {
+    id: 'P003',
+    name: 'Pear Cider',
+    sku: 'PC-750',
+    category: 'Cider',
+    location: 'Taproom',
+    onHand: 0,
+    allocated: 0,
+    available: 0,
+    reorderPoint: 12,
+    status: 'Out of Stock',
+    description: 'Semi-sweet pear cider',
+    channels: { website: false, taproom: false, wholesale: false },
+    recentMovements: [
+      { date: '2025-11-17', type: 'Sold', quantity: -8, reference: 'Order #1240' },
+      { date: '2025-11-05', type: 'Received', quantity: 12, reference: 'PO-2025-09' },
+    ]
+  },
+  {
+    id: 'P004',
+    name: 'Branded Pint Glass',
+    sku: 'GLASS-16',
+    category: 'Merch',
+    location: 'Taproom',
+    onHand: 144,
+    allocated: 24,
+    available: 120,
+    reorderPoint: 48,
+    status: 'Active',
+    description: '16oz branded pint glass',
+    channels: { website: true, taproom: true, wholesale: true },
+    recentMovements: [
+      { date: '2025-11-21', type: 'Sold', quantity: -6, reference: 'Order #1250' },
+      { date: '2025-11-01', type: 'Received', quantity: 144, reference: 'PO-2025-08' },
+    ]
+  },
+  {
+    id: 'P005',
+    name: 'Barrel-Aged Reserve',
+    sku: 'BAR-750',
+    category: 'Cider',
+    location: 'Warehouse',
+    onHand: 36,
+    allocated: 6,
+    available: 30,
+    reorderPoint: 12,
+    status: 'Active',
+    description: 'Oak barrel-aged cider, limited release',
+    channels: { website: true, taproom: true, wholesale: true },
+    recentMovements: [
+      { date: '2025-11-19', type: 'Sold', quantity: -3, reference: 'Order #1248' },
+      { date: '2025-11-12', type: 'Received', quantity: 24, reference: 'PO-2025-11' },
+    ]
+  },
 ];
 
-const statusConfig: Record<string, { label: string; className: string }> = {
-  good: { label: 'In Stock', className: 'bg-green-500/20 text-green-400 border-green-500/50' },
-  low: { label: 'Low Stock', className: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/50' },
-  out: { label: 'Out of Stock', className: 'bg-red-500/20 text-red-400 border-red-500/50' },
-};
-
 export default function InventoryPage() {
-  const lowStockCount = mockInventory.filter(item => item.status === 'low' || item.status === 'out').length;
+  const [selectedProduct, setSelectedProduct] = useState<typeof mockProducts[0] | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [locationFilter, setLocationFilter] = useState('All');
+  const [statusFilter, setStatusFilter] = useState('All');
+  const [channelFilter, setChannelFilter] = useState('All');
+
+  // Filter products
+  const filteredProducts = mockProducts.filter(product => {
+    const matchesSearch = product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                         product.sku.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesLocation = locationFilter === 'All' || product.location === locationFilter;
+    const matchesStatus = statusFilter === 'All' || product.status === statusFilter;
+    const matchesChannel = channelFilter === 'All' || 
+                          (channelFilter === 'Website' && product.channels.website) ||
+                          (channelFilter === 'Taproom' && product.channels.taproom) ||
+                          (channelFilter === 'Wholesale' && product.channels.wholesale);
+    
+    return matchesSearch && matchesLocation && matchesStatus && matchesChannel;
+  });
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'Active': return 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30';
+      case 'Low Stock': return 'bg-amber-500/20 text-amber-400 border-amber-500/30';
+      case 'Out of Stock': return 'bg-red-500/20 text-red-400 border-red-500/30';
+      default: return 'bg-gray-500/20 text-gray-400 border-gray-500/30';
+    }
+  };
 
   return (
-    <AppShell pageTitle="Inventory Management">
+    <AppShell pageTitle="Products & Inventory">
       <div className="space-y-6">
-        {/* Header */}
-        <div className="flex justify-between items-start">
-          <div>
-            <h1 className="text-3xl font-bold text-foreground">Inventory Management</h1>
-            <p className="text-muted-foreground mt-1">Track and manage product stock levels</p>
+        {/* Page Header */}
+        <div className="flex flex-col gap-4">
+          <div className="flex items-center justify-between">
+            <h1 className="text-3xl font-bold text-white">Products & Inventory</h1>
+            <div className="flex gap-2">
+              <Button className="bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700">
+                <Plus className="w-4 h-4 mr-2" />
+                New Product
+              </Button>
+              <Button variant="outline" className="border-blue-500/30 text-blue-400 hover:bg-blue-500/10">
+                <Package className="w-4 h-4 mr-2" />
+                Receive Stock
+              </Button>
+              <Button variant="outline" className="border-blue-500/30 text-blue-400 hover:bg-blue-500/10">
+                <TrendingDown className="w-4 h-4 mr-2" />
+                Adjust Inventory
+              </Button>
+            </div>
           </div>
-          <Button className="gap-2">
-            <Plus className="h-4 w-4" />
-            Add Product
-          </Button>
+
+          {/* Search and Filters */}
+          <div className="flex gap-4 flex-wrap">
+            <div className="relative flex-1 min-w-[300px]">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <Input
+                placeholder="Search by name or SKU..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10 bg-white/5 border-blue-500/30 text-white placeholder:text-gray-400"
+              />
+            </div>
+            
+            <Select value={locationFilter} onValueChange={setLocationFilter}>
+              <SelectTrigger className="w-[180px] bg-white/5 border-blue-500/30 text-white">
+                <SelectValue placeholder="Location" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="All">All Locations</SelectItem>
+                <SelectItem value="Taproom">Taproom</SelectItem>
+                <SelectItem value="Warehouse">Warehouse</SelectItem>
+                <SelectItem value="Online">Online</SelectItem>
+              </SelectContent>
+            </Select>
+
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="w-[180px] bg-white/5 border-blue-500/30 text-white">
+                <SelectValue placeholder="Status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="All">All Status</SelectItem>
+                <SelectItem value="Active">Active</SelectItem>
+                <SelectItem value="Low Stock">Low Stock</SelectItem>
+                <SelectItem value="Out of Stock">Out of Stock</SelectItem>
+                <SelectItem value="Archived">Archived</SelectItem>
+              </SelectContent>
+            </Select>
+
+            <Select value={channelFilter} onValueChange={setChannelFilter}>
+              <SelectTrigger className="w-[180px] bg-white/5 border-blue-500/30 text-white">
+                <SelectValue placeholder="Channel" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="All">All Channels</SelectItem>
+                <SelectItem value="Website">Website</SelectItem>
+                <SelectItem value="Taproom">Taproom</SelectItem>
+                <SelectItem value="Wholesale">Wholesale</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
         </div>
 
-        {/* Alert Banner */}
-        {lowStockCount > 0 && (
-          <Card style={{
-            background: 'rgba(234, 179, 8, 0.1)',
-            border: '1px solid hsl(45, 93%, 47%)',
-            backdropFilter: 'blur(12px)',
-          }}>
-            <CardContent className="pt-6">
-              <div className="flex items-center gap-3">
-                <AlertTriangle className="h-5 w-5 text-yellow-400" />
-                <div>
-                  <p className="font-semibold text-yellow-400">Low Stock Alert</p>
-                  <p className="text-sm text-muted-foreground">{lowStockCount} products need attention</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Search & Actions */}
-        <Card style={{
-          background: 'rgba(255, 255, 255, 0.05)',
-          border: '1px solid hsl(200, 15%, 65%)',
-          backdropFilter: 'blur(12px)',
-        }}>
-          <CardContent className="pt-6">
-            <div className="flex flex-col md:flex-row gap-4">
-              <div className="flex-1 relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input 
-                  placeholder="Search products by name, SKU, or category..." 
-                  className="pl-10 bg-background/50"
-                />
-              </div>
-              <Button variant="outline">Receive Inventory</Button>
-              <Button variant="outline">Export Report</Button>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Inventory Table */}
-        <Card style={{
-          background: 'rgba(255, 255, 255, 0.05)',
-          border: '1px solid hsl(200, 15%, 65%)',
-          backdropFilter: 'blur(12px)',
-        }}>
-          <CardHeader>
-            <CardTitle>Product Inventory</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b border-border">
-                    <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">SKU</th>
-                    <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Product Name</th>
-                    <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Category</th>
-                    <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Current Stock</th>
-                    <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Reorder Point</th>
-                    <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Status</th>
-                    <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {mockInventory.map((item) => (
-                    <tr key={item.id} className="border-b border-border/50 hover:bg-white/5 transition-colors">
-                      <td className="py-3 px-4 font-mono text-sm">{item.id}</td>
-                      <td className="py-3 px-4 font-medium">{item.name}</td>
-                      <td className="py-3 px-4 text-sm text-muted-foreground">{item.category}</td>
-                      <td className="py-3 px-4">
-                        <span className={item.status === 'out' ? 'text-red-400 font-semibold' : 'font-semibold'}>
-                          {item.stock} {item.unit}
-                        </span>
-                      </td>
-                      <td className="py-3 px-4 text-sm text-muted-foreground">{item.reorderPoint} {item.unit}</td>
-                      <td className="py-3 px-4">
-                        <Badge className={statusConfig[item.status].className}>
-                          {statusConfig[item.status].label}
-                        </Badge>
-                      </td>
-                      <td className="py-3 px-4">
-                        <Button variant="ghost" size="sm">Adjust</Button>
-                      </td>
-                    </tr>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Products List */}
+          <div className="lg:col-span-2">
+            <Card 
+              className="border-blue-500/30 bg-black/40"
+              style={{
+                background: 'rgba(255, 255, 255, 0.05)',
+                backdropFilter: 'blur(12px)',
+                boxShadow: '0 0 20px rgba(158, 178, 191, 0.3)',
+              }}
+            >
+              <CardHeader>
+                <CardTitle className="text-white">Products ({filteredProducts.length})</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  {filteredProducts.map((product) => (
+                    <div
+                      key={product.id}
+                      onClick={() => setSelectedProduct(product)}
+                      className={`p-4 rounded-lg border cursor-pointer transition-all ${
+                        selectedProduct?.id === product.id
+                          ? 'border-blue-500 bg-blue-500/10'
+                          : 'border-blue-500/20 bg-white/5 hover:border-blue-500/40 hover:bg-white/10'
+                      }`}
+                    >
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            <h3 className="font-semibold text-white">{product.name}</h3>
+                            <Badge className={getStatusColor(product.status)}>
+                              {product.status}
+                            </Badge>
+                          </div>
+                          <p className="text-sm text-gray-400 mb-2">SKU: {product.sku} • {product.category}</p>
+                          <div className="grid grid-cols-4 gap-4 text-sm">
+                            <div>
+                              <p className="text-gray-400">On Hand</p>
+                              <p className="text-white font-semibold">{product.onHand}</p>
+                            </div>
+                            <div>
+                              <p className="text-gray-400">Allocated</p>
+                              <p className="text-white font-semibold">{product.allocated}</p>
+                            </div>
+                            <div>
+                              <p className="text-gray-400">Available</p>
+                              <p className="text-emerald-400 font-semibold">{product.available}</p>
+                            </div>
+                            <div>
+                              <p className="text-gray-400">Reorder At</p>
+                              <p className="text-white font-semibold">{product.reorderPoint}</p>
+                            </div>
+                          </div>
+                        </div>
+                        {product.available <= product.reorderPoint && product.available > 0 && (
+                          <AlertCircle className="w-5 h-5 text-amber-400" />
+                        )}
+                        {product.available === 0 && (
+                          <AlertCircle className="w-5 h-5 text-red-400" />
+                        )}
+                      </div>
+                    </div>
                   ))}
-                </tbody>
-              </table>
-            </div>
-          </CardContent>
-        </Card>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Product Detail Panel */}
+          <div className="lg:col-span-1">
+            {selectedProduct ? (
+              <Card 
+                className="border-blue-500/30 bg-black/40 sticky top-6"
+                style={{
+                  background: 'rgba(255, 255, 255, 0.05)',
+                  backdropFilter: 'blur(12px)',
+                  boxShadow: '0 0 20px rgba(158, 178, 191, 0.3)',
+                }}
+              >
+                <CardHeader>
+                  <CardTitle className="text-white">Product Details</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  {/* Basic Info */}
+                  <div>
+                    <h3 className="text-lg font-semibold text-white mb-2">{selectedProduct.name}</h3>
+                    <p className="text-sm text-gray-400 mb-1">SKU: {selectedProduct.sku}</p>
+                    <p className="text-sm text-gray-400 mb-2">Category: {selectedProduct.category}</p>
+                    <p className="text-sm text-gray-300">{selectedProduct.description}</p>
+                  </div>
+
+                  {/* Inventory by Location */}
+                  <div>
+                    <h4 className="text-sm font-semibold text-white mb-2">Inventory</h4>
+                    <div className="space-y-2">
+                      <div className="p-3 rounded-lg bg-white/5 border border-blue-500/20">
+                        <div className="flex justify-between items-center mb-1">
+                          <span className="text-sm text-gray-400">Location</span>
+                          <span className="text-sm text-white">{selectedProduct.location}</span>
+                        </div>
+                        <div className="flex justify-between items-center mb-1">
+                          <span className="text-sm text-gray-400">On Hand</span>
+                          <span className="text-sm text-white font-semibold">{selectedProduct.onHand}</span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm text-gray-400">Reorder Point</span>
+                          <span className="text-sm text-white">{selectedProduct.reorderPoint}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Channel Visibility */}
+                  <div>
+                    <h4 className="text-sm font-semibold text-white mb-2">Channel Visibility</h4>
+                    <div className="space-y-2">
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm text-gray-400">Website</span>
+                        <Badge className={selectedProduct.channels.website ? 'bg-emerald-500/20 text-emerald-400' : 'bg-gray-500/20 text-gray-400'}>
+                          {selectedProduct.channels.website ? 'Visible' : 'Hidden'}
+                        </Badge>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm text-gray-400">Taproom</span>
+                        <Badge className={selectedProduct.channels.taproom ? 'bg-emerald-500/20 text-emerald-400' : 'bg-gray-500/20 text-gray-400'}>
+                          {selectedProduct.channels.taproom ? 'Available' : 'Not Available'}
+                        </Badge>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm text-gray-400">Wholesale</span>
+                        <Badge className={selectedProduct.channels.wholesale ? 'bg-emerald-500/20 text-emerald-400' : 'bg-gray-500/20 text-gray-400'}>
+                          {selectedProduct.channels.wholesale ? 'Available' : 'Not Available'}
+                        </Badge>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Recent Stock Movements */}
+                  <div>
+                    <h4 className="text-sm font-semibold text-white mb-2">Recent Movements</h4>
+                    <div className="space-y-2">
+                      {selectedProduct.recentMovements.map((movement, idx) => (
+                        <div key={idx} className="p-2 rounded-lg bg-white/5 border border-blue-500/20">
+                          <div className="flex justify-between items-start mb-1">
+                            <span className="text-xs text-gray-400">{movement.date}</span>
+                            <Badge className={
+                              movement.type === 'Received' ? 'bg-emerald-500/20 text-emerald-400 text-xs' :
+                              movement.type === 'Sold' ? 'bg-blue-500/20 text-blue-400 text-xs' :
+                              'bg-amber-500/20 text-amber-400 text-xs'
+                            }>
+                              {movement.type}
+                            </Badge>
+                          </div>
+                          <div className="flex justify-between items-center">
+                            <span className="text-sm text-gray-300">{movement.reference}</span>
+                            <span className={`text-sm font-semibold ${movement.quantity > 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                              {movement.quantity > 0 ? '+' : ''}{movement.quantity}
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ) : (
+              <Card 
+                className="border-blue-500/30 bg-black/40"
+                style={{
+                  background: 'rgba(255, 255, 255, 0.05)',
+                  backdropFilter: 'blur(12px)',
+                }}
+              >
+                <CardContent className="flex items-center justify-center h-64">
+                  <p className="text-gray-400">Select a product to view details</p>
+                </CardContent>
+              </Card>
+            )}
+          </div>
+        </div>
       </div>
     </AppShell>
   );
