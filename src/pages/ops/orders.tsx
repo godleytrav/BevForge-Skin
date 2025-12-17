@@ -107,8 +107,9 @@ export default function Orders() {
       setLoading(true);
       setError(null);
       const data = await apiGet<Order[]>('/api/orders');
-      setOrders(data);
-      setFilteredOrders(data);
+      const ordersArray = Array.isArray(data) ? data : [];
+      setOrders(ordersArray);
+      setFilteredOrders(ordersArray);
     } catch (err) {
       if (err instanceof ApiError && err.status === 404) {
         setError('Orders endpoint not yet implemented');

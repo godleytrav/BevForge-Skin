@@ -112,8 +112,9 @@ export default function Inventory() {
       setLoading(true);
       setError(null);
       const data = await fetchProducts();
-      setProducts(data);
-      setFilteredProducts(data);
+      const productsArray = Array.isArray(data) ? data : [];
+      setProducts(productsArray);
+      setFilteredProducts(productsArray);
     } catch (err) {
       if (err instanceof Error && err.message.includes('not implemented')) {
         setError(err.message);

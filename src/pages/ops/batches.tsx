@@ -140,8 +140,9 @@ export default function Batches() {
       setLoading(true);
       setError(null);
       const data = await fetchBatches();
-      setBatches(data);
-      setFilteredBatches(data);
+      const batchesArray = Array.isArray(data) ? data : [];
+      setBatches(batchesArray);
+      setFilteredBatches(batchesArray);
     } catch (err) {
       if (err instanceof Error && err.message.includes('not implemented')) {
         setError(err.message);

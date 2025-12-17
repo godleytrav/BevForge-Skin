@@ -125,8 +125,9 @@ export default function Compliance() {
       setLoading(true);
       setError(null);
       const data = await fetchEvents();
-      setEvents(data);
-      setFilteredEvents(data);
+      const eventsArray = Array.isArray(data) ? data : [];
+      setEvents(eventsArray);
+      setFilteredEvents(eventsArray);
     } catch (err) {
       if (err instanceof Error && err.message.includes('not implemented')) {
         setError(err.message);
