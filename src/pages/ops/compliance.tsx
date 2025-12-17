@@ -1,209 +1,440 @@
-import { AppShell } from '@/components/AppShell';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
+import { useState, useEffect } from 'react';
+import { Plus, Search, FileText, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { CheckCircle2, AlertCircle, Clock, Upload } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
+import { apiGet, apiPost, ApiError } from '@/lib/api';
 
-// Mock data
-const complianceItems = [
-  { id: 1, title: 'TTB Monthly Report', dueDate: '2024-12-01', status: 'completed', category: 'Federal' },
-  { id: 2, title: 'State Excise Tax Filing', dueDate: '2024-12-10', status: 'pending', category: 'State' },
-  { id: 3, title: 'Label Approval Renewal', dueDate: '2024-12-15', status: 'overdue', category: 'Federal' },
-  { id: 4, title: 'Health Inspection Certificate', dueDate: '2025-01-20', status: 'upcoming', category: 'Local' },
-  { id: 5, title: 'Alcohol License Renewal', dueDate: '2025-02-01', status: 'upcoming', category: 'State' },
-];
+interface ComplianceEvent {
+  id: string;
+  event_type: 'production' | 'transfer' | 'removal' | 'loss_spill' | 'destruction';
+  event_date: string;
+  reference?: string;
+  notes?: string;
+  quantity?: number;
+  related_batch_id?: string;
+  created_at?: string;
+}
 
-const statusConfig: Record<string, { label: string; icon: any; className: string }> = {
-  completed: { 
-    label: 'Completed', 
-    icon: CheckCircle2, 
-    className: 'bg-green-500/20 text-green-400 border-green-500/50' 
-  },
-  pending: { 
-    label: 'Pending', 
-    icon: Clock, 
-    className: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/50' 
-  },
-  overdue: { 
-    label: 'Overdue', 
-    icon: AlertCircle, 
-    className: 'bg-red-500/20 text-red-400 border-red-500/50' 
-  },
-  upcoming: { 
-    label: 'Upcoming', 
-    icon: Clock, 
-    className: 'bg-blue-500/20 text-blue-400 border-blue-500/50' 
-  },
+interface CreateEventPayload {
+  event_type: string;
+  event_date: string;
+  reference?: string;
+  notes?: string;
+  quantity?: number;
+  related_batch_id?: string;
+}
+
+const eventTypeColors = {
+  production: 'bg-blue-500/10 text-blue-500 border-blue-500/20',
+  transfer: 'bg-purple-500/10 text-purple-500 border-purple-500/20',
+  removal: 'bg-green-500/10 text-green-500 border-green-500/20',
+  loss_spill: 'bg-yellow-500/10 text-yellow-500 border-yellow-500/20',
+  destruction: 'bg-red-500/10 text-red-500 border-red-500/20',
 };
 
-export default function CompliancePage() {
-  const overdueCount = complianceItems.filter(item => item.status === 'overdue').length;
-  const pendingCount = complianceItems.filter(item => item.status === 'pending').length;
+const eventTypeLabels = {
+  production: 'Production',
+  transfer: 'Transfer',
+  removal: 'Removal',
+  loss_spill: 'Loss/Spill',
+  destruction: 'Destruction',
+};
+
+async function fetchEvents(): Promise<ComplianceEvent[]> {
+  try {
+    return await apiGet<ComplianceEvent[]>('/api/compliance/events');
+  } catch (error) {
+    if (error instanceof ApiError && error.status === 404) {
+      throw new Error('Compliance events endpoint not implemented yet. Please implement GET /api/compliance/events');
+    }
+    throw error;
+  }
+}
+
+async function createEvent(payload: CreateEventPayload): Promise<ComplianceEvent> {
+  try {
+    return await apiPost<ComplianceEvent>('/api/compliance/events', payload);
+  } catch (error) {
+    if (error instanceof ApiError && error.status === 404) {
+      throw new Error('Compliance event creation endpoint not implemented yet. Please implement POST /api/compliance/events');
+    }
+    throw error;
+  }
+}
+
+export default function Compliance() {
+  const [events, setEvents] = useState<ComplianceEvent[]>([]);
+  const [filteredEvents, setFilteredEvents] = useState<ComplianceEvent[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+
+  // Form state
+  const [eventType, setEventType] = useState<'production' | 'transfer' | 'removal' | 'loss_spill' | 'destruction'>('production');
+  const [eventDate, setEventDate] = useState(new Date().toISOString().split('T')[0]);
+  const [reference, setReference] = useState('');
+  const [notes, setNotes] = useState('');
+  const [quantity, setQuantity] = useState<number | undefined>(undefined);
+  const [relatedBatchId, setRelatedBatchId] = useState('');
+
+  useEffect(() => {
+    loadEvents();
+  }, []);
+
+  useEffect(() => {
+    if (searchQuery.trim() === '') {
+      setFilteredEvents(events);
+    } else {
+      const query = searchQuery.toLowerCase();
+      setFilteredEvents(
+        events.filter(
+          (event) =>
+            event.event_type.toLowerCase().includes(query) ||
+            event.reference?.toLowerCase().includes(query) ||
+            event.notes?.toLowerCase().includes(query) ||
+            event.related_batch_id?.toLowerCase().includes(query)
+        )
+      );
+    }
+  }, [searchQuery, events]);
+
+  async function loadEvents() {
+    try {
+      setLoading(true);
+      setError(null);
+      const data = await fetchEvents();
+      setEvents(data);
+      setFilteredEvents(data);
+    } catch (err) {
+      if (err instanceof Error && err.message.includes('not implemented')) {
+        setError(err.message);
+        setEvents([]);
+        setFilteredEvents([]);
+      } else {
+        setError(err instanceof Error ? err.message : 'Failed to fetch compliance events');
+      }
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function resetForm() {
+    setEventType('production');
+    setEventDate(new Date().toISOString().split('T')[0]);
+    setReference('');
+    setNotes('');
+    setQuantity(undefined);
+    setRelatedBatchId('');
+    setSubmitError(null);
+  }
+
+  async function handleCreateEvent() {
+    setIsSubmitting(true);
+    setSubmitError(null);
+
+    try {
+      // Validate
+      if (!eventDate) {
+        throw new Error('Event date is required');
+      }
+
+      const payload: CreateEventPayload = {
+        event_type: eventType,
+        event_date: eventDate,
+        reference: reference.trim() || undefined,
+        notes: notes.trim() || undefined,
+        quantity: quantity || undefined,
+        related_batch_id: relatedBatchId.trim() || undefined,
+      };
+
+      const newEvent = await createEvent(payload);
+      setEvents([newEvent, ...events]);
+      setIsCreateModalOpen(false);
+      resetForm();
+    } catch (err) {
+      setSubmitError(err instanceof Error ? err.message : 'Failed to create compliance event');
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
 
   return (
-    <AppShell pageTitle="Compliance Center">
-      <div className="space-y-6">
-        {/* Header */}
-        <div className="flex justify-between items-start">
-          <div>
-            <h1 className="text-3xl font-bold text-foreground">Compliance Center</h1>
-            <p className="text-muted-foreground mt-1">Track regulatory requirements and deadlines</p>
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold text-foreground">Compliance</h1>
+          <p className="text-muted-foreground mt-1">TTB/ABC compliance event ledger</p>
+        </div>
+        <Button onClick={() => setIsCreateModalOpen(true)} className="gap-2">
+          <Plus className="h-4 w-4" />
+          Log Event
+        </Button>
+      </div>
+
+      {/* Info Card */}
+      <Card className="border-blue-500/20 bg-blue-500/5">
+        <CardContent className="pt-6">
+          <div className="flex items-start gap-3 text-blue-500">
+            <FileText className="h-5 w-5 mt-0.5" />
+            <div>
+              <p className="font-semibold mb-1">Compliance Event Tracking</p>
+              <p className="text-sm text-muted-foreground">
+                Log all production, transfer, removal, loss/spill, and destruction events for TTB and ABC reporting requirements.
+                Maintain accurate records for regulatory audits and compliance reporting.
+              </p>
+            </div>
           </div>
-          <Button className="gap-2">
-            <Upload className="h-4 w-4" />
-            Upload Document
-          </Button>
-        </div>
+        </CardContent>
+      </Card>
 
-        {/* Status Overview */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Card style={{
-            background: overdueCount > 0 ? 'rgba(239, 68, 68, 0.1)' : 'rgba(34, 197, 94, 0.1)',
-            border: overdueCount > 0 ? '1px solid hsl(0, 84%, 60%)' : '1px solid hsl(142, 76%, 36%)',
-            backdropFilter: 'blur(12px)',
-          }}>
-            <CardContent className="pt-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground">Compliance Status</p>
-                  <p className="text-2xl font-bold mt-1">
-                    {overdueCount > 0 ? 'Needs Attention' : 'Compliant'}
-                  </p>
-                </div>
-                {overdueCount > 0 ? (
-                  <AlertCircle className="h-8 w-8 text-red-400" />
-                ) : (
-                  <CheckCircle2 className="h-8 w-8 text-green-400" />
-                )}
-              </div>
-            </CardContent>
-          </Card>
+      {/* Search */}
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <Input
+          placeholder="Search events by type, reference, batch ID..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="pl-10"
+        />
+      </div>
 
-          <Card style={{
-            background: 'rgba(255, 255, 255, 0.05)',
-            border: '1px solid hsl(200, 15%, 65%)',
-            backdropFilter: 'blur(12px)',
-          }}>
-            <CardContent className="pt-6">
-              <div>
-                <p className="text-sm text-muted-foreground">Overdue Items</p>
-                <p className="text-3xl font-bold mt-1 text-red-400">{overdueCount}</p>
-                <p className="text-xs text-muted-foreground mt-1">Requires immediate action</p>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card style={{
-            background: 'rgba(255, 255, 255, 0.05)',
-            border: '1px solid hsl(200, 15%, 65%)',
-            backdropFilter: 'blur(12px)',
-          }}>
-            <CardContent className="pt-6">
-              <div>
-                <p className="text-sm text-muted-foreground">Pending Tasks</p>
-                <p className="text-3xl font-bold mt-1 text-yellow-400">{pendingCount}</p>
-                <p className="text-xs text-muted-foreground mt-1">In progress</p>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Compliance Checklist */}
-        <Card style={{
-          background: 'rgba(255, 255, 255, 0.05)',
-          border: '1px solid hsl(200, 15%, 65%)',
-          backdropFilter: 'blur(12px)',
-        }}>
-          <CardHeader>
-            <CardTitle>Compliance Checklist</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {complianceItems.map((item) => {
-                const StatusIcon = statusConfig[item.status].icon;
-                return (
-                  <div 
-                    key={item.id} 
-                    className="flex items-center justify-between p-4 rounded-lg bg-background/30 hover:bg-background/50 transition-colors"
-                  >
-                    <div className="flex items-center gap-4 flex-1">
-                      <StatusIcon className={`h-5 w-5 ${
-                        item.status === 'completed' ? 'text-green-400' :
-                        item.status === 'overdue' ? 'text-red-400' :
-                        item.status === 'pending' ? 'text-yellow-400' :
-                        'text-blue-400'
-                      }`} />
-                      <div className="flex-1">
-                        <p className="font-medium">{item.title}</p>
-                        <p className="text-sm text-muted-foreground">Due: {item.dueDate}</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <Badge variant="outline" className="text-xs">
-                        {item.category}
-                      </Badge>
-                      <Badge className={statusConfig[item.status].className}>
-                        {statusConfig[item.status].label}
-                      </Badge>
-                      <Button variant="ghost" size="sm">
-                        {item.status === 'completed' ? 'View' : 'Update'}
-                      </Button>
-                    </div>
-                  </div>
-                );
-              })}
+      {/* Error State */}
+      {error && (
+        <Card className="border-yellow-500/20 bg-yellow-500/5">
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-3 text-yellow-500">
+              <AlertCircle className="h-5 w-5" />
+              <p>{error}</p>
             </div>
           </CardContent>
         </Card>
+      )}
 
-        {/* Quick Links */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Card style={{
-            background: 'rgba(255, 255, 255, 0.05)',
-            border: '1px solid hsl(200, 15%, 65%)',
-            backdropFilter: 'blur(12px)',
-          }}>
-            <CardContent className="pt-6">
-              <h3 className="font-semibold mb-2">Federal Resources</h3>
-              <ul className="space-y-2 text-sm text-muted-foreground">
-                <li className="hover:text-foreground cursor-pointer">• TTB Portal</li>
-                <li className="hover:text-foreground cursor-pointer">• Federal Tax Forms</li>
-                <li className="hover:text-foreground cursor-pointer">• Label Approval System</li>
-              </ul>
-            </CardContent>
-          </Card>
+      {/* Loading State */}
+      {loading && (
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-center py-12">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
-          <Card style={{
-            background: 'rgba(255, 255, 255, 0.05)',
-            border: '1px solid hsl(200, 15%, 65%)',
-            backdropFilter: 'blur(12px)',
-          }}>
-            <CardContent className="pt-6">
-              <h3 className="font-semibold mb-2">State Resources</h3>
-              <ul className="space-y-2 text-sm text-muted-foreground">
-                <li className="hover:text-foreground cursor-pointer">• State License Portal</li>
-                <li className="hover:text-foreground cursor-pointer">• Excise Tax Filing</li>
-                <li className="hover:text-foreground cursor-pointer">• State Regulations</li>
-              </ul>
-            </CardContent>
-          </Card>
+      {/* Empty State */}
+      {!loading && !error && filteredEvents.length === 0 && (
+        <Card className="border-dashed">
+          <CardContent className="pt-6">
+            <div className="flex flex-col items-center justify-center py-12 text-center">
+              <FileText className="h-12 w-12 text-muted-foreground mb-4" />
+              <h3 className="text-lg font-semibold mb-2">No compliance events logged</h3>
+              <p className="text-muted-foreground mb-4">
+                {searchQuery ? 'No events match your search.' : 'Start logging compliance events for regulatory tracking.'}
+              </p>
+              {!searchQuery && (
+                <Button onClick={() => setIsCreateModalOpen(true)} className="gap-2">
+                  <Plus className="h-4 w-4" />
+                  Log Event
+                </Button>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
-          <Card style={{
-            background: 'rgba(255, 255, 255, 0.05)',
-            border: '1px solid hsl(200, 15%, 65%)',
-            backdropFilter: 'blur(12px)',
-          }}>
-            <CardContent className="pt-6">
-              <h3 className="font-semibold mb-2">Local Resources</h3>
-              <ul className="space-y-2 text-sm text-muted-foreground">
-                <li className="hover:text-foreground cursor-pointer">• Health Department</li>
-                <li className="hover:text-foreground cursor-pointer">• Business Licenses</li>
-                <li className="hover:text-foreground cursor-pointer">• Zoning Information</li>
-              </ul>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
-    </AppShell>
+      {/* Events List */}
+      {!loading && filteredEvents.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Compliance Events ({filteredEvents.length})</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {filteredEvents.map((event) => (
+                <div
+                  key={event.id}
+                  className="p-4 rounded-lg border border-border hover:border-primary/50 transition-colors"
+                >
+                  <div className="flex items-start justify-between mb-3">
+                    <div className="flex items-center gap-2">
+                      <Badge className={eventTypeColors[event.event_type]}>
+                        {eventTypeLabels[event.event_type]}
+                      </Badge>
+                      <span className="text-sm text-muted-foreground">
+                        {new Date(event.event_date).toLocaleDateString()}
+                      </span>
+                    </div>
+                    {event.quantity && (
+                      <span className="text-sm font-semibold">{event.quantity} gal</span>
+                    )}
+                  </div>
+
+                  <div className="space-y-2 text-sm">
+                    {event.reference && (
+                      <div className="flex items-center gap-2">
+                        <span className="text-muted-foreground">Reference:</span>
+                        <span className="font-medium">{event.reference}</span>
+                      </div>
+                    )}
+                    {event.related_batch_id && (
+                      <div className="flex items-center gap-2">
+                        <span className="text-muted-foreground">Batch ID:</span>
+                        <span className="font-medium font-mono text-xs">{event.related_batch_id}</span>
+                      </div>
+                    )}
+                    {event.notes && (
+                      <div>
+                        <span className="text-muted-foreground">Notes:</span>
+                        <p className="mt-1 text-foreground">{event.notes}</p>
+                      </div>
+                    )}
+                  </div>
+
+                  {event.created_at && (
+                    <div className="mt-3 pt-3 border-t text-xs text-muted-foreground">
+                      Logged: {new Date(event.created_at).toLocaleString()}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Log Event Modal */}
+      <Dialog open={isCreateModalOpen} onOpenChange={setIsCreateModalOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Log Compliance Event</DialogTitle>
+            <DialogDescription>
+              Record a compliance event for TTB/ABC regulatory tracking and reporting.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            {/* Event Type */}
+            <div className="space-y-2">
+              <Label htmlFor="event_type">Event Type *</Label>
+              <Select value={eventType} onValueChange={(value: any) => setEventType(value)}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="production">Production</SelectItem>
+                  <SelectItem value="transfer">Transfer</SelectItem>
+                  <SelectItem value="removal">Removal</SelectItem>
+                  <SelectItem value="loss_spill">Loss/Spill</SelectItem>
+                  <SelectItem value="destruction">Destruction</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Event Date */}
+            <div className="space-y-2">
+              <Label htmlFor="event_date">Event Date *</Label>
+              <Input
+                id="event_date"
+                type="date"
+                value={eventDate}
+                onChange={(e) => setEventDate(e.target.value)}
+              />
+            </div>
+
+            {/* Reference */}
+            <div className="space-y-2">
+              <Label htmlFor="reference">Reference (optional)</Label>
+              <Input
+                id="reference"
+                value={reference}
+                onChange={(e) => setReference(e.target.value)}
+                placeholder="e.g., TTB-2024-001, Transfer #123"
+              />
+            </div>
+
+            {/* Quantity */}
+            <div className="space-y-2">
+              <Label htmlFor="quantity">Quantity (gallons, optional)</Label>
+              <Input
+                id="quantity"
+                type="number"
+                min="0"
+                step="0.1"
+                value={quantity || ''}
+                onChange={(e) => setQuantity(e.target.value ? parseFloat(e.target.value) : undefined)}
+                placeholder="0.0"
+              />
+            </div>
+
+            {/* Related Batch ID */}
+            <div className="space-y-2">
+              <Label htmlFor="related_batch_id">Related Batch ID (optional)</Label>
+              <Input
+                id="related_batch_id"
+                value={relatedBatchId}
+                onChange={(e) => setRelatedBatchId(e.target.value)}
+                placeholder="e.g., BATCH-2024-001"
+              />
+            </div>
+
+            {/* Notes */}
+            <div className="space-y-2">
+              <Label htmlFor="notes">Notes (optional)</Label>
+              <Textarea
+                id="notes"
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                placeholder="Add detailed notes about this compliance event..."
+                rows={4}
+              />
+            </div>
+
+            {/* Error Display */}
+            {submitError && (
+              <Card className="border-red-500/20 bg-red-500/5">
+                <CardContent className="pt-4">
+                  <div className="flex items-center gap-2 text-red-500 text-sm">
+                    <AlertCircle className="h-4 w-4" />
+                    <p>{submitError}</p>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsCreateModalOpen(false)} disabled={isSubmitting}>
+              Cancel
+            </Button>
+            <Button onClick={handleCreateEvent} disabled={isSubmitting}>
+              {isSubmitting ? 'Logging...' : 'Log Event'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
   );
 }

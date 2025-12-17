@@ -10,6 +10,7 @@ const OpsPage = lazy(() => import('./pages/ops'));
 const OpsSalesPage = lazy(() => import('./pages/ops/sales'));
 const OpsOrdersPage = lazy(() => import('./pages/ops/orders'));
 const OpsInventoryPage = lazy(() => import('./pages/ops/inventory'));
+const OpsBatchesPage = lazy(() => import('./pages/ops/batches'));
 const OpsReportsPage = lazy(() => import('./pages/ops/reports'));
 const OpsCompliancePage = lazy(() => import('./pages/ops/compliance'));
 const OpsTaxPage = lazy(() => import('./pages/ops/tax'));
@@ -49,6 +50,10 @@ export const routes: RouteObject[] = [
   {
     path: '/ops/inventory',
     element: <OpsInventoryPage />,
+  },
+  {
+    path: '/ops/batches',
+    element: <OpsBatchesPage />,
   },
   {
     path: '/ops/reports',

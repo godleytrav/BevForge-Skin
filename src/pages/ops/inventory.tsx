@@ -1,392 +1,455 @@
-import { AppShell } from '@/components/AppShell';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
+import { useState, useEffect } from 'react';
+import { Search, Plus, Package, AlertCircle, Edit } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Search, Plus, Package, TrendingDown, AlertCircle } from 'lucide-react';
-import { useState } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
+import { apiGet, apiPost, ApiError } from '@/lib/api';
 
-// Mock product data
-const mockProducts = [
-  {
-    id: 'P001',
-    name: 'Heritage Dry Cider',
-    sku: 'HDC-750',
-    category: 'Cider',
-    location: 'Taproom',
-    onHand: 48,
-    allocated: 12,
-    available: 36,
-    reorderPoint: 24,
-    status: 'Active',
-    description: 'Traditional dry cider made from heritage apples',
-    channels: { website: true, taproom: true, wholesale: true },
-    recentMovements: [
-      { date: '2025-11-20', type: 'Sold', quantity: -6, reference: 'Order #1234' },
-      { date: '2025-11-18', type: 'Received', quantity: 24, reference: 'PO-2025-11' },
-      { date: '2025-11-15', type: 'Adjusted', quantity: -2, reference: 'Inventory count' },
-    ]
-  },
-  {
-    id: 'P002',
-    name: 'Hopped Cider',
-    sku: 'HC-750',
-    category: 'Cider',
-    location: 'Warehouse',
-    onHand: 12,
-    allocated: 8,
-    available: 4,
-    reorderPoint: 24,
-    status: 'Low Stock',
-    description: 'Dry cider with Cascade hops',
-    channels: { website: true, taproom: true, wholesale: false },
-    recentMovements: [
-      { date: '2025-11-19', type: 'Sold', quantity: -12, reference: 'Order #1245' },
-      { date: '2025-11-10', type: 'Received', quantity: 24, reference: 'PO-2025-10' },
-    ]
-  },
-  {
-    id: 'P003',
-    name: 'Pear Cider',
-    sku: 'PC-750',
-    category: 'Cider',
-    location: 'Taproom',
-    onHand: 0,
-    allocated: 0,
-    available: 0,
-    reorderPoint: 12,
-    status: 'Out of Stock',
-    description: 'Semi-sweet pear cider',
-    channels: { website: false, taproom: false, wholesale: false },
-    recentMovements: [
-      { date: '2025-11-17', type: 'Sold', quantity: -8, reference: 'Order #1240' },
-      { date: '2025-11-05', type: 'Received', quantity: 12, reference: 'PO-2025-09' },
-    ]
-  },
-  {
-    id: 'P004',
-    name: 'Branded Pint Glass',
-    sku: 'GLASS-16',
-    category: 'Merch',
-    location: 'Taproom',
-    onHand: 144,
-    allocated: 24,
-    available: 120,
-    reorderPoint: 48,
-    status: 'Active',
-    description: '16oz branded pint glass',
-    channels: { website: true, taproom: true, wholesale: true },
-    recentMovements: [
-      { date: '2025-11-21', type: 'Sold', quantity: -6, reference: 'Order #1250' },
-      { date: '2025-11-01', type: 'Received', quantity: 144, reference: 'PO-2025-08' },
-    ]
-  },
-  {
-    id: 'P005',
-    name: 'Barrel-Aged Reserve',
-    sku: 'BAR-750',
-    category: 'Cider',
-    location: 'Warehouse',
-    onHand: 36,
-    allocated: 6,
-    available: 30,
-    reorderPoint: 12,
-    status: 'Active',
-    description: 'Oak barrel-aged cider, limited release',
-    channels: { website: true, taproom: true, wholesale: true },
-    recentMovements: [
-      { date: '2025-11-19', type: 'Sold', quantity: -3, reference: 'Order #1248' },
-      { date: '2025-11-12', type: 'Received', quantity: 24, reference: 'PO-2025-11' },
-    ]
-  },
-];
+interface Product {
+  id: string;
+  name: string;
+  sku: string;
+  category: string;
+  qty_on_hand: number;
+  reorder_point?: number;
+  location?: string;
+  status?: string;
+}
 
-export default function InventoryPage() {
-  const [selectedProduct, setSelectedProduct] = useState<typeof mockProducts[0] | null>(null);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [locationFilter, setLocationFilter] = useState('All');
-  const [statusFilter, setStatusFilter] = useState('All');
-  const [channelFilter, setChannelFilter] = useState('All');
+interface InventoryMovement {
+  product_id: string;
+  movement_type: 'receive' | 'transfer' | 'waste' | 'cycle_count_adjust';
+  qty_delta: number;
+  note?: string;
+}
 
-  // Filter products
-  const filteredProducts = mockProducts.filter(product => {
-    const matchesSearch = product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         product.sku.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesLocation = locationFilter === 'All' || product.location === locationFilter;
-    const matchesStatus = statusFilter === 'All' || product.status === statusFilter;
-    const matchesChannel = channelFilter === 'All' || 
-                          (channelFilter === 'Website' && product.channels.website) ||
-                          (channelFilter === 'Taproom' && product.channels.taproom) ||
-                          (channelFilter === 'Wholesale' && product.channels.wholesale);
-    
-    return matchesSearch && matchesLocation && matchesStatus && matchesChannel;
-  });
+const statusColors = {
+  active: 'bg-green-500/10 text-green-500 border-green-500/20',
+  'low stock': 'bg-yellow-500/10 text-yellow-500 border-yellow-500/20',
+  'out of stock': 'bg-red-500/10 text-red-500 border-red-500/20',
+};
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'Active': return 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30';
-      case 'Low Stock': return 'bg-amber-500/20 text-amber-400 border-amber-500/30';
-      case 'Out of Stock': return 'bg-red-500/20 text-red-400 border-red-500/30';
-      default: return 'bg-gray-500/20 text-gray-400 border-gray-500/30';
+async function fetchProducts(): Promise<Product[]> {
+  try {
+    return await apiGet<Product[]>('/api/inventory/products');
+  } catch (error) {
+    if (error instanceof ApiError && error.status === 404) {
+      throw new Error('Products endpoint not implemented yet');
     }
-  };
+    throw error;
+  }
+}
+
+async function createMovement(payload: InventoryMovement): Promise<void> {
+  try {
+    await apiPost('/api/inventory/movements', payload);
+  } catch (error) {
+    if (error instanceof ApiError && error.status === 404) {
+      throw new Error('Inventory movements endpoint not implemented yet. Please implement POST /api/inventory/movements');
+    }
+    throw error;
+  }
+}
+
+export default function Inventory() {
+  const [products, setProducts] = useState<Product[]>([]);
+  const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [isAdjustModalOpen, setIsAdjustModalOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [backendNotImplemented, setBackendNotImplemented] = useState(false);
+
+  // Form state
+  const [movementType, setMovementType] = useState<'receive' | 'transfer' | 'waste' | 'cycle_count_adjust'>('receive');
+  const [qtyDelta, setQtyDelta] = useState<number>(0);
+  const [note, setNote] = useState('');
+  const [optimisticQty, setOptimisticQty] = useState<Record<string, number>>({});
+
+  useEffect(() => {
+    loadProducts();
+  }, []);
+
+  useEffect(() => {
+    if (searchQuery.trim() === '') {
+      setFilteredProducts(products);
+    } else {
+      const query = searchQuery.toLowerCase();
+      setFilteredProducts(
+        products.filter(
+          (product) =>
+            product.name.toLowerCase().includes(query) ||
+            product.sku.toLowerCase().includes(query) ||
+            product.category.toLowerCase().includes(query)
+        )
+      );
+    }
+  }, [searchQuery, products]);
+
+  async function loadProducts() {
+    try {
+      setLoading(true);
+      setError(null);
+      const data = await fetchProducts();
+      setProducts(data);
+      setFilteredProducts(data);
+    } catch (err) {
+      if (err instanceof Error && err.message.includes('not implemented')) {
+        setError(err.message);
+        setProducts([]);
+        setFilteredProducts([]);
+      } else {
+        setError(err instanceof Error ? err.message : 'Failed to fetch products');
+      }
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function getProductStatus(product: Product): 'active' | 'low stock' | 'out of stock' {
+    if (product.qty_on_hand === 0) return 'out of stock';
+    if (product.reorder_point && product.qty_on_hand <= product.reorder_point) return 'low stock';
+    return 'active';
+  }
+
+  function getDisplayQty(productId: string, originalQty: number): number {
+    return optimisticQty[productId] ?? originalQty;
+  }
+
+  function resetForm() {
+    setMovementType('receive');
+    setQtyDelta(0);
+    setNote('');
+    setSubmitError(null);
+  }
+
+  function openAdjustModal(product: Product) {
+    setSelectedProduct(product);
+    resetForm();
+    setIsAdjustModalOpen(true);
+  }
+
+  async function handleAdjustQuantity() {
+    if (!selectedProduct) return;
+
+    setIsSubmitting(true);
+    setSubmitError(null);
+
+    try {
+      // Validate
+      if (qtyDelta === 0) {
+        throw new Error('Quantity delta cannot be zero');
+      }
+
+      const payload: InventoryMovement = {
+        product_id: selectedProduct.id,
+        movement_type: movementType,
+        qty_delta: qtyDelta,
+        note: note.trim() || undefined,
+      };
+
+      // Try to create movement
+      try {
+        await createMovement(payload);
+        // Backend succeeded - refresh products
+        await loadProducts();
+        setIsAdjustModalOpen(false);
+        resetForm();
+      } catch (err) {
+        if (err instanceof Error && err.message.includes('not implemented')) {
+          // Backend not implemented - update optimistically
+          setBackendNotImplemented(true);
+          const newQty = selectedProduct.qty_on_hand + qtyDelta;
+          setOptimisticQty({
+            ...optimisticQty,
+            [selectedProduct.id]: newQty,
+          });
+          // Update local state
+          setProducts(
+            products.map((p) =>
+              p.id === selectedProduct.id ? { ...p, qty_on_hand: newQty } : p
+            )
+          );
+          setIsAdjustModalOpen(false);
+          resetForm();
+          setSubmitError('Movement recorded locally. Not persisted until backend endpoints exist.');
+        } else {
+          throw err;
+        }
+      }
+    } catch (err) {
+      setSubmitError(err instanceof Error ? err.message : 'Failed to adjust quantity');
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
 
   return (
-    <AppShell pageTitle="Products & Inventory">
-      <div className="space-y-6">
-        {/* Page Header */}
-        <div className="flex flex-col gap-4">
-          <div className="flex items-center justify-between">
-            <h1 className="text-3xl font-bold text-white">Products & Inventory</h1>
-            <div className="flex gap-2">
-              <Button className="bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700">
-                <Plus className="w-4 h-4 mr-2" />
-                New Product
-              </Button>
-              <Button variant="outline" className="border-blue-500/30 text-blue-400 hover:bg-blue-500/10">
-                <Package className="w-4 h-4 mr-2" />
-                Receive Stock
-              </Button>
-              <Button variant="outline" className="border-blue-500/30 text-blue-400 hover:bg-blue-500/10">
-                <TrendingDown className="w-4 h-4 mr-2" />
-                Adjust Inventory
-              </Button>
-            </div>
-          </div>
-
-          {/* Search and Filters */}
-          <div className="flex gap-4 flex-wrap">
-            <div className="relative flex-1 min-w-[300px]">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-              <Input
-                placeholder="Search by name or SKU..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10 bg-white/5 border-blue-500/30 text-white placeholder:text-gray-400"
-              />
-            </div>
-            
-            <Select value={locationFilter} onValueChange={setLocationFilter}>
-              <SelectTrigger className="w-[180px] bg-white/5 border-blue-500/30 text-white">
-                <SelectValue placeholder="Location" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="All">All Locations</SelectItem>
-                <SelectItem value="Taproom">Taproom</SelectItem>
-                <SelectItem value="Warehouse">Warehouse</SelectItem>
-                <SelectItem value="Online">Online</SelectItem>
-              </SelectContent>
-            </Select>
-
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-[180px] bg-white/5 border-blue-500/30 text-white">
-                <SelectValue placeholder="Status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="All">All Status</SelectItem>
-                <SelectItem value="Active">Active</SelectItem>
-                <SelectItem value="Low Stock">Low Stock</SelectItem>
-                <SelectItem value="Out of Stock">Out of Stock</SelectItem>
-                <SelectItem value="Archived">Archived</SelectItem>
-              </SelectContent>
-            </Select>
-
-            <Select value={channelFilter} onValueChange={setChannelFilter}>
-              <SelectTrigger className="w-[180px] bg-white/5 border-blue-500/30 text-white">
-                <SelectValue placeholder="Channel" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="All">All Channels</SelectItem>
-                <SelectItem value="Website">Website</SelectItem>
-                <SelectItem value="Taproom">Taproom</SelectItem>
-                <SelectItem value="Wholesale">Wholesale</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold text-foreground">Inventory</h1>
+          <p className="text-muted-foreground mt-1">Track product quantities and movements</p>
         </div>
+        <div className="flex gap-2">
+          <Button variant="outline" className="gap-2">
+            <Plus className="h-4 w-4" />
+            New Product
+          </Button>
+          <Button variant="outline" className="gap-2">
+            <Package className="h-4 w-4" />
+            Receive Stock
+          </Button>
+        </div>
+      </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Products List */}
-          <div className="lg:col-span-2">
-            <Card 
-              className="border-blue-500/30 bg-black/40"
-              style={{
-                background: 'rgba(255, 255, 255, 0.05)',
-                backdropFilter: 'blur(12px)',
-                boxShadow: '0 0 20px rgba(158, 178, 191, 0.3)',
-              }}
-            >
-              <CardHeader>
-                <CardTitle className="text-white">Products ({filteredProducts.length})</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2">
-                  {filteredProducts.map((product) => (
-                    <div
-                      key={product.id}
-                      onClick={() => setSelectedProduct(product)}
-                      className={`p-4 rounded-lg border cursor-pointer transition-all ${
-                        selectedProduct?.id === product.id
-                          ? 'border-blue-500 bg-blue-500/10'
-                          : 'border-blue-500/20 bg-white/5 hover:border-blue-500/40 hover:bg-white/10'
-                      }`}
-                    >
-                      <div className="flex items-start justify-between gap-4">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-1">
-                            <h3 className="font-semibold text-white">{product.name}</h3>
-                            <Badge className={getStatusColor(product.status)}>
-                              {product.status}
-                            </Badge>
-                          </div>
-                          <p className="text-sm text-gray-400 mb-2">SKU: {product.sku} • {product.category}</p>
-                          <div className="grid grid-cols-4 gap-4 text-sm">
-                            <div>
-                              <p className="text-gray-400">On Hand</p>
-                              <p className="text-white font-semibold">{product.onHand}</p>
-                            </div>
-                            <div>
-                              <p className="text-gray-400">Allocated</p>
-                              <p className="text-white font-semibold">{product.allocated}</p>
-                            </div>
-                            <div>
-                              <p className="text-gray-400">Available</p>
-                              <p className="text-emerald-400 font-semibold">{product.available}</p>
-                            </div>
-                            <div>
-                              <p className="text-gray-400">Reorder At</p>
-                              <p className="text-white font-semibold">{product.reorderPoint}</p>
-                            </div>
-                          </div>
-                        </div>
-                        {product.available <= product.reorderPoint && product.available > 0 && (
-                          <AlertCircle className="w-5 h-5 text-amber-400" />
-                        )}
-                        {product.available === 0 && (
-                          <AlertCircle className="w-5 h-5 text-red-400" />
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          </div>
+      {/* Backend Warning */}
+      {backendNotImplemented && (
+        <Card className="border-yellow-500/20 bg-yellow-500/5">
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-3 text-yellow-500">
+              <AlertCircle className="h-5 w-5" />
+              <div>
+                <p className="font-semibold">Backend Not Implemented</p>
+                <p className="text-sm">
+                  Inventory adjustments are shown locally but not persisted. Implement POST /api/inventory/movements to save changes.
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
-          {/* Product Detail Panel */}
-          <div className="lg:col-span-1">
-            {selectedProduct ? (
-              <Card 
-                className="border-blue-500/30 bg-black/40 sticky top-6"
-                style={{
-                  background: 'rgba(255, 255, 255, 0.05)',
-                  backdropFilter: 'blur(12px)',
-                  boxShadow: '0 0 20px rgba(158, 178, 191, 0.3)',
-                }}
-              >
+      {/* Search */}
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <Input
+          placeholder="Search products by name, SKU, or category..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="pl-10"
+        />
+      </div>
+
+      {/* Error State */}
+      {error && (
+        <Card className="border-yellow-500/20 bg-yellow-500/5">
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-3 text-yellow-500">
+              <AlertCircle className="h-5 w-5" />
+              <p>{error}</p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Loading State */}
+      {loading && (
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-center py-12">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Empty State */}
+      {!loading && !error && filteredProducts.length === 0 && (
+        <Card className="border-dashed">
+          <CardContent className="pt-6">
+            <div className="flex flex-col items-center justify-center py-12 text-center">
+              <Package className="h-12 w-12 text-muted-foreground mb-4" />
+              <h3 className="text-lg font-semibold mb-2">No products yet</h3>
+              <p className="text-muted-foreground mb-4">
+                {searchQuery ? 'No products match your search.' : 'Add your first product to start tracking inventory.'}
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Products List */}
+      {!loading && filteredProducts.length > 0 && (
+        <div className="grid gap-4">
+          {filteredProducts.map((product) => {
+            const status = getProductStatus(product);
+            const displayQty = getDisplayQty(product.id, product.qty_on_hand);
+            return (
+              <Card key={product.id} className="hover:border-primary/50 transition-colors">
                 <CardHeader>
-                  <CardTitle className="text-white">Product Details</CardTitle>
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-1">
+                        <CardTitle className="text-lg">{product.name}</CardTitle>
+                        <Badge className={statusColors[status]}>{status}</Badge>
+                      </div>
+                      <p className="text-sm text-muted-foreground">
+                        SKU: {product.sku} • {product.category}
+                        {product.location && ` • ${product.location}`}
+                      </p>
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => openAdjustModal(product)}
+                      className="gap-2"
+                    >
+                      <Edit className="h-3 w-3" />
+                      Adjust
+                    </Button>
+                  </div>
                 </CardHeader>
-                <CardContent className="space-y-6">
-                  {/* Basic Info */}
-                  <div>
-                    <h3 className="text-lg font-semibold text-white mb-2">{selectedProduct.name}</h3>
-                    <p className="text-sm text-gray-400 mb-1">SKU: {selectedProduct.sku}</p>
-                    <p className="text-sm text-gray-400 mb-2">Category: {selectedProduct.category}</p>
-                    <p className="text-sm text-gray-300">{selectedProduct.description}</p>
-                  </div>
-
-                  {/* Inventory by Location */}
-                  <div>
-                    <h4 className="text-sm font-semibold text-white mb-2">Inventory</h4>
-                    <div className="space-y-2">
-                      <div className="p-3 rounded-lg bg-white/5 border border-blue-500/20">
-                        <div className="flex justify-between items-center mb-1">
-                          <span className="text-sm text-gray-400">Location</span>
-                          <span className="text-sm text-white">{selectedProduct.location}</span>
-                        </div>
-                        <div className="flex justify-between items-center mb-1">
-                          <span className="text-sm text-gray-400">On Hand</span>
-                          <span className="text-sm text-white font-semibold">{selectedProduct.onHand}</span>
-                        </div>
-                        <div className="flex justify-between items-center">
-                          <span className="text-sm text-gray-400">Reorder Point</span>
-                          <span className="text-sm text-white">{selectedProduct.reorderPoint}</span>
-                        </div>
+                <CardContent>
+                  <div className="grid grid-cols-3 gap-4 text-sm">
+                    <div>
+                      <p className="text-muted-foreground mb-1">On Hand</p>
+                      <p className="text-2xl font-bold">{displayQty}</p>
+                    </div>
+                    {product.reorder_point && (
+                      <div>
+                        <p className="text-muted-foreground mb-1">Reorder Point</p>
+                        <p className="text-lg font-semibold">{product.reorder_point}</p>
                       </div>
+                    )}
+                    <div>
+                      <p className="text-muted-foreground mb-1">Status</p>
+                      <p className="text-lg font-semibold capitalize">{status}</p>
                     </div>
                   </div>
-
-                  {/* Channel Visibility */}
-                  <div>
-                    <h4 className="text-sm font-semibold text-white mb-2">Channel Visibility</h4>
-                    <div className="space-y-2">
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm text-gray-400">Website</span>
-                        <Badge className={selectedProduct.channels.website ? 'bg-emerald-500/20 text-emerald-400' : 'bg-gray-500/20 text-gray-400'}>
-                          {selectedProduct.channels.website ? 'Visible' : 'Hidden'}
-                        </Badge>
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm text-gray-400">Taproom</span>
-                        <Badge className={selectedProduct.channels.taproom ? 'bg-emerald-500/20 text-emerald-400' : 'bg-gray-500/20 text-gray-400'}>
-                          {selectedProduct.channels.taproom ? 'Available' : 'Not Available'}
-                        </Badge>
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm text-gray-400">Wholesale</span>
-                        <Badge className={selectedProduct.channels.wholesale ? 'bg-emerald-500/20 text-emerald-400' : 'bg-gray-500/20 text-gray-400'}>
-                          {selectedProduct.channels.wholesale ? 'Available' : 'Not Available'}
-                        </Badge>
-                      </div>
+                  {displayQty <= (product.reorder_point || 0) && displayQty > 0 && (
+                    <div className="mt-4 flex items-center gap-2 text-yellow-500 text-sm">
+                      <AlertCircle className="h-4 w-4" />
+                      <span>Below reorder point</span>
                     </div>
-                  </div>
-
-                  {/* Recent Stock Movements */}
-                  <div>
-                    <h4 className="text-sm font-semibold text-white mb-2">Recent Movements</h4>
-                    <div className="space-y-2">
-                      {selectedProduct.recentMovements.map((movement, idx) => (
-                        <div key={idx} className="p-2 rounded-lg bg-white/5 border border-blue-500/20">
-                          <div className="flex justify-between items-start mb-1">
-                            <span className="text-xs text-gray-400">{movement.date}</span>
-                            <Badge className={
-                              movement.type === 'Received' ? 'bg-emerald-500/20 text-emerald-400 text-xs' :
-                              movement.type === 'Sold' ? 'bg-blue-500/20 text-blue-400 text-xs' :
-                              'bg-amber-500/20 text-amber-400 text-xs'
-                            }>
-                              {movement.type}
-                            </Badge>
-                          </div>
-                          <div className="flex justify-between items-center">
-                            <span className="text-sm text-gray-300">{movement.reference}</span>
-                            <span className={`text-sm font-semibold ${movement.quantity > 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                              {movement.quantity > 0 ? '+' : ''}{movement.quantity}
-                            </span>
-                          </div>
-                        </div>
-                      ))}
+                  )}
+                  {displayQty === 0 && (
+                    <div className="mt-4 flex items-center gap-2 text-red-500 text-sm">
+                      <AlertCircle className="h-4 w-4" />
+                      <span>Out of stock</span>
                     </div>
-                  </div>
+                  )}
                 </CardContent>
               </Card>
-            ) : (
-              <Card 
-                className="border-blue-500/30 bg-black/40"
-                style={{
-                  background: 'rgba(255, 255, 255, 0.05)',
-                  backdropFilter: 'blur(12px)',
-                }}
-              >
-                <CardContent className="flex items-center justify-center h-64">
-                  <p className="text-gray-400">Select a product to view details</p>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Adjust Quantity Modal */}
+      <Dialog open={isAdjustModalOpen} onOpenChange={setIsAdjustModalOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Adjust Quantity</DialogTitle>
+            <DialogDescription>
+              {selectedProduct && `Update inventory for ${selectedProduct.name}`}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            {selectedProduct && (
+              <div className="p-4 rounded-lg bg-muted">
+                <div className="flex justify-between items-center mb-2">
+                  <span className="text-sm text-muted-foreground">Current Quantity:</span>
+                  <span className="text-lg font-bold">{getDisplayQty(selectedProduct.id, selectedProduct.qty_on_hand)}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-muted-foreground">New Quantity:</span>
+                  <span className="text-lg font-bold text-primary">
+                    {getDisplayQty(selectedProduct.id, selectedProduct.qty_on_hand) + qtyDelta}
+                  </span>
+                </div>
+              </div>
+            )}
+
+            {/* Movement Type */}
+            <div className="space-y-2">
+              <Label htmlFor="movement_type">Movement Type *</Label>
+              <Select value={movementType} onValueChange={(value: any) => setMovementType(value)}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="receive">Receive (Add Stock)</SelectItem>
+                  <SelectItem value="transfer">Transfer (Move Stock)</SelectItem>
+                  <SelectItem value="waste">Waste (Remove Stock)</SelectItem>
+                  <SelectItem value="cycle_count_adjust">Cycle Count Adjustment</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Quantity Delta */}
+            <div className="space-y-2">
+              <Label htmlFor="qty_delta">Quantity Change *</Label>
+              <Input
+                id="qty_delta"
+                type="number"
+                value={qtyDelta}
+                onChange={(e) => setQtyDelta(parseInt(e.target.value) || 0)}
+                placeholder="Enter positive or negative number"
+              />
+              <p className="text-xs text-muted-foreground">
+                Use positive numbers to add stock, negative to remove
+              </p>
+            </div>
+
+            {/* Note */}
+            <div className="space-y-2">
+              <Label htmlFor="note">Note (optional)</Label>
+              <Textarea
+                id="note"
+                value={note}
+                onChange={(e) => setNote(e.target.value)}
+                placeholder="Add a note about this adjustment..."
+                rows={2}
+              />
+            </div>
+
+            {/* Error Display */}
+            {submitError && (
+              <Card className="border-red-500/20 bg-red-500/5">
+                <CardContent className="pt-4">
+                  <div className="flex items-center gap-2 text-red-500 text-sm">
+                    <AlertCircle className="h-4 w-4" />
+                    <p>{submitError}</p>
+                  </div>
                 </CardContent>
               </Card>
             )}
           </div>
-        </div>
-      </div>
-    </AppShell>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsAdjustModalOpen(false)} disabled={isSubmitting}>
+              Cancel
+            </Button>
+            <Button onClick={handleAdjustQuantity} disabled={isSubmitting}>
+              {isSubmitting ? 'Adjusting...' : 'Adjust Quantity'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
   );
 }

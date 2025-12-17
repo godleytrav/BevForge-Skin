@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ArrowUpRight, TrendingUp, TrendingDown, AlertCircle, CheckCircle2, Package, ShoppingCart, DollarSign, FileText, Download } from 'lucide-react';
+import { ArrowUpRight, TrendingUp, TrendingDown, AlertCircle, CheckCircle2, Package, ShoppingCart, DollarSign, FileText, Download, Beaker } from 'lucide-react';
 
 export default function OpsPage() {
   // Mock data
@@ -151,6 +151,38 @@ export default function OpsPage() {
               </p>
               <Button variant="link" className="mt-2 p-0 h-auto text-xs">
                 View Inventory <ArrowUpRight className="ml-1 h-3 w-3" />
+              </Button>
+            </CardContent>
+          </Card>
+          </Link>
+
+          {/* Batches Tile */}
+          <Link to="/ops/batches">
+          <Card 
+            className="cursor-pointer transition-all hover:shadow-lg"
+            style={{
+              background: 'rgba(255, 255, 255, 0.05)',
+              border: '1px solid hsl(200, 15%, 65%)',
+              backdropFilter: 'blur(12px)',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.boxShadow = '0 0 20px rgba(166, 173, 186, 0.4)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.boxShadow = '';
+            }}
+          >
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Batches</CardTitle>
+              <Beaker className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">3</div>
+              <p className="text-xs text-muted-foreground mt-1">
+                Active production batches
+              </p>
+              <Button variant="link" className="mt-2 p-0 h-auto text-xs">
+                View Batches <ArrowUpRight className="ml-1 h-3 w-3" />
               </Button>
             </CardContent>
           </Card>
