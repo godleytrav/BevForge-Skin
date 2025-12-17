@@ -1,212 +1,179 @@
-import { useState, useEffect } from 'react';
-import { Plus, Search, Beaker, AlertCircle } from 'lucide-react';
+import { useState, useEffect, useMemo } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { apiGet, apiPost, ApiError } from '@/lib/api';
+import { Plus, Search, Trash2, Edit, Beaker } from 'lucide-react';
+import { apiGet, apiPost, apiPatch, apiDelete } from '@/lib/api';
+
+type BatchStatus = 'planned' | 'fermenting' | 'conditioning' | 'packaged';
+type BaseType = 'cider_base' | 'juice' | 'perry_base';
 
 interface Batch {
-  id: string;
+  id: number;
   name: string;
-  base_type: 'cider_base' | 'juice' | 'perry_base';
+  base_type: BaseType;
   volume_gal: number;
   yeast: string;
   target_abv: number;
   start_date: string;
-  status: 'planned' | 'fermenting' | 'conditioning' | 'packaged';
-  notes?: string;
-  created_at?: string;
+  status: BatchStatus;
+  notes: string | null;
+  created_at: string;
 }
 
-interface CreateBatchPayload {
-  name: string;
-  base_type: string;
-  volume_gal: number;
-  yeast: string;
-  target_abv: number;
-  start_date: string;
-  status: string;
-  notes?: string;
-}
-
-const statusColors = {
+const statusColors: Record<BatchStatus, string> = {
   planned: 'bg-gray-500/10 text-gray-500 border-gray-500/20',
   fermenting: 'bg-blue-500/10 text-blue-500 border-blue-500/20',
-  conditioning: 'bg-purple-500/10 text-purple-500 border-purple-500/20',
+  conditioning: 'bg-yellow-500/10 text-yellow-500 border-yellow-500/20',
   packaged: 'bg-green-500/10 text-green-500 border-green-500/20',
 };
 
-const baseTypeLabels = {
-  cider_base: 'Cider Base',
-  juice: 'Juice',
-  perry_base: 'Perry Base',
-};
-
-async function fetchBatches(): Promise<Batch[]> {
-  try {
-    return await apiGet<Batch[]>('/api/batches');
-  } catch (error) {
-    if (error instanceof ApiError && error.status === 404) {
-      throw new Error('Batches endpoint not implemented yet. Please implement GET /api/batches');
-    }
-    throw error;
-  }
-}
-
-async function createBatch(payload: CreateBatchPayload): Promise<Batch> {
-  try {
-    return await apiPost<Batch>('/api/batches', payload);
-  } catch (error) {
-    if (error instanceof ApiError && error.status === 404) {
-      throw new Error('Batch creation endpoint not implemented yet. Please implement POST /api/batches');
-    }
-    throw error;
-  }
-}
-
-// Batch update function - available for future use
-// async function updateBatch(id: string, payload: Partial<CreateBatchPayload>): Promise<Batch> {
-//   try {
-//     return await apiPatch<Batch>(`/api/batches/${id}`, payload);
-//   } catch (error) {
-//     if (error instanceof ApiError && error.status === 404) {
-//       throw new Error('Batch update endpoint not implemented yet. Please implement PATCH /api/batches/{id}');
-//     }
-//     throw error;
-//   }
-// }
-
 export default function Batches() {
   const [batches, setBatches] = useState<Batch[]>([]);
-  const [filteredBatches, setFilteredBatches] = useState<Batch[]>([]);
-  const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [submitError, setSubmitError] = useState<string | null>(null);
-
-  // Form state
-  const [name, setName] = useState('');
-  const [baseType, setBaseType] = useState<'cider_base' | 'juice' | 'perry_base'>('cider_base');
-  const [volumeGal, setVolumeGal] = useState<number>(0);
-  const [yeast, setYeast] = useState('');
-  const [targetAbv, setTargetAbv] = useState<number>(0);
-  const [startDate, setStartDate] = useState(new Date().toISOString().split('T')[0]);
-  const [status, setStatus] = useState<'planned' | 'fermenting' | 'conditioning' | 'packaged'>('planned');
-  const [notes, setNotes] = useState('');
+  
+  // Search and filters
+  const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState<BatchStatus | 'all'>('all');
+  
+  // Create/Edit modal state
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [editingBatch, setEditingBatch] = useState<Batch | null>(null);
+  const [formData, setFormData] = useState({
+    name: '',
+    base_type: 'cider_base' as BaseType,
+    volume_gal: 0,
+    yeast: '',
+    target_abv: 0,
+    start_date: new Date().toISOString().split('T')[0],
+    status: 'planned' as BatchStatus,
+    notes: '',
+  });
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    loadBatches();
+    fetchBatches();
   }, []);
 
-  useEffect(() => {
-    if (searchQuery.trim() === '') {
-      setFilteredBatches(batches);
-    } else {
-      const query = searchQuery.toLowerCase();
-      setFilteredBatches(
-        batches.filter(
-          (batch) =>
-            batch.name.toLowerCase().includes(query) ||
-            batch.yeast.toLowerCase().includes(query) ||
-            batch.status.toLowerCase().includes(query) ||
-            batch.base_type.toLowerCase().includes(query)
-        )
-      );
-    }
-  }, [searchQuery, batches]);
-
-  async function loadBatches() {
+  const fetchBatches = async () => {
     try {
       setLoading(true);
       setError(null);
-      const data = await fetchBatches();
+      const data = await apiGet<Batch[]>('/api/batches');
       const batchesArray = Array.isArray(data) ? data : [];
       setBatches(batchesArray);
-      setFilteredBatches(batchesArray);
     } catch (err) {
-      if (err instanceof Error && err.message.includes('not implemented')) {
-        setError(err.message);
-        setBatches([]);
-        setFilteredBatches([]);
-      } else {
-        setError(err instanceof Error ? err.message : 'Failed to fetch batches');
-      }
+      setError(err instanceof Error ? err.message : 'Failed to fetch batches');
+      setBatches([]);
     } finally {
       setLoading(false);
     }
-  }
+  };
 
-  function resetForm() {
-    setName('');
-    setBaseType('cider_base');
-    setVolumeGal(0);
-    setYeast('');
-    setTargetAbv(0);
-    setStartDate(new Date().toISOString().split('T')[0]);
-    setStatus('planned');
-    setNotes('');
-    setSubmitError(null);
-  }
-
-  async function handleCreateBatch() {
-    setIsSubmitting(true);
-    setSubmitError(null);
-
+  const handleCreateBatch = async () => {
     try {
-      // Validate
-      if (!name.trim()) {
-        throw new Error('Batch name is required');
-      }
-      if (volumeGal <= 0) {
-        throw new Error('Volume must be greater than 0');
-      }
-      if (!yeast.trim()) {
-        throw new Error('Yeast type is required');
-      }
-      if (targetAbv <= 0) {
-        throw new Error('Target ABV must be greater than 0');
+      setSubmitting(true);
+      
+      if (!formData.name.trim()) {
+        alert('Batch name is required');
+        return;
       }
 
-      const payload: CreateBatchPayload = {
-        name,
-        base_type: baseType,
-        volume_gal: volumeGal,
-        yeast,
-        target_abv: targetAbv,
-        start_date: startDate,
-        status,
-        notes: notes.trim() || undefined,
-      };
-
-      const newBatch = await createBatch(payload);
-      setBatches([newBatch, ...batches]);
-      setIsCreateModalOpen(false);
+      await apiPost('/api/batches', formData);
+      await fetchBatches();
+      setIsCreateOpen(false);
       resetForm();
     } catch (err) {
-      setSubmitError(err instanceof Error ? err.message : 'Failed to create batch');
+      alert(err instanceof Error ? err.message : 'Failed to create batch');
     } finally {
-      setIsSubmitting(false);
+      setSubmitting(false);
     }
+  };
+
+  const handleUpdateBatch = async () => {
+    if (!editingBatch) return;
+
+    try {
+      setSubmitting(true);
+      
+      if (!formData.name.trim()) {
+        alert('Batch name is required');
+        return;
+      }
+
+      await apiPatch(`/api/batches/${editingBatch.id}`, formData);
+      await fetchBatches();
+      setEditingBatch(null);
+      resetForm();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Failed to update batch');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleDeleteBatch = async (batchId: number) => {
+    if (!confirm('Are you sure you want to delete this batch?')) return;
+
+    try {
+      await apiDelete(`/api/batches/${batchId}`);
+      await fetchBatches();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Failed to delete batch');
+    }
+  };
+
+  const openEditModal = (batch: Batch) => {
+    setEditingBatch(batch);
+    setFormData({
+      name: batch.name,
+      base_type: batch.base_type,
+      volume_gal: batch.volume_gal,
+      yeast: batch.yeast,
+      target_abv: batch.target_abv,
+      start_date: batch.start_date,
+      status: batch.status,
+      notes: batch.notes || '',
+    });
+  };
+
+  const resetForm = () => {
+    setFormData({
+      name: '',
+      base_type: 'cider_base',
+      volume_gal: 0,
+      yeast: '',
+      target_abv: 0,
+      start_date: new Date().toISOString().split('T')[0],
+      status: 'planned',
+      notes: '',
+    });
+  };
+
+  // Filtered batches
+  const filteredBatches = useMemo(() => {
+    return batches.filter((batch) => {
+      const matchesSearch = batch.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        batch.yeast.toLowerCase().includes(searchQuery.toLowerCase());
+      
+      const matchesStatus = statusFilter === 'all' || batch.status === statusFilter;
+      
+      return matchesSearch && matchesStatus;
+    });
+  }, [batches, searchQuery, statusFilter]);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-muted-foreground">Loading batches...</div>
+      </div>
+    );
   }
 
   return (
@@ -214,89 +181,229 @@ export default function Batches() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-foreground">Batches</h1>
-          <p className="text-muted-foreground mt-1">Track production batches from planning to packaging</p>
+          <h1 className="text-3xl font-bold">Batches</h1>
+          <p className="text-muted-foreground mt-1">Manage production batches and fermentation</p>
         </div>
-        <Button onClick={() => setIsCreateModalOpen(true)} className="gap-2">
-          <Plus className="h-4 w-4" />
-          Create Batch
-        </Button>
+        <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
+          <DialogTrigger asChild>
+            <Button onClick={resetForm}>
+              <Plus className="mr-2 h-4 w-4" />
+              Create Batch
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Create New Batch</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label htmlFor="name">Batch Name</Label>
+                <Input
+                  id="name"
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  placeholder="Fall Harvest 2024"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="base_type">Base Type</Label>
+                  <Select value={formData.base_type} onValueChange={(value: BaseType) => setFormData({ ...formData, base_type: value })}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="cider_base">Cider Base</SelectItem>
+                      <SelectItem value="juice">Juice</SelectItem>
+                      <SelectItem value="perry_base">Perry Base</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="volume_gal">Volume (gallons)</Label>
+                  <Input
+                    id="volume_gal"
+                    type="number"
+                    min="0"
+                    step="0.1"
+                    value={formData.volume_gal}
+                    onChange={(e) => setFormData({ ...formData, volume_gal: parseFloat(e.target.value) || 0 })}
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="yeast">Yeast</Label>
+                  <Input
+                    id="yeast"
+                    value={formData.yeast}
+                    onChange={(e) => setFormData({ ...formData, yeast: e.target.value })}
+                    placeholder="Safale US-05"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="target_abv">Target ABV (%)</Label>
+                  <Input
+                    id="target_abv"
+                    type="number"
+                    min="0"
+                    max="20"
+                    step="0.1"
+                    value={formData.target_abv}
+                    onChange={(e) => setFormData({ ...formData, target_abv: parseFloat(e.target.value) || 0 })}
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="start_date">Start Date</Label>
+                  <Input
+                    id="start_date"
+                    type="date"
+                    value={formData.start_date}
+                    onChange={(e) => setFormData({ ...formData, start_date: e.target.value })}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="status">Status</Label>
+                  <Select value={formData.status} onValueChange={(value: BatchStatus) => setFormData({ ...formData, status: value })}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="planned">Planned</SelectItem>
+                      <SelectItem value="fermenting">Fermenting</SelectItem>
+                      <SelectItem value="conditioning">Conditioning</SelectItem>
+                      <SelectItem value="packaged">Packaged</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="notes">Notes (optional)</Label>
+                <Textarea
+                  id="notes"
+                  value={formData.notes}
+                  onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                  placeholder="Additional notes about this batch..."
+                  rows={3}
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setIsCreateOpen(false)}>
+                Cancel
+              </Button>
+              <Button onClick={handleCreateBatch} disabled={submitting}>
+                {submitting ? 'Creating...' : 'Create Batch'}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
 
-      {/* Search */}
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        <Input
-          placeholder="Search batches by name, yeast, status..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="pl-10"
-        />
-      </div>
-
-      {/* Error State */}
+      {/* Error Banner */}
       {error && (
-        <Card className="border-yellow-500/20 bg-yellow-500/5">
+        <Card className="border-destructive bg-destructive/10">
           <CardContent className="pt-6">
-            <div className="flex items-center gap-3 text-yellow-500">
-              <AlertCircle className="h-5 w-5" />
-              <p>{error}</p>
-            </div>
+            <p className="text-sm text-destructive">{error}</p>
           </CardContent>
         </Card>
       )}
 
-      {/* Loading State */}
-      {loading && (
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-center py-12">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      {/* Filters */}
+      <Card>
+        <CardContent className="pt-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search by batch name or yeast..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-9"
+              />
             </div>
-          </CardContent>
-        </Card>
-      )}
 
-      {/* Empty State */}
-      {!loading && !error && filteredBatches.length === 0 && (
-        <Card className="border-dashed">
-          <CardContent className="pt-6">
-            <div className="flex flex-col items-center justify-center py-12 text-center">
-              <Beaker className="h-12 w-12 text-muted-foreground mb-4" />
-              <h3 className="text-lg font-semibold mb-2">No batches yet</h3>
-              <p className="text-muted-foreground mb-4">
-                {searchQuery ? 'No batches match your search.' : 'Create your first batch to start tracking production.'}
-              </p>
-              {!searchQuery && (
-                <Button onClick={() => setIsCreateModalOpen(true)} className="gap-2">
-                  <Plus className="h-4 w-4" />
-                  Create Batch
-                </Button>
-              )}
+            <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as BatchStatus | 'all')}>
+              <SelectTrigger>
+                <SelectValue placeholder="Filter by status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Statuses</SelectItem>
+                <SelectItem value="planned">Planned</SelectItem>
+                <SelectItem value="fermenting">Fermenting</SelectItem>
+                <SelectItem value="conditioning">Conditioning</SelectItem>
+                <SelectItem value="packaged">Packaged</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {(searchQuery || statusFilter !== 'all') && (
+            <div className="mt-4 flex items-center gap-2">
+              <span className="text-sm text-muted-foreground">
+                Showing {filteredBatches.length} of {batches.length} batches
+              </span>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setSearchQuery('');
+                  setStatusFilter('all');
+                }}
+              >
+                Clear filters
+              </Button>
             </div>
-          </CardContent>
-        </Card>
-      )}
+          )}
+        </CardContent>
+      </Card>
 
       {/* Batches List */}
-      {!loading && filteredBatches.length > 0 && (
+      {filteredBatches.length === 0 ? (
+        <Card>
+          <CardContent className="pt-6">
+            <div className="text-center py-12">
+              <Beaker className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+              <p className="text-muted-foreground">
+                {batches.length === 0 ? 'No batches yet. Create your first batch to get started.' : 'No batches match your filters.'}
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      ) : (
         <div className="grid gap-4 md:grid-cols-2">
           {filteredBatches.map((batch) => (
             <Card key={batch.id} className="hover:border-primary/50 transition-colors">
               <CardHeader>
                 <div className="flex items-start justify-between">
-                  <div>
+                  <div className="flex-1">
                     <CardTitle className="text-lg">{batch.name}</CardTitle>
                     <p className="text-sm text-muted-foreground mt-1">Batch #{batch.id}</p>
                   </div>
-                  <Badge className={statusColors[batch.status]}>{batch.status}</Badge>
+                  <div className="flex items-center gap-2">
+                    <Badge className={statusColors[batch.status]}>{batch.status}</Badge>
+                    <Button variant="ghost" size="icon" onClick={() => openEditModal(batch)}>
+                      <Edit className="h-4 w-4" />
+                    </Button>
+                    <Button variant="ghost" size="icon" onClick={() => handleDeleteBatch(batch.id)}>
+                      <Trash2 className="h-4 w-4 text-destructive" />
+                    </Button>
+                  </div>
                 </div>
               </CardHeader>
               <CardContent>
                 <div className="space-y-2 text-sm">
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Base Type:</span>
-                    <span className="font-medium">{baseTypeLabels[batch.base_type]}</span>
+                    <span className="font-medium capitalize">{batch.base_type.replace('_', ' ')}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Volume:</span>
@@ -315,7 +422,7 @@ export default function Batches() {
                     <span className="font-medium">{new Date(batch.start_date).toLocaleDateString()}</span>
                   </div>
                   {batch.notes && (
-                    <div className="pt-2 border-t">
+                    <div className="border-t pt-2 mt-2">
                       <p className="text-muted-foreground text-xs">Notes:</p>
                       <p className="text-sm mt-1">{batch.notes}</p>
                     </div>
@@ -327,139 +434,120 @@ export default function Batches() {
         </div>
       )}
 
-      {/* Create Batch Modal */}
-      <Dialog open={isCreateModalOpen} onOpenChange={setIsCreateModalOpen}>
+      {/* Edit Modal */}
+      <Dialog open={!!editingBatch} onOpenChange={(open) => !open && setEditingBatch(null)}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Create New Batch</DialogTitle>
-            <DialogDescription>Add a new production batch to track through the brewing process.</DialogDescription>
+            <DialogTitle>Edit Batch #{editingBatch?.id}</DialogTitle>
           </DialogHeader>
-
           <div className="space-y-4 py-4">
-            {/* Batch Name */}
             <div className="space-y-2">
-              <Label htmlFor="name">Batch Name *</Label>
+              <Label htmlFor="edit_name">Batch Name</Label>
               <Input
-                id="name"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="e.g., Autumn Harvest 2024"
+                id="edit_name"
+                value={formData.name}
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                placeholder="Fall Harvest 2024"
               />
             </div>
 
-            {/* Base Type */}
-            <div className="space-y-2">
-              <Label htmlFor="base_type">Base Type *</Label>
-              <Select value={baseType} onValueChange={(value: any) => setBaseType(value)}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="cider_base">Cider Base</SelectItem>
-                  <SelectItem value="juice">Juice</SelectItem>
-                  <SelectItem value="perry_base">Perry Base</SelectItem>
-                </SelectContent>
-              </Select>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="edit_base_type">Base Type</Label>
+                <Select value={formData.base_type} onValueChange={(value: BaseType) => setFormData({ ...formData, base_type: value })}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="cider_base">Cider Base</SelectItem>
+                    <SelectItem value="juice">Juice</SelectItem>
+                    <SelectItem value="perry_base">Perry Base</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="edit_volume_gal">Volume (gallons)</Label>
+                <Input
+                  id="edit_volume_gal"
+                  type="number"
+                  min="0"
+                  step="0.1"
+                  value={formData.volume_gal}
+                  onChange={(e) => setFormData({ ...formData, volume_gal: parseFloat(e.target.value) || 0 })}
+                />
+              </div>
             </div>
 
-            {/* Volume */}
-            <div className="space-y-2">
-              <Label htmlFor="volume_gal">Volume (gallons) *</Label>
-              <Input
-                id="volume_gal"
-                type="number"
-                min="0"
-                step="0.1"
-                value={volumeGal}
-                onChange={(e) => setVolumeGal(parseFloat(e.target.value) || 0)}
-                placeholder="0.0"
-              />
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="edit_yeast">Yeast</Label>
+                <Input
+                  id="edit_yeast"
+                  value={formData.yeast}
+                  onChange={(e) => setFormData({ ...formData, yeast: e.target.value })}
+                  placeholder="Safale US-05"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="edit_target_abv">Target ABV (%)</Label>
+                <Input
+                  id="edit_target_abv"
+                  type="number"
+                  min="0"
+                  max="20"
+                  step="0.1"
+                  value={formData.target_abv}
+                  onChange={(e) => setFormData({ ...formData, target_abv: parseFloat(e.target.value) || 0 })}
+                />
+              </div>
             </div>
 
-            {/* Yeast */}
-            <div className="space-y-2">
-              <Label htmlFor="yeast">Yeast *</Label>
-              <Input
-                id="yeast"
-                value={yeast}
-                onChange={(e) => setYeast(e.target.value)}
-                placeholder="e.g., Safale US-05"
-              />
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="edit_start_date">Start Date</Label>
+                <Input
+                  id="edit_start_date"
+                  type="date"
+                  value={formData.start_date}
+                  onChange={(e) => setFormData({ ...formData, start_date: e.target.value })}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="edit_status">Status</Label>
+                <Select value={formData.status} onValueChange={(value: BatchStatus) => setFormData({ ...formData, status: value })}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="planned">Planned</SelectItem>
+                    <SelectItem value="fermenting">Fermenting</SelectItem>
+                    <SelectItem value="conditioning">Conditioning</SelectItem>
+                    <SelectItem value="packaged">Packaged</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
 
-            {/* Target ABV */}
             <div className="space-y-2">
-              <Label htmlFor="target_abv">Target ABV (%) *</Label>
-              <Input
-                id="target_abv"
-                type="number"
-                min="0"
-                max="20"
-                step="0.1"
-                value={targetAbv}
-                onChange={(e) => setTargetAbv(parseFloat(e.target.value) || 0)}
-                placeholder="0.0"
-              />
-            </div>
-
-            {/* Start Date */}
-            <div className="space-y-2">
-              <Label htmlFor="start_date">Start Date *</Label>
-              <Input
-                id="start_date"
-                type="date"
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-              />
-            </div>
-
-            {/* Status */}
-            <div className="space-y-2">
-              <Label htmlFor="status">Status *</Label>
-              <Select value={status} onValueChange={(value: any) => setStatus(value)}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="planned">Planned</SelectItem>
-                  <SelectItem value="fermenting">Fermenting</SelectItem>
-                  <SelectItem value="conditioning">Conditioning</SelectItem>
-                  <SelectItem value="packaged">Packaged</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* Notes */}
-            <div className="space-y-2">
-              <Label htmlFor="notes">Notes (optional)</Label>
+              <Label htmlFor="edit_notes">Notes (optional)</Label>
               <Textarea
-                id="notes"
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                placeholder="Add any additional notes about this batch..."
+                id="edit_notes"
+                value={formData.notes}
+                onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                placeholder="Additional notes about this batch..."
                 rows={3}
               />
             </div>
-
-            {/* Error Display */}
-            {submitError && (
-              <Card className="border-red-500/20 bg-red-500/5">
-                <CardContent className="pt-4">
-                  <div className="flex items-center gap-2 text-red-500 text-sm">
-                    <AlertCircle className="h-4 w-4" />
-                    <p>{submitError}</p>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
           </div>
-
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsCreateModalOpen(false)} disabled={isSubmitting}>
+            <Button variant="outline" onClick={() => setEditingBatch(null)}>
               Cancel
             </Button>
-            <Button onClick={handleCreateBatch} disabled={isSubmitting}>
-              {isSubmitting ? 'Creating...' : 'Create Batch'}
+            <Button onClick={handleUpdateBatch} disabled={submitting}>
+              {submitting ? 'Updating...' : 'Update Batch'}
             </Button>
           </DialogFooter>
         </DialogContent>
