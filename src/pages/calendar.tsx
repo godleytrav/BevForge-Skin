@@ -60,6 +60,11 @@ export default function CalendarPage() {
     setCurrentDate(new Date());
   };
 
+  const handleDayDoubleClick = (date: Date) => {
+    setCurrentDate(date);
+    setViewMode('day');
+  };
+
   const getDateRange = () => {
     if (viewMode === 'day') {
       return format(currentDate, 'EEEE, MMMM d, yyyy');
@@ -271,6 +276,7 @@ export default function CalendarPage() {
                   {getMonthDays().map((day, idx) => (
                     <div
                       key={idx}
+                      onDoubleClick={() => handleDayDoubleClick(day)}
                       className={`aspect-square border rounded-lg p-2 hover:bg-muted/50 cursor-pointer ${
                         isToday(day) ? 'bg-primary/10 border-primary' : ''
                       } ${!isSameMonth(day, currentDate) ? 'text-muted-foreground' : ''}`}
