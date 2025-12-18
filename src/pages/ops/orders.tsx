@@ -6,8 +6,12 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Calendar as CalendarComponent } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Plus, Search, Trash2, Edit, Calendar } from 'lucide-react';
 import { apiGet, apiPost, apiPatch, apiDelete } from '@/lib/api';
+import { format } from 'date-fns';
+import { cn } from '@/lib/utils';
 
 type OrderStatus = 'pending' | 'processing' | 'fulfilled' | 'cancelled';
 
@@ -43,8 +47,8 @@ export default function Orders() {
   // Search and filters
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<OrderStatus | 'all'>('all');
-  const [startDate, setStartDate] = useState('');
-  const [endDate, setEndDate] = useState('');
+  const [startDate, setStartDate] = useState<Date | undefined>();
+  const [endDate, setEndDate] = useState<Date | undefined>();
   
   // Create/Edit modal state
   const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -200,8 +204,8 @@ export default function Orders() {
       
       // Date range filter
       const orderDate = new Date(order.order_date);
-      const matchesStartDate = !startDate || orderDate >= new Date(startDate);
-      const matchesEndDate = !endDate || orderDate <= new Date(endDate);
+      const matchesStartDate = !startDate || orderDate >= startDate;
+      const matchesEndDate = !endDate || orderDate <= endDate;
       
       return matchesSearch && matchesStatus && matchesStartDate && matchesEndDate;
     });
@@ -377,27 +381,51 @@ export default function Orders() {
               </SelectContent>
             </Select>
 
-            <div className="relative">
-              <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                type="date"
-                placeholder="Start date"
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-                className="pl-9"
-              />
-            </div>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  className={cn(
+                    "justify-start text-left font-normal",
+                    !startDate && "text-muted-foreground"
+                  )}
+                >
+                  <Calendar className="mr-2 h-4 w-4" />
+                  {startDate ? format(startDate, "PPP") : "Start date"}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <CalendarComponent
+                  mode="single"
+                  selected={startDate}
+                  onSelect={setStartDate}
+                  initialFocus
+                />
+              </PopoverContent>
+            </Popover>
 
-            <div className="relative">
-              <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                type="date"
-                placeholder="End date"
-                value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
-                className="pl-9"
-              />
-            </div>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  className={cn(
+                    "justify-start text-left font-normal",
+                    !endDate && "text-muted-foreground"
+                  )}
+                >
+                  <Calendar className="mr-2 h-4 w-4" />
+                  {endDate ? format(endDate, "PPP") : "End date"}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <CalendarComponent
+                  mode="single"
+                  selected={endDate}
+                  onSelect={setEndDate}
+                  initialFocus
+                />
+              </PopoverContent>
+            </Popover>
           </div>
 
           {(searchQuery || statusFilter !== 'all' || startDate || endDate) && (
@@ -411,8 +439,8 @@ export default function Orders() {
                 onClick={() => {
                   setSearchQuery('');
                   setStatusFilter('all');
-                  setStartDate('');
-                  setEndDate('');
+                  setStartDate(undefined);
+                  setEndDate(undefined);
                 }}
               >
                 Clear filters
