@@ -13,6 +13,7 @@ import {
   Calendar as CalendarIcon
 } from "lucide-react";
 import { useState } from "react";
+import { Link } from "react-router-dom";
 
 export interface DashboardConfig {
   sidebar?: {
@@ -254,14 +255,15 @@ export default function Dashboard({
             {headerActions}
 
             {/* Calendar */}
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => (window.location.href = '/calendar')}
-              title="Calendar"
-            >
-              <CalendarIcon className="h-4 w-4" />
-            </Button>
+            <Link to="/calendar">
+              <Button
+                variant="ghost"
+                size="icon"
+                title="Calendar"
+              >
+                <CalendarIcon className="h-4 w-4" />
+              </Button>
+            </Link>
 
             {/* Notifications */}
             {notifications.enabled && (
@@ -314,27 +316,30 @@ export default function Dashboard({
                         <div className="text-gray-500">{user.email}</div>
                       </div>
                       <div className="my-1 border-t" />
-                      <button
+                      <Link
+                        to="/profile"
                         className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-sm text-gray-700 hover:bg-gray-100"
-                        onClick={() => (window.location.href = '/profile')}
+                        onClick={() => setUserMenuOpen(false)}
                       >
                         <User className="h-4 w-4" />
                         Profile
-                      </button>
-                      <button
+                      </Link>
+                      <Link
+                        to="/settings"
                         className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-sm text-gray-700 hover:bg-gray-100"
-                        onClick={() => (window.location.href = '/settings')}
+                        onClick={() => setUserMenuOpen(false)}
                       >
                         <Settings className="h-4 w-4" />
                         Settings
-                      </button>
-                      <button
+                      </Link>
+                      <Link
+                        to="/help"
                         className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-sm text-gray-700 hover:bg-gray-100"
-                        onClick={() => (window.location.href = '/help')}
+                        onClick={() => setUserMenuOpen(false)}
                       >
                         <HelpCircle className="h-4 w-4" />
                         Help
-                      </button>
+                      </Link>
                       <div className="my-1 border-t" />
                       <button
                         className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-sm text-gray-700 hover:bg-gray-100"
