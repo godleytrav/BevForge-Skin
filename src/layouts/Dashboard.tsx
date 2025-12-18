@@ -9,7 +9,8 @@ import {
   User,
   Settings,
   LogOut,
-  HelpCircle
+  HelpCircle,
+  Calendar as CalendarIcon
 } from "lucide-react";
 import { useState } from "react";
 
@@ -252,6 +253,16 @@ export default function Dashboard({
           <div className="ml-auto flex items-center gap-2">
             {headerActions}
 
+            {/* Calendar */}
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => (window.location.href = '/calendar')}
+              title="Calendar"
+            >
+              <CalendarIcon className="h-4 w-4" />
+            </Button>
+
             {/* Notifications */}
             {notifications.enabled && (
               <Button variant="ghost" size="icon" className="relative">
@@ -303,20 +314,32 @@ export default function Dashboard({
                         <div className="text-gray-500">{user.email}</div>
                       </div>
                       <div className="my-1 border-t" />
-                      <button className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-sm text-gray-700 hover:bg-gray-100">
+                      <button
+                        className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-sm text-gray-700 hover:bg-gray-100"
+                        onClick={() => (window.location.href = '/profile')}
+                      >
                         <User className="h-4 w-4" />
                         Profile
                       </button>
-                      <button className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-sm text-gray-700 hover:bg-gray-100">
+                      <button
+                        className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-sm text-gray-700 hover:bg-gray-100"
+                        onClick={() => (window.location.href = '/settings')}
+                      >
                         <Settings className="h-4 w-4" />
                         Settings
                       </button>
-                      <button className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-sm text-gray-700 hover:bg-gray-100">
+                      <button
+                        className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-sm text-gray-700 hover:bg-gray-100"
+                        onClick={() => (window.location.href = '/help')}
+                      >
                         <HelpCircle className="h-4 w-4" />
                         Help
                       </button>
                       <div className="my-1 border-t" />
-                      <button className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-sm text-gray-700 hover:bg-gray-100">
+                      <button
+                        className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-sm text-gray-700 hover:bg-gray-100"
+                        onClick={() => alert('Logout functionality coming soon!')}
+                      >
                         <LogOut className="h-4 w-4" />
                         Log out
                       </button>
