@@ -20,25 +20,33 @@ type CalendarEvent = {
   title: string;
   time: string;
   duration: string;
-  type: 'batch' | 'meeting' | 'order' | 'maintenance' | 'compliance';
+  type: 'ORDER' | 'DELIVERY' | 'PRODUCTION' | 'INVENTORY' | 'COMPLIANCE' | 'MAINTENANCE' | 'NOTE';
+  status: 'PLANNED' | 'CONFIRMED' | 'DONE' | 'CANCELED';
   priority: 'high' | 'medium' | 'low';
   date: Date;
+  description?: string;
+  // Automation fields
+  entity_type?: string; // e.g., 'order', 'batch', 'delivery'
+  entity_id?: string; // ID of the linked entity
+  payload?: Record<string, any>; // JSON data for automation
 };
 
 const mockEvents: CalendarEvent[] = [
-  { id: '1', title: 'Batch #2847 - IPA Brewing', time: '09:00', duration: '4h', type: 'batch', priority: 'high', date: new Date() },
-  { id: '2', title: 'Team Meeting - Production Review', time: '14:00', duration: '1h', type: 'meeting', priority: 'medium', date: new Date() },
-  { id: '3', title: 'Order #1923 - Delivery Scheduled', time: '16:00', duration: '2h', type: 'order', priority: 'high', date: new Date() },
-  { id: '4', title: 'Equipment Maintenance - Tank 3', time: '10:00', duration: '3h', type: 'maintenance', priority: 'medium', date: addDays(new Date(), 1) },
-  { id: '5', title: 'Compliance Audit - Health Inspection', time: '11:00', duration: '2h', type: 'compliance', priority: 'high', date: addDays(new Date(), 2) },
+  { id: '1', title: 'Batch #2847 - IPA Brewing', time: '09:00', duration: '4h', type: 'PRODUCTION', status: 'CONFIRMED', priority: 'high', date: new Date(), entity_type: 'batch', entity_id: '2847' },
+  { id: '2', title: 'Team Meeting - Production Review', time: '14:00', duration: '1h', type: 'NOTE', status: 'PLANNED', priority: 'medium', date: new Date() },
+  { id: '3', title: 'Order #1923 - Delivery Scheduled', time: '16:00', duration: '2h', type: 'DELIVERY', status: 'CONFIRMED', priority: 'high', date: new Date(), entity_type: 'order', entity_id: '1923' },
+  { id: '4', title: 'Equipment Maintenance - Tank 3', time: '10:00', duration: '3h', type: 'MAINTENANCE', status: 'PLANNED', priority: 'medium', date: addDays(new Date(), 1) },
+  { id: '5', title: 'Compliance Audit - Health Inspection', time: '11:00', duration: '2h', type: 'COMPLIANCE', status: 'CONFIRMED', priority: 'high', date: addDays(new Date(), 2) },
 ];
 
 const eventTypeColors = {
-  batch: 'bg-blue-500',
-  meeting: 'bg-purple-500',
-  order: 'bg-green-500',
-  maintenance: 'bg-orange-500',
-  compliance: 'bg-red-500',
+  ORDER: 'bg-green-500',
+  DELIVERY: 'bg-blue-500',
+  PRODUCTION: 'bg-purple-500',
+  INVENTORY: 'bg-yellow-500',
+  COMPLIANCE: 'bg-red-500',
+  MAINTENANCE: 'bg-orange-500',
+  NOTE: 'bg-gray-500',
 };
 
 const priorityColors = {
@@ -60,9 +68,13 @@ export default function CalendarPage() {
     date: format(new Date(), 'yyyy-MM-dd'),
     time: '09:00',
     duration: '1h',
-    type: 'batch' as CalendarEvent['type'],
+    type: 'NOTE' as CalendarEvent['type'],
+    status: 'PLANNED' as CalendarEvent['status'],
     priority: 'medium' as CalendarEvent['priority'],
     description: '',
+    entity_type: '',
+    entity_id: '',
+    payload: '',
   });
 
   const handlePrevious = () => {
@@ -98,8 +110,12 @@ export default function CalendarPage() {
       time: newEvent.time,
       duration: newEvent.duration,
       type: newEvent.type,
+      status: newEvent.status,
       priority: newEvent.priority,
       date: new Date(newEvent.date),
+      entity_type: newEvent.entity_type || undefined,
+      entity_id: newEvent.entity_id || undefined,
+      payload: newEvent.payload ? JSON.parse(newEvent.payload) : undefined,
     };
     setEvents([...events, event]);
     setIsAddEventOpen(false);
@@ -108,9 +124,13 @@ export default function CalendarPage() {
       date: format(new Date(), 'yyyy-MM-dd'),
       time: '09:00',
       duration: '1h',
-      type: 'batch',
+      type: 'NOTE',
+      status: 'PLANNED',
       priority: 'medium',
       description: '',
+      entity_type: '',
+      entity_id: '',
+      payload: '',
     });
   };
 
@@ -122,8 +142,12 @@ export default function CalendarPage() {
       time: event.time,
       duration: event.duration,
       type: event.type,
+      status: event.status,
       priority: event.priority,
       description: event.description || '',
+      entity_type: event.entity_type || '',
+      entity_id: event.entity_id || '',
+      payload: event.payload ? JSON.stringify(event.payload, null, 2) : '',
     });
     setIsViewEventOpen(true);
   };
@@ -139,8 +163,12 @@ export default function CalendarPage() {
             time: newEvent.time,
             duration: newEvent.duration,
             type: newEvent.type,
+            status: newEvent.status,
             priority: newEvent.priority,
             description: newEvent.description,
+            entity_type: newEvent.entity_type || undefined,
+            entity_id: newEvent.entity_id || undefined,
+            payload: newEvent.payload ? JSON.parse(newEvent.payload) : undefined,
           }
         : e
     );
@@ -466,11 +494,13 @@ export default function CalendarPage() {
                                 <SelectValue />
                               </SelectTrigger>
                               <SelectContent>
-                                <SelectItem value="batch">Batch</SelectItem>
-                                <SelectItem value="meeting">Meeting</SelectItem>
-                                <SelectItem value="order">Order</SelectItem>
-                                <SelectItem value="maintenance">Maintenance</SelectItem>
-                                <SelectItem value="compliance">Compliance</SelectItem>
+                                <SelectItem value="ORDER">Order</SelectItem>
+                                <SelectItem value="DELIVERY">Delivery</SelectItem>
+                                <SelectItem value="PRODUCTION">Production</SelectItem>
+                                <SelectItem value="INVENTORY">Inventory</SelectItem>
+                                <SelectItem value="COMPLIANCE">Compliance</SelectItem>
+                                <SelectItem value="MAINTENANCE">Maintenance</SelectItem>
+                                <SelectItem value="NOTE">Note</SelectItem>
                               </SelectContent>
                             </Select>
                           </div>
@@ -503,6 +533,53 @@ export default function CalendarPage() {
                               <SelectItem value="8h">8 hours</SelectItem>
                             </SelectContent>
                           </Select>
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="grid gap-2">
+                            <Label htmlFor="status">Status</Label>
+                            <Select value={newEvent.status} onValueChange={(value) => setNewEvent({ ...newEvent, status: value as CalendarEvent['status'] })}>
+                              <SelectTrigger id="status">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="PLANNED">Planned</SelectItem>
+                                <SelectItem value="CONFIRMED">Confirmed</SelectItem>
+                                <SelectItem value="DONE">Done</SelectItem>
+                                <SelectItem value="CANCELED">Canceled</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="grid gap-2">
+                            <Label htmlFor="entity_type">Entity Type (Optional)</Label>
+                            <Input
+                              id="entity_type"
+                              value={newEvent.entity_type}
+                              onChange={(e) => setNewEvent({ ...newEvent, entity_type: e.target.value })}
+                              placeholder="e.g., order, batch, delivery"
+                            />
+                          </div>
+                          <div className="grid gap-2">
+                            <Label htmlFor="entity_id">Entity ID (Optional)</Label>
+                            <Input
+                              id="entity_id"
+                              value={newEvent.entity_id}
+                              onChange={(e) => setNewEvent({ ...newEvent, entity_id: e.target.value })}
+                              placeholder="e.g., 1234"
+                            />
+                          </div>
+                        </div>
+                        <div className="grid gap-2">
+                          <Label htmlFor="payload">Payload JSON (Optional)</Label>
+                          <Textarea
+                            id="payload"
+                            value={newEvent.payload}
+                            onChange={(e) => setNewEvent({ ...newEvent, payload: e.target.value })}
+                            placeholder='{"key": "value"}'
+                            rows={2}
+                            className="font-mono text-xs"
+                          />
                         </div>
                         <div className="grid gap-2">
                           <Label htmlFor="description">Description (Optional)</Label>
@@ -571,14 +648,16 @@ export default function CalendarPage() {
                             <select
                               id="edit-type"
                               value={newEvent.type}
-                              onChange={(e) => setNewEvent({ ...newEvent, type: e.target.value })}
+                              onChange={(e) => setNewEvent({ ...newEvent, type: e.target.value as CalendarEvent['type'] })}
                               className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                             >
-                              <option value="batch">Batch</option>
-                              <option value="meeting">Meeting</option>
-                              <option value="order">Order</option>
-                              <option value="maintenance">Maintenance</option>
-                              <option value="compliance">Compliance</option>
+                              <option value="ORDER">Order</option>
+                              <option value="DELIVERY">Delivery</option>
+                              <option value="PRODUCTION">Production</option>
+                              <option value="INVENTORY">Inventory</option>
+                              <option value="COMPLIANCE">Compliance</option>
+                              <option value="MAINTENANCE">Maintenance</option>
+                              <option value="NOTE">Note</option>
                             </select>
                           </div>
                           <div className="space-y-2">
@@ -586,7 +665,7 @@ export default function CalendarPage() {
                             <select
                               id="edit-priority"
                               value={newEvent.priority}
-                              onChange={(e) => setNewEvent({ ...newEvent, priority: e.target.value })}
+                              onChange={(e) => setNewEvent({ ...newEvent, priority: e.target.value as CalendarEvent['priority'] })}
                               className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                             >
                               <option value="high">High</option>
@@ -609,6 +688,51 @@ export default function CalendarPage() {
                             <option value="4h">4 hours</option>
                             <option value="8h">8 hours</option>
                           </select>
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="edit-status">Status</Label>
+                          <select
+                            id="edit-status"
+                            value={newEvent.status}
+                            onChange={(e) => setNewEvent({ ...newEvent, status: e.target.value as CalendarEvent['status'] })}
+                            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                          >
+                            <option value="PLANNED">Planned</option>
+                            <option value="CONFIRMED">Confirmed</option>
+                            <option value="DONE">Done</option>
+                            <option value="CANCELED">Canceled</option>
+                          </select>
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                            <Label htmlFor="edit-entity-type">Entity Type (Optional)</Label>
+                            <Input
+                              id="edit-entity-type"
+                              value={newEvent.entity_type}
+                              onChange={(e) => setNewEvent({ ...newEvent, entity_type: e.target.value })}
+                              placeholder="e.g., order, batch, delivery"
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="edit-entity-id">Entity ID (Optional)</Label>
+                            <Input
+                              id="edit-entity-id"
+                              value={newEvent.entity_id}
+                              onChange={(e) => setNewEvent({ ...newEvent, entity_id: e.target.value })}
+                              placeholder="e.g., 1234"
+                            />
+                          </div>
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="edit-payload">Payload JSON (Optional)</Label>
+                          <Textarea
+                            id="edit-payload"
+                            value={newEvent.payload}
+                            onChange={(e) => setNewEvent({ ...newEvent, payload: e.target.value })}
+                            placeholder='{"key": "value"}'
+                            rows={2}
+                            className="font-mono text-xs"
+                          />
                         </div>
                         <div className="space-y-2">
                           <Label htmlFor="edit-description">Description (Optional)</Label>
@@ -729,7 +853,7 @@ export default function CalendarPage() {
               <div className="flex justify-between items-center">
                 <span className="text-sm text-muted-foreground">Batches</span>
                 <span className="font-semibold text-blue-500">
-                  {events.filter(e => e.type === 'batch').length}
+                  {events.filter(e => e.type === 'PRODUCTION').length}
                 </span>
               </div>
             </CardContent>
