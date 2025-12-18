@@ -4,10 +4,12 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Search, Book, MessageCircle, Mail, FileText, Video } from 'lucide-react';
+import { AppShell } from '@/components/AppShell';
 
 export default function HelpPage() {
   return (
-    <div className="container mx-auto p-6 max-w-5xl">
+    <AppShell pageTitle="Help & Support">
+      <div className="max-w-5xl">
       <div className="mb-6">
         <h1 className="text-3xl font-bold">Help & Support</h1>
         <p className="text-muted-foreground">Find answers and get help with BevForge</p>
@@ -169,6 +171,7 @@ export default function HelpPage() {
           <Button className="w-full">Contact Support Team</Button>
         </CardContent>
       </Card>
-    </div>
+      </div>
+    </AppShell>
   );
 }

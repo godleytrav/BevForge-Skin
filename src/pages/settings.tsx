@@ -6,10 +6,12 @@ import { Switch } from '@/components/ui/switch';
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Bell, Lock, User, Building, Palette } from 'lucide-react';
+import { AppShell } from '@/components/AppShell';
 
 export default function SettingsPage() {
   return (
-    <div className="container mx-auto p-6 max-w-5xl">
+    <AppShell pageTitle="Settings">
+      <div className="max-w-5xl">
       <div className="mb-6">
         <h1 className="text-3xl font-bold">Settings</h1>
         <p className="text-muted-foreground">Manage your BevForge account and preferences</p>
@@ -252,6 +254,7 @@ export default function SettingsPage() {
           </Card>
         </TabsContent>
       </Tabs>
-    </div>
+      </div>
+    </AppShell>
   );
 }

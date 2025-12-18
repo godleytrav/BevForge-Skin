@@ -4,10 +4,12 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Mail, Phone, MapPin, Calendar, Award, Activity } from 'lucide-react';
+import { AppShell } from '@/components/AppShell';
 
 export default function ProfilePage() {
   return (
-    <div className="container mx-auto p-6 max-w-5xl">
+    <AppShell pageTitle="Profile">
+      <div className="max-w-5xl">
       <div className="mb-6">
         <h1 className="text-3xl font-bold">Profile</h1>
         <p className="text-muted-foreground">View and manage your profile information</p>
@@ -149,6 +151,7 @@ export default function ProfilePage() {
           </CardContent>
         </Card>
       </div>
-    </div>
+      </div>
+    </AppShell>
   );
 }

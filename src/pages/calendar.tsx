@@ -4,6 +4,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { CalendarDays, Package, ShoppingCart, FileText, AlertCircle } from 'lucide-react';
+import { AppShell } from '@/components/AppShell';
 
 export default function CalendarPage() {
   const [date, setDate] = useState<Date | undefined>(new Date());
@@ -44,7 +45,8 @@ export default function CalendarPage() {
   ];
 
   return (
-    <div className="container mx-auto p-6 max-w-6xl">
+    <AppShell pageTitle="Calendar">
+      <div className="max-w-6xl">
       <div className="mb-6">
         <h1 className="text-3xl font-bold">Calendar</h1>
         <p className="text-muted-foreground">Track batches, orders, and compliance deadlines</p>
@@ -204,6 +206,7 @@ export default function CalendarPage() {
           </CardContent>
         </Card>
       </div>
-    </div>
+      </div>
+    </AppShell>
   );
 }
