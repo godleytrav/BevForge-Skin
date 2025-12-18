@@ -449,7 +449,7 @@ export default function CalendarPage() {
                         Add Event
                       </Button>
                     </DialogTrigger>
-                    <DialogContent className="sm:max-w-[500px]">
+                    <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
                       <DialogHeader>
                         <DialogTitle>Add New Event</DialogTitle>
                         <DialogDescription>
@@ -605,7 +605,7 @@ export default function CalendarPage() {
 
                   {/* View/Edit Event Dialog */}
                   <Dialog open={isViewEventOpen} onOpenChange={setIsViewEventOpen}>
-                    <DialogContent className="max-w-md">
+                    <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
                       <DialogHeader>
                         <DialogTitle>Event Details</DialogTitle>
                         <DialogDescription>
