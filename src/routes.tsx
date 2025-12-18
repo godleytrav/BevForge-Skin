@@ -21,66 +21,66 @@ const SettingsPage = lazy(() => import('./pages/settings'));
 export const routes: RouteObject[] = [
   {
     path: '/',
-    element: <IndexPage />,
+    Component: IndexPage,
   },
   {
     path: '/os',
-    element: <OSPage />,
+    Component: OSPage,
   },
   {
     path: '/flow',
-    element: <FlowPage />,
+    Component: FlowPage,
   },
   {
     path: '/lab',
-    element: <LabPage />,
+    Component: LabPage,
   },
   {
     path: '/ops',
-    element: <OpsPage />,
+    Component: OpsPage,
   },
   {
     path: '/ops/sales',
-    element: <OpsSalesPage />,
+    Component: OpsSalesPage,
   },
   {
     path: '/ops/orders',
-    element: <OpsOrdersPage />,
+    Component: OpsOrdersPage,
   },
   {
     path: '/ops/inventory',
-    element: <OpsInventoryPage />,
+    Component: OpsInventoryPage,
   },
   {
     path: '/ops/batches',
-    element: <OpsBatchesPage />,
+    Component: OpsBatchesPage,
   },
   {
     path: '/ops/reports',
-    element: <OpsReportsPage />,
+    Component: OpsReportsPage,
   },
   {
     path: '/ops/compliance',
-    element: <OpsCompliancePage />,
+    Component: OpsCompliancePage,
   },
   {
     path: '/ops/tax',
-    element: <OpsTaxPage />,
+    Component: OpsTaxPage,
   },
   {
     path: '/connect',
-    element: <ConnectPage />,
+    Component: ConnectPage,
   },
   {
     path: '/reports',
-    element: <ReportsPage />,
+    Component: ReportsPage,
   },
   {
     path: '/settings',
-    element: <SettingsPage />,
+    Component: SettingsPage,
   },
   {
     path: '*',
-    element: <NotFoundPage />,
+    Component: NotFoundPage,
   },
 ];
