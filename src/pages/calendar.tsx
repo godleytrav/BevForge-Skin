@@ -53,6 +53,8 @@ export default function CalendarPage() {
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
   const [events, setEvents] = useState<CalendarEvent[]>(mockEvents);
   const [isAddEventOpen, setIsAddEventOpen] = useState(false);
+  const [isViewEventOpen, setIsViewEventOpen] = useState(false);
+  const [selectedEvent, setSelectedEvent] = useState<typeof events[0] | null>(null);
   const [newEvent, setNewEvent] = useState({
     title: '',
     date: format(new Date(), 'yyyy-MM-dd'),
@@ -110,6 +112,48 @@ export default function CalendarPage() {
       priority: 'medium',
       description: '',
     });
+  };
+
+  const handleEventClick = (event: CalendarEvent) => {
+    setSelectedEvent(event);
+    setNewEvent({
+      title: event.title,
+      date: format(event.date, 'yyyy-MM-dd'),
+      time: event.time,
+      duration: event.duration,
+      type: event.type,
+      priority: event.priority,
+      description: event.description || '',
+    });
+    setIsViewEventOpen(true);
+  };
+
+  const handleUpdateEvent = () => {
+    if (!selectedEvent) return;
+    const updatedEvents = events.map(e => 
+      e.id === selectedEvent.id 
+        ? {
+            ...e,
+            title: newEvent.title,
+            date: new Date(newEvent.date),
+            time: newEvent.time,
+            duration: newEvent.duration,
+            type: newEvent.type,
+            priority: newEvent.priority,
+            description: newEvent.description,
+          }
+        : e
+    );
+    setEvents(updatedEvents);
+    setIsViewEventOpen(false);
+    setSelectedEvent(null);
+  };
+
+  const handleDeleteEvent = () => {
+    if (!selectedEvent) return;
+    setEvents(events.filter(e => e.id !== selectedEvent.id));
+    setIsViewEventOpen(false);
+    setSelectedEvent(null);
   };
 
   const getDateRange = () => {
@@ -171,8 +215,9 @@ export default function CalendarPage() {
                 return (
                   <div
                     key={event.id}
-                    className={`absolute left-2 right-2 ${eventTypeColors[event.type]} text-white p-2 rounded text-sm shadow-md`}
+                    className={`absolute left-2 right-2 ${eventTypeColors[event.type]} text-white p-2 rounded text-sm shadow-md cursor-pointer hover:opacity-90 transition-opacity`}
                     style={{ top: `${top}px`, height: '60px' }}
+                    onDoubleClick={() => handleEventClick(event)}
                   >
                     <div className="font-medium">{event.title}</div>
                     <div className="text-xs opacity-90">{event.time} • {event.duration}</div>
@@ -224,8 +269,9 @@ export default function CalendarPage() {
                     return (
                       <div
                         key={event.id}
-                        className={`absolute left-1 right-1 ${eventTypeColors[event.type]} text-white p-1 rounded text-xs shadow-md overflow-hidden`}
+                        className={`absolute left-1 right-1 ${eventTypeColors[event.type]} text-white p-1 rounded text-xs shadow-md overflow-hidden cursor-pointer hover:opacity-90 transition-opacity`}
                         style={{ top: `${top}px`, height: '60px' }}
+                        onDoubleClick={() => handleEventClick(event)}
                       >
                         <div className="font-medium truncate">{event.title}</div>
                         <div className="text-xs opacity-90">{event.time}</div>
@@ -273,7 +319,8 @@ export default function CalendarPage() {
                   {dayEvents.slice(0, 2).map(event => (
                     <div
                       key={event.id}
-                      className={`text-xs p-1 rounded ${eventTypeColors[event.type]} text-white truncate`}
+                      className={`text-xs p-1 rounded ${eventTypeColors[event.type]} text-white truncate cursor-pointer hover:opacity-90 transition-opacity`}
+                      onDoubleClick={() => handleEventClick(event)}
                     >
                       {event.title}
                     </div>
@@ -318,7 +365,11 @@ export default function CalendarPage() {
                           ) : (
                             <div className="space-y-2">
                               {getTodayEvents().map(event => (
-                                <div key={event.id} className={`p-3 border-l-4 ${priorityColors[event.priority]} bg-card rounded`}>
+                                <div 
+                                  key={event.id} 
+                                  className={`p-3 border-l-4 ${priorityColors[event.priority]} bg-card rounded cursor-pointer hover:bg-accent transition-colors`}
+                                  onClick={() => handleEventClick(event)}
+                                >
                                   <div className="flex items-start justify-between">
                                     <div className="flex-1">
                                       <div className="font-medium">{event.title}</div>
@@ -471,6 +522,117 @@ export default function CalendarPage() {
                         <Button onClick={handleAddEvent} disabled={!newEvent.title}>
                           Add Event
                         </Button>
+                      </DialogFooter>
+                    </DialogContent>
+                  </Dialog>
+
+                  {/* View/Edit Event Dialog */}
+                  <Dialog open={isViewEventOpen} onOpenChange={setIsViewEventOpen}>
+                    <DialogContent className="max-w-md">
+                      <DialogHeader>
+                        <DialogTitle>Event Details</DialogTitle>
+                        <DialogDescription>
+                          View or edit this event
+                        </DialogDescription>
+                      </DialogHeader>
+                      <div className="space-y-4 py-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="edit-title">Event Title</Label>
+                          <Input
+                            id="edit-title"
+                            value={newEvent.title}
+                            onChange={(e) => setNewEvent({ ...newEvent, title: e.target.value })}
+                            placeholder="e.g., Batch #2847 - IPA Brewing"
+                          />
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                            <Label htmlFor="edit-date">Date</Label>
+                            <Input
+                              id="edit-date"
+                              type="date"
+                              value={newEvent.date}
+                              onChange={(e) => setNewEvent({ ...newEvent, date: e.target.value })}
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="edit-time">Time</Label>
+                            <Input
+                              id="edit-time"
+                              type="time"
+                              value={newEvent.time}
+                              onChange={(e) => setNewEvent({ ...newEvent, time: e.target.value })}
+                            />
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                            <Label htmlFor="edit-type">Event Type</Label>
+                            <select
+                              id="edit-type"
+                              value={newEvent.type}
+                              onChange={(e) => setNewEvent({ ...newEvent, type: e.target.value })}
+                              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                            >
+                              <option value="batch">Batch</option>
+                              <option value="meeting">Meeting</option>
+                              <option value="order">Order</option>
+                              <option value="maintenance">Maintenance</option>
+                              <option value="compliance">Compliance</option>
+                            </select>
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="edit-priority">Priority</Label>
+                            <select
+                              id="edit-priority"
+                              value={newEvent.priority}
+                              onChange={(e) => setNewEvent({ ...newEvent, priority: e.target.value })}
+                              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                            >
+                              <option value="high">High</option>
+                              <option value="medium">Medium</option>
+                              <option value="low">Low</option>
+                            </select>
+                          </div>
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="edit-duration">Duration</Label>
+                          <select
+                            id="edit-duration"
+                            value={newEvent.duration}
+                            onChange={(e) => setNewEvent({ ...newEvent, duration: e.target.value })}
+                            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                          >
+                            <option value="30m">30 minutes</option>
+                            <option value="1h">1 hour</option>
+                            <option value="2h">2 hours</option>
+                            <option value="4h">4 hours</option>
+                            <option value="8h">8 hours</option>
+                          </select>
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="edit-description">Description (Optional)</Label>
+                          <Textarea
+                            id="edit-description"
+                            value={newEvent.description}
+                            onChange={(e) => setNewEvent({ ...newEvent, description: e.target.value })}
+                            placeholder="Add notes or details about this event..."
+                            rows={3}
+                          />
+                        </div>
+                      </div>
+                      <DialogFooter className="flex justify-between">
+                        <Button variant="destructive" onClick={handleDeleteEvent}>
+                          Delete Event
+                        </Button>
+                        <div className="flex gap-2">
+                          <Button variant="outline" onClick={() => setIsViewEventOpen(false)}>
+                            Cancel
+                          </Button>
+                          <Button onClick={handleUpdateEvent} disabled={!newEvent.title}>
+                            Update Event
+                          </Button>
+                        </div>
                       </DialogFooter>
                     </DialogContent>
                   </Dialog>
