@@ -13,6 +13,7 @@ import SettingsPage from './pages/settings';
 import ProfilePage from './pages/profile';
 import HelpPage from './pages/help';
 import CalendarPage from './pages/calendar';
+import NotificationsPage from './pages/notifications';
 
 // OPS subpages
 import OrdersPage from './pages/ops/orders';
@@ -95,6 +96,10 @@ export const routes: RouteObject[] = [
     {
       path: '/calendar',
       element: <CalendarPage />,
+    },
+    {
+      path: '/notifications',
+      element: <NotificationsPage />,
     },
   {
     path: '*',
