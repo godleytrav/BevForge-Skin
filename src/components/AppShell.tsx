@@ -118,12 +118,16 @@ export function AppShell({ children, pageTitle = 'Dashboard', currentSuite }: Ap
             <Button variant="ghost" size="icon" className="hover:bg-accent/10">
               <Bell className="h-5 w-5" />
             </Button>
-            <Button variant="ghost" size="icon" className="hover:bg-accent/10">
-              <Calendar className="h-5 w-5" />
-            </Button>
-            <Button variant="ghost" size="icon" className="hover:bg-accent/10">
-              <Settings className="h-5 w-5" />
-            </Button>
+            <Link to="/calendar">
+              <Button variant="ghost" size="icon" className="hover:bg-accent/10">
+                <Calendar className="h-5 w-5" />
+              </Button>
+            </Link>
+            <Link to="/settings">
+              <Button variant="ghost" size="icon" className="hover:bg-accent/10">
+                <Settings className="h-5 w-5" />
+              </Button>
+            </Link>
 
             {/* User Menu */}
             <DropdownMenu>
@@ -139,8 +143,12 @@ export function AppShell({ children, pageTitle = 'Dashboard', currentSuite }: Ap
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-48">
-                <DropdownMenuItem>Profile</DropdownMenuItem>
-                <DropdownMenuItem>Account Settings</DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link to="/profile" className="cursor-pointer">Profile</Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link to="/settings" className="cursor-pointer">Account Settings</Link>
+                </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem>Logout</DropdownMenuItem>
               </DropdownMenuContent>
