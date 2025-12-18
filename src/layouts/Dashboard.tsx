@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import { Link } from "react-router-dom";
+import { useNotifications } from "@/contexts/NotificationContext";
 
 export interface DashboardConfig {
   sidebar?: {
@@ -86,6 +87,7 @@ export default function Dashboard({
 }: DashboardProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const { unreadCount } = useNotifications();
 
   const {
     sidebar = {},
@@ -267,14 +269,16 @@ export default function Dashboard({
 
             {/* Notifications */}
             {notifications.enabled && (
-              <Button variant="ghost" size="icon" className="relative">
-                <Bell className="h-4 w-4" />
-                {notifications.count && notifications.count > 0 && (
-                  <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-red-500 text-[10px] font-medium text-white flex items-center justify-center">
-                    {notifications.count > 9 ? "9+" : notifications.count}
-                  </span>
-                )}
-              </Button>
+              <Link to="/notifications">
+                <Button variant="ghost" size="icon" className="relative">
+                  <Bell className="h-4 w-4" />
+                  {unreadCount > 0 && (
+                    <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-red-500 text-[10px] font-medium text-white flex items-center justify-center">
+                      {unreadCount > 9 ? "9+" : unreadCount}
+                    </span>
+                  )}
+                </Button>
+              </Link>
             )}
 
             {/* User Menu */}

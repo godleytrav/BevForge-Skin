@@ -4,6 +4,7 @@ import AiroErrorBoundary from '../dev-tools/src/AiroErrorBoundary';
 import RootLayout, { RootLayoutConfig } from './layouts/RootLayout';
 import { routes } from './routes';
 import Spinner from './components/Spinner';
+import { NotificationProvider } from './contexts/NotificationContext';
 
 const SpinnerFallback = () => (
   <div className="flex justify-center py-8 h-screen items-center">
@@ -69,5 +70,9 @@ const router = createBrowserRouter([
 ]);
 
 export default function App() {
-  return <RouterProvider router={router} />;
+  return (
+    <NotificationProvider>
+      <RouterProvider router={router} />
+    </NotificationProvider>
+  );
 }
