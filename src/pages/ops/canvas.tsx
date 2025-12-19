@@ -502,7 +502,7 @@ export default function CanvasPage() {
     }
 
     handlePrintBatchLabels(containers);
-  };}
+  }
 
   const getLocationIcon = (type: Location['type']) => {
     switch (type) {
