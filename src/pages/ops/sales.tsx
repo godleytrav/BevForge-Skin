@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Truck, Package, CheckCircle, Clock, AlertTriangle, Calendar } from 'lucide-react';
+import { Truck, Package, CheckCircle, AlertTriangle, Calendar } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { AppShell } from '@/components/AppShell';
 import { Button } from '@/components/ui/button';
@@ -135,7 +135,7 @@ export default function OpsSales() {
   };
 
   return (
-    <AppShell pageTitle="Deliveries" activeSuite="ops">
+    <AppShell pageTitle="Deliveries">
       <div className="space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">

@@ -601,7 +601,7 @@ export default function DirectoryPage() {
                     <Button 
                       variant="outline" 
                       size="sm"
-                      onClick={() => window.location.href = `/ops/orders?customer=${encodeURIComponent(entity.name)}`}
+                      onClick={() => window.location.href = `/ops/orders?customer=${encodeURIComponent(selectedEntity.name)}`}
                     >
                       <ShoppingCart className="h-4 w-4 mr-1" />
                       Create Order

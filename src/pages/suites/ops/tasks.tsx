@@ -546,7 +546,7 @@ export default function TasksPage() {
                                 compliance: '/ops/compliance',
                                 inventory: '/ops/inventory'
                               };
-                              const route = routes[selectedTask.relatedEntity.type];
+                              const route = selectedTask.relatedEntity ? routes[selectedTask.relatedEntity.type] : undefined;
                               if (route) window.location.href = route;
                             }}
                           >

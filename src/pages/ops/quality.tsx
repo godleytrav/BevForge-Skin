@@ -97,7 +97,7 @@ export default function QualityPage() {
         { id: 'm10', parameter: 'CO2 Volume', target: '3.8-4.0', actual: '3.5', unit: 'vol', withinSpec: false },
         { id: 'm11', parameter: 'Fill Level', target: '355', actual: '352', unit: 'ml', withinSpec: false },
         { id: 'm12', parameter: 'Seal Integrity', target: 'Pass', actual: 'Fail', unit: '', withinSpec: false },
-      },
+      ],
       notes: 'Multiple packaging issues detected. Batch held for review.',
       issues: ['Low carbonation', 'Underfill detected', 'Seal integrity failures'],
     },
