@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { CreatePalletDialog } from '@/components/canvas/CreatePalletDialog';
+import { QRCodeDisplay } from '@/components/canvas/QRCodeDisplay';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -728,44 +729,55 @@ export default function CanvasPage() {
                           (container: Container) => (
                             <div
                               key={container.id}
-                              draggable
-                              onDragStart={() => {
-                                const location = locations.find((loc) =>
-                                  loc.products.some((p) =>
-                                    p.containers.some((c) => c.id === container.id)
-                                  )
-                                );
-                                if (location) {
-                                  handleDragStart(
-                                    container.id,
-                                    container.productName,
-                                    container.type,
-                                    location.id
-                                  );
-                                }
-                              }}
-                              onDragEnd={handleDragEnd}
-                              onClick={() =>
-                                setSelectedItem({
-                                  type: 'container',
-                                  data: container,
-                                })
-                              }
-                              className="w-full cursor-move rounded border p-2 text-left text-sm hover:bg-accent"
+                              className="w-full rounded border p-3 text-left text-sm hover:bg-accent"
                             >
-                              <div className="flex items-center gap-2">
-                                <GripVertical className="h-4 w-4 text-muted-foreground" />
-                              <div className="flex items-center justify-between">
-                                <span className="font-mono text-xs">
-                                  {container.id}
-                                </span>
-                                <Badge variant="outline" className="text-xs">
-                                  {container.status}
-                                </Badge>
-                              </div>
-                              <p className="mt-1 text-xs text-muted-foreground">
-                                Batch: {container.batchId}
-                              </p>
+                              <div className="flex items-center justify-between gap-2">
+                                <div
+                                  draggable
+                                  onDragStart={() => {
+                                    const location = locations.find((loc) =>
+                                      loc.products.some((p) =>
+                                        p.containers.some((c) => c.id === container.id)
+                                      )
+                                    );
+                                    if (location) {
+                                      handleDragStart(
+                                        container.id,
+                                        container.productName,
+                                        container.type,
+                                        location.id
+                                      );
+                                    }
+                                  }}
+                                  onDragEnd={handleDragEnd}
+                                  onClick={() =>
+                                    setSelectedItem({
+                                      type: 'container',
+                                      data: container,
+                                    })
+                                  }
+                                  className="flex flex-1 cursor-move items-center gap-2"
+                                >
+                                  <GripVertical className="h-4 w-4 text-muted-foreground" />
+                                  <div>
+                                    <div className="flex items-center gap-2">
+                                      <span className="font-mono text-xs font-medium">
+                                        {container.id}
+                                      </span>
+                                      <Badge variant="outline" className="text-xs">
+                                        {container.status}
+                                      </Badge>
+                                    </div>
+                                    <p className="mt-1 text-xs text-muted-foreground">
+                                      Batch: {container.batchId}
+                                    </p>
+                                  </div>
+                                </div>
+                                <QRCodeDisplay
+                                  type="container"
+                                  id={container.id}
+                                  label={`${container.productName} - ${container.type}`}
+                                />
                               </div>
                             </div>
                           )
