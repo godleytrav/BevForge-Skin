@@ -65,6 +65,7 @@ export default function Orders() {
   const [lineItems, setLineItems] = useState<LineItem[]>([
     { item_name: '', qty: 1, price: 0 },
   ]);
+  const [submitting, setSubmitting] = useState(false);
 
   // Check for URL parameters to pre-fill customer
   useEffect(() => {
@@ -74,7 +75,6 @@ export default function Orders() {
       setIsCreateOpen(true);
     }
   }, [searchParams]);
-  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     fetchOrders();
