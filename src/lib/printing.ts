@@ -3,7 +3,7 @@
  * Handles printing of labels, manifests, and invoices for containers and pallets
  */
 
-import { generateQRCodeSVG } from './qr-code';
+import { generateContainerQR, generatePalletQR } from './qr-code';
 
 export interface Container {
   id: string;
@@ -44,7 +44,7 @@ export function generateContainerLabel(
   } = options;
 
   const qrCode = includeQRCode
-    ? generateQRCodeSVG(`CONTAINER:${container.id}`, 150)
+    ? generateContainerQR(container.id)
     : '';
 
   return `
@@ -157,7 +157,7 @@ export function generatePalletManifest(
   const { includeQRCode = true } = options;
 
   const qrCode = includeQRCode
-    ? generateQRCodeSVG(`PALLET:${pallet.id}`, 200)
+    ? generatePalletQR(pallet.id)
     : '';
 
   // Group containers by product
