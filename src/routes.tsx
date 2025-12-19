@@ -30,6 +30,7 @@ import InvoicingPage from './pages/ops/invoicing';
 import LabelsPage from './pages/ops/labels';
 import RecipesPage from './pages/ops/recipes';
 import QualityPage from './pages/ops/quality';
+import CanvasPage from './pages/ops/canvas';
 
 export const routes: RouteObject[] = [
   {
@@ -99,6 +100,10 @@ export const routes: RouteObject[] = [
   {
     path: '/ops/quality',
     element: <QualityPage />,
+  },
+  {
+    path: '/ops/canvas',
+    element: <CanvasPage />,
   },
   {
     path: '/directory',
