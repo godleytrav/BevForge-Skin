@@ -336,8 +336,25 @@ export default function CanvasPage() {
       });
 
       setDraggedItem(null);
+      
+      // Notify user of successful move
+      if (draggedItem.type === 'container') {
+        const container = locations
+          .flatMap(l => l.containers)
+          .find(c => c.id === draggedItem.id);
+        const toLocation = locations.find(l => l.id === toLocationId);
+        if (container && toLocation) {
+          addNotification({
+            title: 'Container Moved',
+            description: `${container.productName} moved to ${toLocation.name}`,
+            time: 'Just now',
+            type: 'inventory',
+            icon: 'package',
+          });
+        }
+      }
     },
-    [draggedItem, locations]
+    [draggedItem, locations, addNotification]
   );
 
   const handleAddContainer = () => {
@@ -424,6 +441,15 @@ export default function CanvasPage() {
       createdAt: new Date().toISOString(),
     };
     setPallets([...pallets, newPallet]);
+    
+    // Notify user of pallet creation
+    addNotification({
+      title: 'Pallet Created',
+      description: `${palletData.name} ${palletData.destination ? `scheduled for delivery to ${palletData.destination}` : 'created successfully'}`,
+      time: 'Just now',
+      type: 'production',
+      icon: 'package',
+    });
   };
 
   // Print handlers
