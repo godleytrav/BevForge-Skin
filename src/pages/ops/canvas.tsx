@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { validateContainerMove, formatValidationMessage } from '@/lib/validation';
+import { getAllAlerts, getAlertColor, getAlertIcon, type Alert } from '@/lib/alerts';
 import { CreatePalletDialog } from '@/components/canvas/CreatePalletDialog';
 import { QRCodeDisplay } from '@/components/canvas/QRCodeDisplay';
 import {
@@ -12,6 +13,7 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import {
   Plus,
   Package,
@@ -25,6 +27,9 @@ import {
   Droplet,
   GripVertical,
   Printer,
+  Bell,
+  AlertTriangle,
+  X,
 } from 'lucide-react';
 import {
   Dialog,
@@ -89,6 +94,7 @@ export default function CanvasPage() {
   const [loading, setLoading] = useState(true);
   const [showAddLocation, setShowAddLocation] = useState(false);
   const [showAddContainer, setShowAddContainer] = useState(false);
+  const [showAlerts, setShowAlerts] = useState(false);
   const [newLocation, setNewLocation] = useState({
     name: '',
     type: 'warehouse' as Location['type'],
@@ -135,6 +141,13 @@ export default function CanvasPage() {
       setLoading(false);
     }
   };
+
+  // Compute alerts whenever locations change
+  useEffect(() => {
+    const allContainers = locations.flatMap((loc) => loc.containers);
+    const computedAlerts = getAllAlerts(locations, allContainers);
+    setAlerts(computedAlerts);
+  }, [locations]);
 
   const handleAddLocation = () => {
     const location: Location = {
@@ -515,6 +528,16 @@ export default function CanvasPage() {
           <div className="flex items-center gap-2">
             <h2 className="text-lg font-semibold">Logistics Canvas</h2>
             <Badge variant="secondary">{locations.length} Locations</Badge>
+            {alerts.length > 0 && (
+              <Badge 
+                variant="destructive" 
+                className="gap-1 cursor-pointer hover:bg-red-700"
+                onClick={() => setShowAlerts(true)}
+              >
+                <Bell className="h-3 w-3" />
+                {alerts.length} Alert{alerts.length > 1 ? 's' : ''}
+              </Badge>
+            )}
           </div>
           <div className="flex gap-2">
             <Dialog open={showAddLocation} onOpenChange={setShowAddLocation}>
@@ -931,6 +954,58 @@ export default function CanvasPage() {
           </div>
         )}
       </div>
+
+      {/* Alerts Panel */}
+      <Sheet open={showAlerts} onOpenChange={setShowAlerts}>
+        <SheetContent className="w-full sm:max-w-lg">
+          <SheetHeader>
+            <SheetTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-destructive" />
+              System Alerts
+            </SheetTitle>
+            <SheetDescription>
+              {alerts.length} active alert{alerts.length > 1 ? 's' : ''} requiring attention
+            </SheetDescription>
+          </SheetHeader>
+          <ScrollArea className="h-[calc(100vh-120px)] mt-6">
+            <div className="space-y-4">
+              {alerts.length === 0 ? (
+                <div className="text-center py-12 text-muted-foreground">
+                  <Bell className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                  <p>No active alerts</p>
+                </div>
+              ) : (
+                alerts.map((alert) => (
+                  <Card key={alert.id} className="p-4">
+                    <div className="flex items-start gap-3">
+                      <div className="text-2xl">{getAlertIcon(alert.type)}</div>
+                      <div className="flex-1 space-y-1">
+                        <div className="flex items-center justify-between">
+                          <h4 className="font-semibold">{alert.title}</h4>
+                          <Badge className={getAlertColor(alert.severity)}>
+                            {alert.severity}
+                          </Badge>
+                        </div>
+                        <p className="text-sm text-muted-foreground">
+                          {alert.message}
+                        </p>
+                        {alert.productName && (
+                          <Badge variant="outline" className="text-xs">
+                            {alert.productName}
+                          </Badge>
+                        )}
+                        <p className="text-xs text-muted-foreground mt-2">
+                          {new Date(alert.timestamp).toLocaleString()}
+                        </p>
+                      </div>
+                    </div>
+                  </Card>
+                ))
+              )}
+            </div>
+          </ScrollArea>
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }
