@@ -90,18 +90,28 @@ export default function OpsPage() {
             <h1 className="text-3xl font-bold text-foreground">OPS — Business Overview</h1>
             <p className="text-muted-foreground mt-1">Godley Ciders operations dashboard</p>
           </div>
-          <Select defaultValue="today">
-            <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="Select range" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="today">Today</SelectItem>
-              <SelectItem value="week">This Week</SelectItem>
-              <SelectItem value="month">This Month</SelectItem>
-              <SelectItem value="quarter">This Quarter</SelectItem>
-              <SelectItem value="year">This Year</SelectItem>
-            </SelectContent>
-          </Select>
+          <div className="flex items-center gap-3">
+            <Button
+              variant="outline"
+              className="gap-2"
+              onClick={() => (window.location.href = '/ops/canvas')}
+            >
+              <Truck className="h-4 w-4" />
+              Logistics Canvas
+            </Button>
+            <Select defaultValue="today">
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="Select range" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="today">Today</SelectItem>
+                <SelectItem value="week">This Week</SelectItem>
+                <SelectItem value="month">This Month</SelectItem>
+                <SelectItem value="quarter">This Quarter</SelectItem>
+                <SelectItem value="year">This Year</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
         </div>
 
         {/* CRITICAL ALERTS BANNER - NEW */}
