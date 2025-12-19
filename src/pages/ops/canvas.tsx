@@ -1,6 +1,12 @@
 import { useState, useEffect, useCallback } from 'react';
 import { CreatePalletDialog } from '@/components/canvas/CreatePalletDialog';
 import { QRCodeDisplay } from '@/components/canvas/QRCodeDisplay';
+import {
+  generateContainerLabel,
+  generatePalletManifest,
+  generateBatchLabels,
+  printHTML,
+} from '@/lib/printing';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
