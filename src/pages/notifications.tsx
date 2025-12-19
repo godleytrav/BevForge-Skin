@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import Dashboard from '@/layouts/Dashboard';
+import { AppShell } from '@/components/AppShell';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -34,34 +34,7 @@ export default function NotificationsPage() {
   };
 
   return (
-    <Dashboard
-      config={{
-        sidebar: {
-          logo: { text: 'BevForge', href: '/' },
-          navigation: {
-            main: [
-              { title: 'Dashboard', href: '/', icon: Bell },
-              { title: 'Operations', href: '/ops', icon: Package },
-              { title: 'Calendar', href: '/calendar', icon: Bell },
-              { title: 'Reports', href: '/reports', icon: Bell },
-            ],
-            secondary: [
-              { title: 'Settings', href: '/settings', icon: Bell },
-              { title: 'Help', href: '/help', icon: Bell },
-            ],
-          },
-        },
-        header: {
-          search: { enabled: true, placeholder: 'Search notifications...' },
-          notifications: { enabled: true },
-          user: {
-            name: 'John Brewer',
-            email: 'john@bevforge.com',
-            initials: 'JB',
-          },
-        },
-      }}
-    >
+    <AppShell currentSuite="ops" pageTitle="Notifications — OPS">
       <div className="space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">
@@ -147,6 +120,6 @@ export default function NotificationsPage() {
           )}
         </div>
       </div>
-    </Dashboard>
+    </AppShell>
   );
 }
