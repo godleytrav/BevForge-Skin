@@ -33,9 +33,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import ContainerDetailPanel from '@/components/canvas/ContainerDetailPanel';
-import PalletDetailPanel from '@/components/canvas/PalletDetailPanel';
-import CreatePalletDialog from '@/components/canvas/CreatePalletDialog';
 
 interface Location {
   id: string;
@@ -453,8 +450,6 @@ export default function CanvasPage() {
                 </DialogFooter>
               </DialogContent>
             </Dialog>
-
-            <CreatePalletDialog onPalletCreated={fetchData} />
           </div>
         </div>
       </div>
@@ -558,12 +553,6 @@ export default function CanvasPage() {
               </Button>
             </div>
             <ScrollArea className="h-[calc(100vh-12rem)]">
-              {selectedItem.type === 'container' && (
-                <ContainerDetailPanel container={selectedItem.data} />
-              )}
-              {selectedItem.type === 'pallet' && (
-                <PalletDetailPanel pallet={selectedItem.data} />
-              )}
               {selectedItem.type === 'product' && (
                 <div className="p-4">
                   <h4 className="mb-4 font-semibold">
