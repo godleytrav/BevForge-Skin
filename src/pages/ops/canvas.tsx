@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { CreatePalletDialog } from '@/components/canvas/CreatePalletDialog';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -96,6 +97,7 @@ export default function CanvasPage() {
     containerType: string;
     fromLocationId: string;
   } | null>(null);
+  const [pallets, setPallets] = useState<any[]>([]);
 
   useEffect(() => {
     fetchData();
@@ -306,6 +308,22 @@ export default function CanvasPage() {
       locationId: '',
       batchId: 'B-001',
     });
+  };
+
+  const handleCreatePallet = (palletData: {
+    name: string;
+    location: string;
+    destination?: string;
+    scheduledDelivery?: string;
+    notes?: string;
+  }) => {
+    const newPallet = {
+      id: `PALLET-${Date.now()}`,
+      ...palletData,
+      containers: [],
+      createdAt: new Date().toISOString(),
+    };
+    setPallets([...pallets, newPallet]);
   };
 
   const getLocationIcon = (type: Location['type']) => {
@@ -558,6 +576,11 @@ export default function CanvasPage() {
                 </DialogFooter>
               </DialogContent>
             </Dialog>
+
+            <CreatePalletDialog
+              onCreatePallet={handleCreatePallet}
+              locations={locations}
+            />
           </div>
         </div>
       </div>
