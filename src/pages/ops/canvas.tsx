@@ -779,13 +779,27 @@ export default function CanvasPage() {
                         </p>
                       </div>
                     </div>
-                    <Badge variant="secondary">
-                      {location.products.reduce(
-                        (sum, p) => sum + p.quantity,
-                        0
-                      )}{' '}
-                      items
-                    </Badge>
+                    <div className="flex items-center gap-2">
+                      <Badge variant="secondary">
+                        {location.products.reduce(
+                          (sum, p) => sum + p.quantity,
+                          0
+                        )}{' '}
+                        items
+                      </Badge>
+                      {location.type === 'truck' && location.products.length > 0 && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => {
+                            alert(`Loading truck ${location.name} with ${location.products.reduce((sum, p) => sum + p.quantity, 0)} containers. Delivery workflow would start here.`);
+                          }}
+                        >
+                          <Truck className="h-3 w-3 mr-1" />
+                          Load
+                        </Button>
+                      )}
+                    </div>
                   </div>
 
                   {location.products.length === 0 ? (
