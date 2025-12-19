@@ -22,7 +22,10 @@ import {
   Package,
   TrendingUp,
   Calendar,
-  CheckCircle2
+  CheckCircle2,
+  UserPlus,
+  Pencil,
+  Trash2
 } from 'lucide-react';
 
 type EntityType = 'customer' | 'vendor' | 'facility';
@@ -59,7 +62,11 @@ export default function DirectoryPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [selectedEntity, setSelectedEntity] = useState<Entity | null>(null);
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [newEntityType, setNewEntityType] = useState<'customer' | 'vendor' | 'facility'>('customer');
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState('customers');
 
   // Mock data
   const entities: Entity[] = [
@@ -311,9 +318,24 @@ export default function DirectoryPage() {
               <CardDescription className="text-sm">{entity.id}</CardDescription>
             </div>
           </div>
-          <Badge variant="outline" className={getStatusColor(entity.status)}>
-            {entity.status}
-          </Badge>
+          <div className="flex items-center gap-2">
+            <Button
+              size="icon"
+              variant="ghost"
+              className="h-8 w-8"
+              onClick={(e) => {
+                e.stopPropagation();
+                setSelectedEntity(entity);
+                setIsEditMode(true);
+                setDialogOpen(true);
+              }}
+            >
+              <Pencil className="h-4 w-4" />
+            </Button>
+            <Badge variant="outline" className={getStatusColor(entity.status)}>
+              {entity.status}
+            </Badge>
+          </div>
         </div>
       </CardHeader>
       <CardContent className="space-y-3">
@@ -431,8 +453,9 @@ export default function DirectoryPage() {
         </div>
 
         {/* Tabs */}
-        <Tabs defaultValue="customers" className="space-y-6">
-          <TabsList className="bg-card/50 backdrop-blur">
+        <Tabs defaultValue="customers" className="space-y-6" value={activeTab} onValueChange={setActiveTab}>
+          <div className="flex items-center justify-between mb-4">
+            <TabsList className="bg-card/50 backdrop-blur">
             <TabsTrigger value="customers" className="gap-2">
               <Users className="h-4 w-4" />
               Customers ({customers.length})
@@ -446,6 +469,17 @@ export default function DirectoryPage() {
               Facilities ({facilities.length})
             </TabsTrigger>
           </TabsList>
+          <Button
+            onClick={() => {
+              setNewEntityType(activeTab as 'customer' | 'vendor' | 'facility');
+              setIsAddDialogOpen(true);
+            }}
+            className="bg-primary hover:bg-primary/90 gap-2"
+          >
+            <UserPlus className="h-4 w-4" />
+            Add Contact
+          </Button>
+        </div>
 
           <TabsContent value="customers" className="space-y-4">
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -498,7 +532,12 @@ export default function DirectoryPage() {
       </div>
 
       {/* Entity Detail Dialog */}
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+      <Dialog open={dialogOpen} onOpenChange={(open) => {
+        setDialogOpen(open);
+        if (!open) {
+          setIsEditMode(false);
+        }
+      }}>
         <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
           {selectedEntity && (
             <>
@@ -557,6 +596,28 @@ export default function DirectoryPage() {
                     </Button>
                   </div>
                 </div>
+
+                {/* Delete Action */}
+                {isEditMode && (
+                  <div className="pt-4 border-t">
+                    <Button 
+                      variant="destructive" 
+                      size="sm"
+                      className="w-full"
+                      onClick={() => {
+                        if (confirm(`Are you sure you want to delete ${selectedEntity.name}?`)) {
+                          // Handle delete logic here
+                          console.log('Deleting:', selectedEntity.id);
+                          setDialogOpen(false);
+                          setIsEditMode(false);
+                        }
+                      }}
+                    >
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      Delete Contact
+                    </Button>
+                  </div>
+                )}
 
                 {/* Statistics */}
                 {selectedEntity.stats && (
@@ -720,6 +781,78 @@ export default function DirectoryPage() {
               </div>
             </>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Add Contact Dialog */}
+      <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Add New {newEntityType === 'customer' ? 'Customer' : newEntityType === 'vendor' ? 'Vendor' : 'Facility'}</DialogTitle>
+            <DialogDescription>
+              Create a new {newEntityType} contact in the directory.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Name</label>
+              <Input placeholder="Enter name" className="bg-card/50 backdrop-blur" />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Phone</label>
+              <Input placeholder="Enter phone number" className="bg-card/50 backdrop-blur" />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Email</label>
+              <Input type="email" placeholder="Enter email" className="bg-card/50 backdrop-blur" />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Address</label>
+              <Input placeholder="Enter address" className="bg-card/50 backdrop-blur" />
+            </div>
+            {newEntityType === 'customer' && (
+              <>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Credit Limit</label>
+                  <Input type="number" placeholder="Enter credit limit" className="bg-card/50 backdrop-blur" />
+                </div>
+              </>
+            )}
+            {newEntityType === 'vendor' && (
+              <>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Payment Terms</label>
+                  <Input placeholder="e.g., Net 30" className="bg-card/50 backdrop-blur" />
+                </div>
+              </>
+            )}
+            {newEntityType === 'facility' && (
+              <>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Capacity</label>
+                  <Input type="number" placeholder="Enter capacity" className="bg-card/50 backdrop-blur" />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Manager</label>
+                  <Input placeholder="Enter manager name" className="bg-card/50 backdrop-blur" />
+                </div>
+              </>
+            )}
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button 
+              onClick={() => {
+                // Handle create logic here
+                console.log('Creating new', newEntityType);
+                setIsAddDialogOpen(false);
+              }}
+            >
+              Create Contact
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
     </AppShell>
