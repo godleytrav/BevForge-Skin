@@ -23,6 +23,7 @@ import {
   Wine,
   Droplet,
   GripVertical,
+  Printer,
 } from 'lucide-react';
 import {
   Dialog,
@@ -332,6 +333,58 @@ export default function CanvasPage() {
     };
     setPallets([...pallets, newPallet]);
   };
+
+  // Print handlers
+  const handlePrintContainerLabel = (container: Container) => {
+    const html = generateContainerLabel(container, {
+      includeQRCode: true,
+      includeBatchInfo: true,
+    });
+    printHTML(html, `Label-${container.id}`);
+  };
+
+  const handlePrintBatchLabels = (containers: Container[]) => {
+    const html = generateBatchLabels(containers, {
+      includeQRCode: true,
+      includeBatchInfo: true,
+    });
+    printHTML(html, `Batch-Labels-${containers.length}`);
+  };
+
+  const handlePrintPalletManifest = (pallet: typeof pallets[0]) => {
+    const location = locations.find(l => l.id === pallet.location);
+    const destination = pallet.destination
+      ? locations.find(l => l.id === pallet.destination)
+      : undefined;
+
+    const html = generatePalletManifest(
+      {
+        id: pallet.id,
+        locationId: pallet.location,
+        destinationId: pallet.destination,
+        scheduledDelivery: pallet.scheduledDelivery,
+        notes: pallet.notes,
+        containers: pallet.containers,
+      },
+      location?.name || 'Unknown',
+      destination?.name,
+      { includeQRCode: true }
+    );
+    printHTML(html, `Manifest-${pallet.id}`);
+  };
+
+  const handlePrintLocationLabels = (locationId: string) => {
+    const location = locations.find(l => l.id === locationId);
+    if (!location) return;
+
+    const containers = location.containers;
+    if (containers.length === 0) {
+      alert('No containers to print');
+      return;
+    }
+
+    handlePrintBatchLabels(containers);
+  };}
 
   const getLocationIcon = (type: Location['type']) => {
     switch (type) {
@@ -708,9 +761,19 @@ export default function CanvasPage() {
             <ScrollArea className="h-[calc(100vh-12rem)]">
               {selectedItem.type === 'product' && (
                 <div className="p-4">
-                  <h4 className="mb-4 font-semibold">
-                    {selectedItem.data.productName}
-                  </h4>
+                  <div className="mb-4 flex items-center justify-between">
+                    <h4 className="font-semibold">
+                      {selectedItem.data.productName}
+                    </h4>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handlePrintBatchLabels(selectedItem.data.containers)}
+                    >
+                      <Printer className="mr-2 h-4 w-4" />
+                      Print All
+                    </Button>
+                  </div>
                   <div className="space-y-4">
                     <div>
                       <Label className="text-xs text-muted-foreground">
@@ -779,11 +842,21 @@ export default function CanvasPage() {
                                     </p>
                                   </div>
                                 </div>
-                                <QRCodeDisplay
-                                  type="container"
-                                  id={container.id}
-                                  label={`${container.productName} - ${container.type}`}
-                                />
+                                <div className="flex gap-1">
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => handlePrintContainerLabel(container)}
+                                    title="Print Label"
+                                  >
+                                    <Printer className="h-4 w-4" />
+                                  </Button>
+                                  <QRCodeDisplay
+                                    type="container"
+                                    id={container.id}
+                                    label={`${container.productName} - ${container.type}`}
+                                  />
+                                </div>
                               </div>
                             </div>
                           )
