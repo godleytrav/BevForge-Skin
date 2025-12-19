@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { validateContainerMove, formatValidationMessage } from '@/lib/validation';
 import { CreatePalletDialog } from '@/components/canvas/CreatePalletDialog';
 import { QRCodeDisplay } from '@/components/canvas/QRCodeDisplay';
 import {
@@ -161,6 +162,66 @@ export default function CanvasPage() {
   const handleDrop = useCallback(
     (toLocationId: string) => {
       if (!draggedItem) return;
+
+      // Find source and destination locations
+      const fromLocation = locations.find((l) => l.id === draggedItem.fromLocationId);
+      const toLocation = locations.find((l) => l.id === toLocationId);
+      
+      if (!fromLocation || !toLocation) return;
+
+      // Find the container being moved
+      const container = fromLocation.products
+        .find(
+          (p) =>
+            p.productName === draggedItem.productName &&
+            p.containerType === draggedItem.containerType
+        )
+        ?.containers.find((c) => c.id === draggedItem.containerId);
+
+      if (!container) return;
+
+      // Validate the move
+      const validation = validateContainerMove(
+        {
+          id: container.id,
+          product: container.productName,
+          type: container.type,
+          status: container.status,
+          batchId: container.batchId,
+        },
+        {
+          id: fromLocation.id,
+          name: fromLocation.name,
+          type: fromLocation.type,
+          capacity: fromLocation.capacity,
+          containers: fromLocation.products.flatMap((p) => p.containers),
+        },
+        {
+          id: toLocation.id,
+          name: toLocation.name,
+          type: toLocation.type,
+          capacity: toLocation.capacity,
+          containers: toLocation.products.flatMap((p) => p.containers),
+        }
+      );
+
+      // Show validation errors
+      if (!validation.valid) {
+        alert(formatValidationMessage(validation));
+        setDraggedItem(null);
+        return;
+      }
+
+      // Show validation warnings (but allow the move)
+      if (validation.warnings.length > 0) {
+        const proceed = confirm(
+          formatValidationMessage(validation) + '\n\nProceed anyway?'
+        );
+        if (!proceed) {
+          setDraggedItem(null);
+          return;
+        }
+      }
 
       // Update locations state
       setLocations((prevLocations) => {
