@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Menu, Bell, Calendar, Settings, User, Home, FileText, Cog } from 'lucide-react';
+import { Menu, Bell, Calendar, Settings, User, Home, FileText, Cog, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -29,6 +29,7 @@ const suites: Suite[] = [
 
 const globalLinks = [
   { label: 'Dashboard Home', route: '/', icon: Home },
+  { label: 'Directory', route: '/directory', icon: Users },
   { label: 'Reports', route: '/reports', icon: FileText },
   { label: 'Settings', route: '/settings', icon: Cog },
 ];

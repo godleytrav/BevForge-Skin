@@ -14,6 +14,7 @@ import ProfilePage from './pages/profile';
 import HelpPage from './pages/help';
 import CalendarPage from './pages/calendar';
 import NotificationsPage from './pages/notifications';
+import DirectoryPage from './pages/directory';
 
 // OPS subpages
 import OrdersPage from './pages/ops/orders';
@@ -72,6 +73,10 @@ export const routes: RouteObject[] = [
   {
     path: '/ops/reports',
     element: <OpsReportsPage />,
+  },
+  {
+    path: '/directory',
+    element: <DirectoryPage />,
   },
   {
     path: '/os',
