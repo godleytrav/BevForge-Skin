@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useNotifications } from '@/contexts/NotificationContext';
 import { validateContainerMove, formatValidationMessage } from '@/lib/validation';
 import { getAllAlerts, getAlertColor, getAlertIcon, type Alert } from '@/lib/alerts';
 import { routeToCleaningQueue, getCleaningStats, type CleaningQueueItem } from '@/lib/cleaning';
@@ -86,6 +87,7 @@ interface Alert {
 }
 
 export default function CanvasPage() {
+  const { addNotification } = useNotifications();
   const [locations, setLocations] = useState<Location[]>([]);
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [selectedItem, setSelectedItem] = useState<{
@@ -149,7 +151,21 @@ export default function CanvasPage() {
     const allContainers = locations.flatMap((loc) => loc.containers);
     const computedAlerts = getAllAlerts(locations, allContainers);
     setAlerts(computedAlerts);
-  }, [locations]);
+    
+    // Push critical alerts to notification system
+    computedAlerts.forEach(alert => {
+      if (alert.severity === 'critical' || alert.severity === 'error') {
+        addNotification({
+          title: alert.title,
+          description: alert.message,
+          time: 'Just now',
+          type: alert.type === 'overdue_return' || alert.type === 'deposit_imbalance' ? 'sales' : 
+                alert.type === 'low_inventory' || alert.type === 'over_capacity' ? 'inventory' : 'system',
+          icon: 'alert-circle',
+        });
+      }
+    });
+  }, [locations, addNotification]);
 
   const handleAddLocation = () => {
     const location: Location = {
