@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { AppShell } from '@/components/AppShell';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -43,6 +43,7 @@ const statusColors: Record<OrderStatus, string> = {
 };
 
 export default function Orders() {
+  const [searchParams] = useSearchParams();
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -64,6 +65,15 @@ export default function Orders() {
   const [lineItems, setLineItems] = useState<LineItem[]>([
     { item_name: '', qty: 1, price: 0 },
   ]);
+
+  // Check for URL parameters to pre-fill customer
+  useEffect(() => {
+    const customerName = searchParams.get('customer');
+    if (customerName) {
+      setFormData(prev => ({ ...prev, customer_name: customerName }));
+      setIsCreateOpen(true);
+    }
+  }, [searchParams]);
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {

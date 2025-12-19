@@ -410,7 +410,7 @@ export default function DirectoryPage() {
             className="flex-1"
             onClick={(e) => {
               e.stopPropagation();
-              window.location.href = '/ops/orders';
+              window.location.href = `/ops/orders?customer=${encodeURIComponent(entity.name)}`;
             }}
           >
             <ShoppingCart className="h-4 w-4 mr-1" />
@@ -601,7 +601,7 @@ export default function DirectoryPage() {
                     <Button 
                       variant="outline" 
                       size="sm"
-                      onClick={() => window.location.href = '/ops/orders'}
+                      onClick={() => window.location.href = `/ops/orders?customer=${encodeURIComponent(entity.name)}`}
                     >
                       <ShoppingCart className="h-4 w-4 mr-1" />
                       Create Order
