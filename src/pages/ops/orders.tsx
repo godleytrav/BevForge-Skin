@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { AppShell } from '@/components/AppShell';
+import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -695,7 +696,17 @@ function OrderCard({ order, onEdit, onDelete }: OrderCardProps) {
       <CardHeader>
         <div className="flex items-start justify-between">
           <div>
-            <CardTitle className="text-lg">{order.customer_name}</CardTitle>
+            <CardTitle className="text-lg">
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  window.location.href = '/directory';
+                }}
+                className="hover:text-primary hover:underline transition-colors text-left"
+              >
+                {order.customer_name}
+              </button>
+            </CardTitle>
             <p className="text-sm text-muted-foreground mt-1">Order #{order.id}</p>
           </div>
           <div className="flex items-center gap-2">

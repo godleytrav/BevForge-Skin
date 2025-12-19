@@ -29,8 +29,23 @@ export default function NotificationsPage() {
 
   const filteredNotifications = filterNotifications(filter);
 
-  const handleNotificationClick = (id: string) => {
+  const handleNotificationClick = (id: string, type: string) => {
     markAsRead(id);
+    
+    // Navigate to related page based on notification type
+    const routes: Record<string, string> = {
+      sales: '/ops/orders',
+      production: '/ops/batches',
+      compliance: '/ops/compliance',
+      inventory: '/ops/inventory'
+    };
+    
+    const route = routes[type];
+    if (route) {
+      setTimeout(() => {
+        window.location.href = route;
+      }, 300); // Small delay to show the notification was clicked
+    }
   };
 
   return (
@@ -81,7 +96,7 @@ export default function NotificationsPage() {
                   className={`p-4 cursor-pointer transition-colors hover:bg-accent/50 ${
                     !notification.read ? 'bg-blue-50/50 border-blue-200' : ''
                   }`}
-                  onClick={() => handleNotificationClick(notification.id)}
+                  onClick={() => handleNotificationClick(notification.id, notification.type)}
                 >
                   <div className="flex gap-4">
                     <div

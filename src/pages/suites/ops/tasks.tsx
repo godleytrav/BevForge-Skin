@@ -535,7 +535,21 @@ export default function TasksPage() {
                               {selectedTask.relatedEntity.type.toUpperCase()}: {selectedTask.relatedEntity.id}
                             </p>
                           </div>
-                          <Button variant="outline" size="sm">
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            onClick={() => {
+                              const routes: Record<string, string> = {
+                                order: '/ops/orders',
+                                delivery: '/ops/sales',
+                                batch: '/ops/batches',
+                                compliance: '/ops/compliance',
+                                inventory: '/ops/inventory'
+                              };
+                              const route = routes[selectedTask.relatedEntity.type];
+                              if (route) window.location.href = route;
+                            }}
+                          >
                             View Details
                           </Button>
                         </div>

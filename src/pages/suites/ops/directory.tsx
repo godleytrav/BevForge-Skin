@@ -404,11 +404,27 @@ export default function DirectoryPage() {
         )}
 
         <div className="flex gap-2 pt-2">
-          <Button size="sm" variant="outline" className="flex-1">
+          <Button 
+            size="sm" 
+            variant="outline" 
+            className="flex-1"
+            onClick={(e) => {
+              e.stopPropagation();
+              window.location.href = '/ops/orders';
+            }}
+          >
             <ShoppingCart className="h-4 w-4 mr-1" />
             Create Order
           </Button>
-          <Button size="sm" variant="outline" className="flex-1">
+          <Button 
+            size="sm" 
+            variant="outline" 
+            className="flex-1"
+            onClick={(e) => {
+              e.stopPropagation();
+              window.location.href = '/ops/sales';
+            }}
+          >
             <Truck className="h-4 w-4 mr-1" />
             Schedule Delivery
           </Button>
@@ -582,11 +598,19 @@ export default function DirectoryPage() {
                 <div>
                   <h3 className="text-lg font-semibold mb-3">Quick Actions</h3>
                   <div className="grid grid-cols-3 gap-2">
-                    <Button variant="outline" size="sm">
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => window.location.href = '/ops/orders'}
+                    >
                       <ShoppingCart className="h-4 w-4 mr-1" />
                       Create Order
                     </Button>
-                    <Button variant="outline" size="sm">
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => window.location.href = '/ops/sales'}
+                    >
                       <Truck className="h-4 w-4 mr-1" />
                       Schedule Delivery
                     </Button>
