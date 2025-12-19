@@ -872,9 +872,409 @@ Loading 30 kegs onto a truck one-by-one is tedious. How do you handle bulk opera
 
 ---
 
+## Gap #3: Time Dimension
+
+### Solution: Leverage Existing Systems
+
+**Key Principle:**
+> Canvas shows current operational state only. Time management handled by existing infrastructure.
+
+**Existing Systems Handle Time:**
+- ✅ **Calendar** - Scheduling, tasks, events
+- ✅ **Invoicing** - Transaction history, customer signatures
+- ✅ **Inventory** - Stock levels, availability
+- ✅ **Notifications** - Alerts, approvals, status updates
+
+**Canvas Role:**
+- Shows "what's where right now"
+- Operational staging/execution layer
+- NOT a historical viewer or planning tool
+
+**Integration Points:**
+- Order created → Calendar shows scheduled delivery
+- Delivery executed → Invoice signed and closed
+- Keg returned → Cleaning task created in Calendar
+- Overdue return → Notification alert sent
+
+---
+
+## Gap #6: Printing & Documentation
+
+### Print Requirements
+
+**Printing Method:**
+- Browser print dialog (standard approach)
+- System printer drivers handle printer-specific formatting
+- PDF generation option (save/download before printing)
+
+**Print Button Locations:**
+
+#### Container Labels
+```
+Container Detail Panel:
+┌────────────────────────────────┐
+│ Keg K-1234 - Hopped Cider     │
+│ Batch: B-2024-12-15            │
+│ Filled: Dec 15, 2024           │
+│                                │
+│ [🖨️ Print Label] [💾 Save PDF]│
+└────────────────────────────────┘
+```
+
+**What Gets Printed:**
+
+1. **Keg Labels (QR Codes)**
+   - Keg ID
+   - Product name
+   - Batch number
+   - Fill date
+   - QR code (scannable)
+   - Human-readable backup text
+
+2. **Case Labels (QR Codes)**
+   - Case ID
+   - Product name
+   - Quantity (e.g., "24x 12oz bottles")
+   - Batch number
+   - Pack date
+   - QR code
+
+3. **Pallet Labels**
+   - Pallet ID
+   - Contents summary
+   - Destination
+   - Total weight/count
+   - QR code
+
+4. **Delivery Invoices**
+   - Customer info
+   - Order details
+   - Product list with quantities
+   - Delivery address
+   - Signature line
+   - Terms/payment info
+
+5. **Delivery Manifests/BOL**
+   - Truck number
+   - Route details
+   - All stops with products
+   - Driver name
+   - Departure/return times
+
+6. **Pick Lists**
+   - Products to load
+   - Quantities
+   - Warehouse locations
+   - Checkboxes for verification
+
+**Print Locations by Page:**
+
+**Orders Page:**
+- [🖨️ Print Pick List] - Warehouse picking
+- [🖨️ Print Invoice] - Customer invoice
+- [💾 Save as PDF] - Download option
+
+**Deliveries Page:**
+- [🖨️ Print Manifest] - Driver manifest/BOL
+- [🖨️ Print All Invoices] - All customer invoices for route
+- [💾 Save as PDF] - Download option
+
+**Invoicing Page:**
+- [🖨️ Print Invoice] - Customer copy
+- [📧 Email Invoice] - Send via email
+- [💾 Save as PDF] - Download option
+
+**Inventory/Products Page:**
+- [🖨️ Print Labels (Batch)] - Print multiple labels at once
+- [💾 Save as PDF] - Download option
+
+**Canvas Container Details:**
+- [🖨️ Print Label] - Individual container label
+- [💾 Save as PDF] - Download option
+
+**QR Code Specifications:**
+- **Encoding format:** URL format `https://bevforge.app/container/{type}/{id}`
+  - Example: `https://bevforge.app/container/keg/K-1234`
+- **Size:** Minimum 1.5" x 1.5" for reliable scanning
+- **Error correction:** Level M (15% recovery)
+- **Include human-readable text** below QR code
+
+**Label Sizes (Standard):**
+- Keg labels: 4" x 6"
+- Case labels: 4" x 6"
+- Pallet labels: 8" x 10"
+- Invoices: 8.5" x 11" (standard letter)
+
+**Batch Printing:**
+- Select multiple containers → Print all labels
+- Select multiple orders → Print all invoices
+- Confirmation dialog shows count before printing
+
+---
+
+## Gap #7: Data Entry & Validation
+
+### Validation Rules
+
+**Inventory Validation:**
+- ✅ Cannot allocate more than available
+- ✅ Cannot create negative inventory
+- ✅ Warn on low stock levels (< 10% of normal)
+- ✅ Block orders if out of stock
+- ✅ Real-time availability check during order creation
+
+**Capacity Validation:**
+- ✅ Warn when pallet approaching capacity (>90%)
+- ✅ Error when truck at capacity (100%)
+- ✅ Allow overfill with warning (up to 150%)
+- ✅ Suggest second delivery if order exceeds truck capacity
+
+**Date Validation:**
+- ✅ Delivery date cannot be in past
+- ✅ Fill date cannot be in future
+- ✅ Expected return date must be after delivery date
+- ✅ Warn if delivery scheduled > 30 days out
+
+**Relationship Validation:**
+- ✅ Customer must exist before creating order
+- ✅ Product must exist before adding to order
+- ✅ Truck must exist before loading
+- ✅ Order must exist before creating delivery
+- ✅ Batch must be active before filling containers
+
+**Business Logic Validation:**
+- ✅ Cannot deliver empty containers (must have product)
+- ✅ Cannot return more than delivered
+- ✅ Cannot delete container if in-transit or at-customer
+- ✅ Cannot modify completed delivery
+- ✅ Cannot fill keg that's already filled
+- ✅ Cannot clean keg that's not empty
+
+### Critical Data Points
+
+**1. Container Creation**
+```
+Required Fields:
+- Product (dropdown, must exist)
+- Batch (dropdown, must be active)
+- Quantity (number, min: 1, max: 1000)
+- Fill Date (date, cannot be future)
+
+Validation:
+- Product must exist in system
+- Batch must be active and have available volume
+- Quantity must be positive integer
+- Fill date <= today
+- Sufficient inventory to create containers
+```
+
+**2. Order Creation**
+```
+Required Fields:
+- Customer (dropdown, must exist)
+- Delivery Date (date, >= today)
+- Products (at least one)
+  - Product (dropdown)
+  - Quantity (number, min: 1)
+  - Container Type (keg/case/bottle)
+
+Validation:
+- Customer must exist and be active
+- Delivery date >= today
+- At least one product line item
+- Check inventory availability for each product
+- Validate customer credit limit
+- Warn if customer has overdue payments
+```
+
+**3. Delivery Loading**
+```
+Required Fields:
+- Truck (dropdown, must exist)
+- Driver (dropdown, must exist)
+- Products (from orders)
+
+Validation:
+- Truck must exist and be available
+- Driver must be assigned
+- Products must match associated orders
+- Inventory must be available
+- Truck capacity check (warn/error)
+- Route must be assigned
+- Cannot load if truck already on route
+```
+
+**4. Pallet Creation**
+```
+Required Fields:
+- Pallet Type (dropdown)
+
+Validation:
+- Pallet type must be selected
+- Warn if contents exceed nominal capacity (>90%)
+- Error if contents way over capacity (>150%)
+- Track mixed vs single-product pallets
+```
+
+**5. Product/Quantity Editing**
+```
+Validation:
+- Must be positive integer
+- Check inventory availability
+- Warn if exceeds capacity (pallet/truck)
+- Confirm if major change (>50% increase/decrease)
+- Cannot reduce below already-delivered quantity
+```
+
+**6. Customer Returns**
+```
+Required Fields:
+- Customer (auto-filled from delivery)
+- Quantity returned (number)
+- Condition (clean/damaged)
+
+Validation:
+- Cannot return more than delivered to customer
+- Condition must be selected for each container
+- Track outstanding balance (delivered - returned)
+- Update deposit balance
+- Damaged containers flagged for inspection
+```
+
+**7. QR Code Scanning**
+```
+Validation:
+- QR code must be valid format
+- Container must exist in system
+- Container state must allow action (e.g., can't deliver empty keg)
+- Scan must match expected action context
+- Duplicate scan detection (within 5 minutes)
+```
+
+### Error Handling
+
+**User-Facing Errors:**
+- Clear, actionable error messages
+- Suggest corrections when possible
+- Show which field has the error
+- Prevent form submission until resolved
+
+**Examples:**
+```
+❌ "Product is required"
+✅ "Please select a product from the dropdown"
+
+❌ "Invalid quantity"
+✅ "Quantity must be at least 1. You entered 0."
+
+❌ "Insufficient inventory"
+✅ "Only 15 kegs of Hopped Cider available. You requested 20. Reduce quantity or choose different product."
+
+❌ "Truck full"
+✅ "Truck #3 can hold 1 pallet + 3 cases. Currently loaded: 1 pallet + 3 cases. Remove items or use different truck."
+```
+
+**Warnings (Non-Blocking):**
+```
+⚠️ "Pallet is over nominal capacity (58/56 cases). Continue anyway?"
+⚠️ "Customer has overdue payment of $1,234. Proceed with order?"
+⚠️ "Delivery scheduled 45 days out. Confirm date?"
+⚠️ "Low inventory: Only 5 kegs remaining after this order."
+```
+
+---
+
+## API Endpoints
+
+### Delivery Integration (Gap #5)
+```
+POST   /api/deliveries              - Create delivery
+GET    /api/deliveries/:id          - Get delivery details
+PUT    /api/deliveries/:id          - Update delivery
+POST   /api/deliveries/:id/complete - Mark complete
+GET    /api/deliveries/scheduled    - Get scheduled deliveries
+POST   /api/deliveries/:id/stop     - Complete delivery stop
+```
+
+### Printing (Gap #6)
+```
+POST   /api/print/keg-label         - Generate keg label (HTML/PDF)
+POST   /api/print/case-label        - Generate case label (HTML/PDF)
+POST   /api/print/pallet-label      - Generate pallet label (HTML/PDF)
+POST   /api/print/invoice           - Generate invoice PDF
+POST   /api/print/manifest          - Generate delivery manifest PDF
+POST   /api/print/pick-list         - Generate pick list PDF
+POST   /api/qr/generate             - Generate QR code image
+
+Request body example:
+{
+  "containerId": "K-1234",
+  "containerType": "keg",
+  "format": "pdf" | "html"
+}
+
+Response:
+{
+  "url": "/api/print/download/abc123.pdf",
+  "expires": "2024-12-20T10:00:00Z"
+}
+```
+
+### Mobile/Connect Integration (Gap #8)
+```
+POST   /api/mobile/scan             - Record QR scan
+GET    /api/mobile/deliveries       - Get driver deliveries
+POST   /api/mobile/delivery/start   - Start delivery route
+POST   /api/mobile/delivery/stop    - Complete delivery stop
+POST   /api/mobile/return           - Record container return
+GET    /api/mobile/sync             - Sync offline data
+POST   /api/mobile/auth             - Mobile authentication
+
+Scan request:
+{
+  "qrCode": "https://bevforge.app/container/keg/K-1234",
+  "action": "load" | "deliver" | "return",
+  "location": "Truck #3" | "Restaurant A",
+  "timestamp": "2024-12-19T14:30:00Z"
+}
+```
+
+### Container Management
+```
+POST   /api/containers              - Create container(s)
+GET    /api/containers/:id          - Get container details
+PUT    /api/containers/:id          - Update container
+DELETE /api/containers/:id          - Delete container
+GET    /api/containers              - List containers (with filters)
+POST   /api/containers/batch        - Batch create containers
+POST   /api/containers/:id/move     - Move container to location
+```
+
+### Pallet Management
+```
+POST   /api/pallets                 - Create pallet
+GET    /api/pallets/:id             - Get pallet details
+PUT    /api/pallets/:id             - Update pallet
+DELETE /api/pallets/:id             - Delete pallet
+POST   /api/pallets/:id/add         - Add containers to pallet
+POST   /api/pallets/:id/remove      - Remove containers from pallet
+POST   /api/pallets/:id/breakdown   - Break down pallet
+```
+
+### Validation
+```
+POST   /api/validate/order          - Validate order before creation
+POST   /api/validate/inventory      - Check inventory availability
+POST   /api/validate/capacity       - Check truck/pallet capacity
+GET    /api/validate/customer/:id   - Check customer status
+```
+
+---
+
 ## Document Status
 
-- **Version:** 2.0
-- **Date:** 2025-12-19
-- **Status:** Gap #1 RESOLVED, Gap #2 RESOLVED
-- **Next Review:** Gap #3 - Time Dimension
+- **Version:** 3.0
+- **Date:** 2024-12-19
+- **Status:** All Gaps RESOLVED (Gap #1, #2, #3, #6, #7)
+- **Deferred:** Gap #4 (webstore), Gap #5 (existing tools), Gap #8 (Connect suite)
+- **Ready for:** Implementation
