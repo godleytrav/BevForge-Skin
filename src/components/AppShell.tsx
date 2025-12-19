@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNotifications } from '@/contexts/NotificationContext';
 import { Link, useLocation } from 'react-router-dom';
 import { Menu, Bell, Calendar, Settings, User, Home, FileText, Cog, Users, CheckCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -44,6 +45,7 @@ interface AppShellProps {
 export function AppShell({ children, pageTitle = 'Dashboard', currentSuite }: AppShellProps) {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const location = useLocation();
+  const { unreadCount } = useNotifications();
 
   const getCurrentSuite = () => {
     if (currentSuite) return currentSuite;
@@ -117,9 +119,16 @@ export function AppShell({ children, pageTitle = 'Dashboard', currentSuite }: Ap
 
           {/* Right: Utility Icons */}
           <div className="flex items-center gap-2">
-            <Button variant="ghost" size="icon" className="hover:bg-accent/10">
-              <Bell className="h-5 w-5" />
-            </Button>
+            <Link to="/notifications">
+              <Button variant="ghost" size="icon" className="hover:bg-accent/10 relative">
+                <Bell className="h-5 w-5" />
+                {unreadCount > 0 && (
+                  <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-xs font-bold text-white">
+                    {unreadCount > 9 ? '9+' : unreadCount}
+                  </span>
+                )}
+              </Button>
+            </Link>
             <Link to="/calendar">
               <Button variant="ghost" size="icon" className="hover:bg-accent/10">
                 <Calendar className="h-5 w-5" />
