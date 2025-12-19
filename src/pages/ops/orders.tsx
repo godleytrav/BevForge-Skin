@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import { AppShell } from '@/components/AppShell';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -8,7 +9,8 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Plus, Search, Trash2, Edit, Calendar } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Plus, Search, Trash2, Edit, Calendar, AlertCircle, Clock, CheckCircle2, Package } from 'lucide-react';
 import { apiGet, apiPost, apiPatch, apiDelete } from '@/lib/api';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
@@ -219,12 +221,72 @@ export default function Orders() {
     );
   }
 
+  // Stats calculations
+  const stats = useMemo(() => {
+    return {
+      total: orders.length,
+      pending: orders.filter(o => o.status === 'pending').length,
+      processing: orders.filter(o => o.status === 'processing').length,
+      fulfilled: orders.filter(o => o.status === 'fulfilled').length,
+      cancelled: orders.filter(o => o.status === 'cancelled').length,
+      totalRevenue: orders.reduce((sum, o) => sum + o.total, 0),
+    };
+  }, [orders]);
+
   return (
+    <AppShell currentSuite="ops">
     <div className="space-y-6">
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <Card className="bg-card/50 backdrop-blur">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Orders</CardTitle>
+            <Package className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{stats.total}</div>
+            <p className="text-xs text-muted-foreground mt-1">All time</p>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-card/50 backdrop-blur border-yellow-500/20">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Pending</CardTitle>
+            <AlertCircle className="h-4 w-4 text-yellow-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-yellow-500">{stats.pending}</div>
+            <p className="text-xs text-muted-foreground mt-1">Require attention</p>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-card/50 backdrop-blur border-blue-500/20">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Processing</CardTitle>
+            <Clock className="h-4 w-4 text-blue-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-blue-500">{stats.processing}</div>
+            <p className="text-xs text-muted-foreground mt-1">In progress</p>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-card/50 backdrop-blur border-green-500/20">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
+            <CheckCircle2 className="h-4 w-4 text-green-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-green-500">${stats.totalRevenue.toFixed(2)}</div>
+            <p className="text-xs text-muted-foreground mt-1">{stats.fulfilled} fulfilled</p>
+          </CardContent>
+        </Card>
+      </div>
+
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">Orders</h1>
+          <h1 className="text-3xl font-bold">Orders Management</h1>
           <p className="text-muted-foreground mt-1">Manage customer orders and fulfillment</p>
         </div>
         <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
@@ -355,7 +417,7 @@ export default function Orders() {
       )}
 
       {/* Filters */}
-      <Card>
+      <Card className="bg-card/50 backdrop-blur">
         <CardContent className="pt-6">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div className="relative">
@@ -450,69 +512,59 @@ export default function Orders() {
         </CardContent>
       </Card>
 
-      {/* Orders List */}
-      {filteredOrders.length === 0 ? (
-        <Card>
-          <CardContent className="pt-6">
-            <div className="text-center py-12">
-              <p className="text-muted-foreground">
-                {orders.length === 0 ? 'No orders yet. Create your first order to get started.' : 'No orders match your filters.'}
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-      ) : (
-        <div className="grid gap-4">
-          {filteredOrders.map((order) => (
-            <Card key={order.id} className="hover:border-primary/50 transition-colors">
-              <CardHeader>
-                <div className="flex items-start justify-between">
-                  <div>
-                    <CardTitle className="text-lg">{order.customer_name}</CardTitle>
-                    <p className="text-sm text-muted-foreground mt-1">Order #{order.id}</p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Badge className={statusColors[order.status]}>{order.status}</Badge>
-                    <Button variant="ghost" size="icon" onClick={() => openEditModal(order)}>
-                      <Edit className="h-4 w-4" />
-                    </Button>
-                    <Button variant="ghost" size="icon" onClick={() => handleDeleteOrder(order.id)}>
-                      <Trash2 className="h-4 w-4 text-destructive" />
-                    </Button>
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Order Date:</span>
-                    <span className="font-medium">{new Date(order.order_date).toLocaleDateString()}</span>
-                  </div>
+      {/* Orders List with Tabs */}
+      <Tabs defaultValue="all" className="space-y-4">
+        <TabsList className="bg-card/50 backdrop-blur">
+          <TabsTrigger value="all">All Orders ({stats.total})</TabsTrigger>
+          <TabsTrigger value="pending">Pending ({stats.pending})</TabsTrigger>
+          <TabsTrigger value="processing">Processing ({stats.processing})</TabsTrigger>
+          <TabsTrigger value="fulfilled">Fulfilled ({stats.fulfilled})</TabsTrigger>
+        </TabsList>
 
-                  <div className="border-t pt-3">
-                    <p className="text-sm font-medium mb-2">Line Items:</p>
-                    <div className="space-y-1">
-                      {order.line_items.map((item, idx) => (
-                        <div key={idx} className="flex justify-between text-sm">
-                          <span className="text-muted-foreground">
-                            {item.qty}x {item.item_name}
-                          </span>
-                          <span className="font-medium">${(item.qty * item.price).toFixed(2)}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div className="flex justify-between text-base font-semibold border-t pt-3">
-                    <span>Total:</span>
-                    <span>${order.total.toFixed(2)}</span>
-                  </div>
+        <TabsContent value="all" className="space-y-4">
+          {filteredOrders.length === 0 ? (
+            <Card className="bg-card/50 backdrop-blur">
+              <CardContent className="pt-6">
+                <div className="text-center py-12">
+                  <p className="text-muted-foreground">
+                    {orders.length === 0 ? 'No orders yet. Create your first order to get started.' : 'No orders match your filters.'}
+                  </p>
                 </div>
               </CardContent>
             </Card>
-          ))}
-        </div>
-      )}
+          ) : (
+            <div className="grid gap-4">
+              {filteredOrders.map((order) => (
+                <OrderCard key={order.id} order={order} onEdit={openEditModal} onDelete={handleDeleteOrder} />
+              ))}
+            </div>
+          )}
+        </TabsContent>
+
+        <TabsContent value="pending" className="space-y-4">
+          <div className="grid gap-4">
+            {filteredOrders.filter(o => o.status === 'pending').map((order) => (
+              <OrderCard key={order.id} order={order} onEdit={openEditModal} onDelete={handleDeleteOrder} />
+            ))}
+          </div>
+        </TabsContent>
+
+        <TabsContent value="processing" className="space-y-4">
+          <div className="grid gap-4">
+            {filteredOrders.filter(o => o.status === 'processing').map((order) => (
+              <OrderCard key={order.id} order={order} onEdit={openEditModal} onDelete={handleDeleteOrder} />
+            ))}
+          </div>
+        </TabsContent>
+
+        <TabsContent value="fulfilled" className="space-y-4">
+          <div className="grid gap-4">
+            {filteredOrders.filter(o => o.status === 'fulfilled').map((order) => (
+              <OrderCard key={order.id} order={order} onEdit={openEditModal} onDelete={handleDeleteOrder} />
+            ))}
+          </div>
+        </TabsContent>
+      </Tabs>
 
       {/* Edit Modal */}
       <Dialog open={!!editingOrder} onOpenChange={(open) => !open && setEditingOrder(null)}>
@@ -626,5 +678,64 @@ export default function Orders() {
         </DialogContent>
       </Dialog>
     </div>
+    </AppShell>
+  );
+}
+
+// OrderCard Component
+interface OrderCardProps {
+  order: Order;
+  onEdit: (order: Order) => void;
+  onDelete: (orderId: number) => void;
+}
+
+function OrderCard({ order, onEdit, onDelete }: OrderCardProps) {
+  return (
+    <Card className="bg-card/50 backdrop-blur hover:border-primary/50 transition-colors">
+      <CardHeader>
+        <div className="flex items-start justify-between">
+          <div>
+            <CardTitle className="text-lg">{order.customer_name}</CardTitle>
+            <p className="text-sm text-muted-foreground mt-1">Order #{order.id}</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <Badge className={statusColors[order.status]}>{order.status}</Badge>
+            <Button variant="ghost" size="icon" onClick={() => onEdit(order)}>
+              <Edit className="h-4 w-4" />
+            </Button>
+            <Button variant="ghost" size="icon" onClick={() => onDelete(order.id)}>
+              <Trash2 className="h-4 w-4 text-destructive" />
+            </Button>
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent>
+        <div className="space-y-3">
+          <div className="flex justify-between text-sm">
+            <span className="text-muted-foreground">Order Date:</span>
+            <span className="font-medium">{new Date(order.order_date).toLocaleDateString()}</span>
+          </div>
+
+          <div className="border-t pt-3">
+            <p className="text-sm font-medium mb-2">Line Items:</p>
+            <div className="space-y-1">
+              {order.line_items.map((item, idx) => (
+                <div key={idx} className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">
+                    {item.qty}x {item.item_name}
+                  </span>
+                  <span className="font-medium">${(item.qty * item.price).toFixed(2)}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="flex justify-between text-base font-semibold border-t pt-3">
+            <span>Total:</span>
+            <span>${order.total.toFixed(2)}</span>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
   );
 }
