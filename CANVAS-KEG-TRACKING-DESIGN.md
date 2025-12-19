@@ -1,0 +1,625 @@
+# Canvas Keg Tracking System - Design Specification
+
+## Overview
+
+This document defines the design decisions and requirements for the BevForge Canvas-based Keg Tracking System. This system provides a visual, spatial interface for managing containers (kegs, cases, pallets) across locations with drag-and-drop interactions.
+
+---
+
+## Core Design Principles
+
+### 1. Canvas = Icon View, Detail = List View
+- **Canvas (spatial):** Visual representation of containers and locations
+- **Detail Panel (data):** List-based view for editing and detailed information
+- Only "break down" action converts list → icons on canvas
+
+### 2. Breakdown = Ungrouping with Real Outcomes
+- "Break down" is a physical operation, not just a UI change
+- Triggers actual inventory movements
+- Returns contents to canvas as individual icons
+
+### 3. Compliance is Calculated, Not Displayed
+- UI shows logistics (pallets, cases, kegs)
+- Backend calculates volume for TTB reporting
+- TTB tracks volume leaving bonded premises only (delivery trigger)
+- Reporting decomposes containers automatically
+- **"OPS does the math — UI just shows relationships"**
+
+### 4. Real-World Flexibility
+- Mixed pallets, partial pallets, loose units = all valid
+- System adapts to operational reality
+- Warnings, not hard blocks
+
+---
+
+## Gap #1: Scale Problem - RESOLVED
+
+### Problem Statement
+How to handle hundreds/thousands of containers without overwhelming the canvas?
+
+### Solution: Hierarchical Container Grouping
+
+#### Container Hierarchy
+```
+Individual Units (kegs, bottles, cans)
+    ↓
+Consumer Packages (6-pack, case)
+    ↓
+Distribution Units (pallet)
+    ↓
+Location
+```
+
+---
+
+## Design Decisions
+
+### Q1: Grouping Logic
+**DECISION:** Manual Grouping (Option B)
+
+**Rules:**
+- Operator explicitly creates pallets
+- Operator drags containers onto pallets
+- No automatic grouping
+- Matches physical palletizing operations
+
+**Rationale:**
+- Palletizing is a real physical operation
+- Operator needs explicit control
+- Matches drag-to-create mental model
+
+---
+
+### Q2: Pallet Capacity Rules
+**DECISION:** Soft capacity rules, product-aware
+
+**Rules:**
+- Pallet type defines nominal capacity
+- Capacity is advisory, not hard-blocking
+- Overfill allowed with warning
+- Examples:
+  - ½ bbl keg pallet: nominal 6
+  - 1/6 bbl keg pallet: nominal N (TBD)
+  - Case pallets: nominal by case type
+
+**UI Requirement (WHAT-only):**
+Pallet must expose:
+- Current count
+- Nominal capacity
+- Over/under state
+
+**Visual Examples:**
+- Normal: "6/6" (green/neutral)
+- Under: "4/6" (yellow/amber)
+- Over: "8/6" (orange warning)
+
+---
+
+### Q3: Partial Pallets
+**DECISION:** Partial pallets allowed
+
+**Rules:**
+- Real-world flexibility: 6 kegs on pallet + 1 loose keg on truck = valid
+- Partial pallets stay on canvas
+- Operator decides when to palletize vs keep loose
+
+**Visual Indicators:**
+- Show ratio: "7/6" or "10/56"
+- Different color/pattern for partial
+- Warning indicator for over-capacity
+
+**Examples:**
+- Partial under: "23/56" with amber indicator
+- Overfilled: "58/56" with orange warning
+- Mixed partial: "MIX 47 units" with multi-color badge
+
+---
+
+### Q4: Mixed Pallets
+**DECISION:** Mixed pallets allowed
+
+**Rules:**
+- Pallets can contain multiple products
+- Pallets can contain multiple container types
+- Real operations require this flexibility
+
+**Visual Representation:**
+- Multi-color icon or "mixed" badge
+- Total unit count displayed
+- **Detail view shows breakdown by product (list view)**
+
+**Key Interaction:**
+- Click pallet → **list view** (not icon-within-icon)
+- List shows each container type with quantities
+- Only "break down" action returns to icon view on canvas
+
+**Example:**
+```
+Pallet P-001 (Mixed)
+├─ 🛢️ Keg x20 (Dry Cider)
+├─ 📦 Case x15 (Sweet Cider, 24-pack)
+└─ 🍾 Bottle x12 (Rosé Cider)
+```
+
+---
+
+### Q5: Pallet Identity & Tracking
+**DECISION:** Pallet as Container (Option A)
+
+**Rules:**
+- Pallets have unique IDs (P-001, P-002, etc.)
+- Pallets have barcodes/labels
+- Track pallet movement (not just contents)
+- Pallets can be created and deleted
+
+**Use Cases:**
+- Returnable pallets
+- Pallet deposits
+- Pallet-level compliance events
+- Asset tracking
+
+**Lifecycle:**
+- Created by operator
+- Loaded with containers
+- Moved between locations
+- Emptied (breakdown or delivery)
+- Returned or disposed
+
+---
+
+### Q6: Unpacking/Breaking Down
+**DECISION:** Driver-only breakdown with inventory return
+
+**Rules:**
+- **Only drivers break down pallets** (during delivery)
+- Customers never break down pallets
+- Returns go back to inventory (not treated as returns unless pre-paid - rare case)
+- Partial pallets stay on canvas
+- "Unpack/return to inventory" action available
+
+**Workflow:**
+1. Click pallet → expand view (list of contents)
+2. Select items to deliver/remove
+3. Pallet updates count automatically
+4. Empty pallet (0 units):
+   - **Returnable:** Stays as "empty pallet" on canvas
+   - **Disposable:** Auto-removes from canvas
+
+**Return to Inventory:**
+- Driver returns with unused product
+- "Return to Inventory" action moves contents back to warehouse
+- Pallet removed from truck
+- Contents available for re-allocation
+
+---
+
+### Q7: Visual Representation
+**DECISION:** No icon-within-icon, quantity-based display
+
+**Rules:**
+- **No nested icons** (no tiny icons inside pallet icon)
+- Pallet shows container types with quantities
+- Case shows quantity, not individual units
+- 6-pack is the visual unit for cans
+
+**Examples:**
+- Pallet: "🏗️ 🛢️ 47 kegs" (not 47 tiny keg icons)
+- Case: "📦 🍾 24" (not 24 tiny bottle icons)
+- 6-pack: "📦 🥫 6" (single 6-pack icon)
+
+**Pallet Icon States:**
+
+```
+Full Pallet:
+┌─────────┐
+│  🏗️ 47  │  ← Solid border, count only
+│  Kegs   │
+└─────────┘
+
+Partial Pallet (under capacity):
+┌─────────┐
+│  🏗️ 23  │  ← Yellow/amber indicator
+│ ⚠️ 23/56 │    Shows ratio
+└─────────┘
+
+Overfilled Pallet:
+┌─────────┐
+│  🏗️ 58  │  ← Orange indicator
+│ ⚠️ 58/56 │    Over nominal capacity
+└─────────┘
+
+Mixed Pallet:
+┌─────────┐
+│  🏗️ MIX │  ← Multi-color or badge
+│ 47 units│     Total count
+└─────────┘
+
+In-Transit:
+┌─────────┐
+│  🏗️→ 47 │  ← Motion indicator
+│  Kegs   │
+└─────────┘
+
+Overdue Return:
+┌─────────┐
+│  🏗️ 47  │  ← Red border
+│ 🔴 Kegs  │     Alert badge
+└─────────┘
+```
+
+---
+
+### Q8: Case-Level Tracking
+**DECISION:** Full case-level traceability
+
+**Rules:**
+- Cases have unique IDs (C-001, C-002, etc.)
+- Case labels include: barcode, product, batch, date
+- Track at case level when broken from pallet
+- Aggregate to pallet level for full pallet movements
+
+**Use Cases:**
+- Traceability (batch recall)
+- Partial deliveries
+- Returns and credits
+- Inventory accuracy
+
+**Hierarchy:**
+```
+Pallet P-001
+  ├─ Case C-001 (24x 12oz Dry Cider, Batch B-123)
+  ├─ Case C-002 (24x 12oz Dry Cider, Batch B-123)
+  └─ Case C-003 (24x 12oz Sweet Cider, Batch B-124)
+```
+
+---
+
+### Q9: 6-Pack Constraint (Cans)
+**DECISION:** 6-pack as minimum unit, mixed allowed
+
+**Rules:**
+- Cans sold as 6-packs (minimum unit from cidery)
+- Individual cans at retail = not cidery's concern (future webstore/taproom)
+- Mixed 6-packs allowed: "2x2x2" different products
+- Product identifier for mixed: "X-mixed"
+- Taproom treated as bar/restaurant (delivery and tracking rules apply)
+
+**Examples:**
+- Standard 6-pack: "Dry Cider 6-pack"
+- Mixed 6-pack: "Variety-mixed" (2x Dry, 2x Sweet, 2x Rosé)
+
+**Validation:**
+- Cannot create individual can on canvas
+- Orders must be in multiples of 6
+- Production creates 6-packs (not individual cans)
+- Exception: damaged 6-pack tracked as "broken pack"
+
+---
+
+### Q10: TTB Compliance Integration
+**DECISION:** Volume calculated at reporting time, not displayed in UI
+
+**Rules:**
+- TTB tracks **volume leaving bonded premises only**
+- Trigger = delivery leaves for customer (out for delivery)
+- TTB doesn't care about pallets, cases, or packaging
+- System decomposes containers to volume automatically during reporting
+
+**Resolution:**
+- Pallet/container movement = logistics (UI concern)
+- Compliance resolves volume at child container level (backend concern)
+- Mixed pallets decomposed automatically during reporting
+- **"OPS does the math — UI just shows relationships"**
+
+**Example:**
+- UI shows: "Pallet P-001 with 47 kegs delivered to Restaurant A"
+- Backend calculates: "23.5 bbls removed from bonded premises"
+- TTB report: "23.5 bbls, Dry Cider, Restaurant A, Date"
+
+---
+
+## Canvas Interaction Model
+
+### Create Pallet
+1. Click "New Pallet" button
+2. Select pallet type (keg, case, custom)
+3. Empty pallet appears on canvas at current location
+4. Drag containers onto pallet
+5. Pallet updates count (with capacity warning if over)
+
+### View Pallet Contents
+1. Click pallet icon on canvas
+2. **Detail panel opens (list view, not icon view)**
+3. Shows:
+   - Pallet ID
+   - Contents breakdown (by container type and product)
+   - Capacity status (X/Y with indicator)
+   - Location
+   - Associated delivery (if any)
+4. Available actions: Edit, Print Label, Break Down, Delete, Return to Inventory
+
+### Break Down Pallet
+1. Click "Break Down" in detail panel
+2. Confirmation: "This will unpack all contents to canvas"
+3. Pallet contents appear as **individual icons on canvas** at current location
+4. Empty pallet:
+   - **Returnable:** Stays on canvas as "empty pallet"
+   - **Disposable:** Auto-removes from canvas
+
+### Load Delivery
+1. Drag pallet from warehouse to truck on canvas
+2. System prompts: "Associate with delivery?"
+3. Select delivery or create new
+4. Truck location shows pallet icon
+5. Detail panel shows delivery info and route
+
+### Partial Delivery
+1. Driver at customer location
+2. Opens pallet detail (list view)
+3. Selects items to deliver (checkboxes)
+4. Clicks "Deliver Selected"
+5. Selected items move to customer location on canvas
+6. Pallet updates to partial (remaining items)
+7. Truck continues to next stop with partial pallet
+
+### Return to Inventory
+1. Driver returns with partial pallet or unused product
+2. Opens pallet detail
+3. Clicks "Return to Inventory"
+4. System moves contents back to warehouse location
+5. Pallet removed from truck
+6. Contents available for re-allocation
+
+---
+
+## Detail Panel (List View) Specification
+
+### Pallet Detail Panel
+
+```
+┌────────────────────────────────┐
+│ Pallet P-001          [Edit] [×]│
+├────────────────────────────────┤
+│ Status: Partial (47/56)        │
+│ Location: Truck #3             │
+│ Delivery: DEL-123              │
+│ Route: Stop 2 of 4             │
+├────────────────────────────────┤
+│ Contents:                      │
+│ ☑ 🛢️ Keg K-001 | Dry Cider     │
+│   Batch: B-123 | Filled: 1/15  │
+│ ☑ 🛢️ Keg K-002 | Dry Cider     │
+│   Batch: B-123 | Filled: 1/15  │
+│ ☑ 📦 Case C-001 | Sweet (24)   │
+│   Batch: B-124 | Packed: 1/20  │
+│ ☑ 📦 Case C-002 | Sweet (24)   │
+│   Batch: B-124 | Packed: 1/20  │
+│ ... (43 more items)            │
+├────────────────────────────────┤
+│ [Break Down] [Print Label]     │
+│ [Return to Inventory]          │
+│ [Deliver Selected]             │
+└────────────────────────────────┘
+```
+
+### Case Detail Panel
+
+```
+┌────────────────────────────────┐
+│ Case C-001            [Edit] [×]│
+├────────────────────────────────┤
+│ Product: Sweet Cider           │
+│ Package: 24x 12oz bottles      │
+│ Batch: B-124                   │
+│ Packed: 1/20/2025              │
+│ Location: Pallet P-001         │
+├────────────────────────────────┤
+│ Traceability:                  │
+│ Tank: T-003                    │
+│ Bottling Run: BR-045           │
+│ Expiration: 1/20/2026          │
+├────────────────────────────────┤
+│ [Print Label] [View Batch]     │
+│ [Remove from Pallet]           │
+└────────────────────────────────┘
+```
+
+### Keg Detail Panel
+
+```
+┌────────────────────────────────┐
+│ Keg K-001             [Edit] [×]│
+├────────────────────────────────┤
+│ Product: Dry Cider             │
+│ Size: 1/2 bbl (15.5 gal)       │
+│ Batch: B-123                   │
+│ Filled: 1/15/2025              │
+│ Status: At Customer            │
+│ Location: Restaurant A         │
+│ Days Out: 14                   │
+├────────────────────────────────┤
+│ Movement History:              │
+│ 1/15 - Filled (Tank T-001)     │
+│ 1/16 - Loaded (Truck #3)       │
+│ 1/16 - Delivered (Restaurant A)│
+├────────────────────────────────┤
+│ Financial:                     │
+│ Deposit: $30.00 (Outstanding)  │
+│ Expected Return: 2/15/2025     │
+├────────────────────────────────┤
+│ [Mark Returned] [Print Label]  │
+│ [View Batch] [Movement History]│
+└────────────────────────────────┘
+```
+
+---
+
+## Product-Specific Packaging Rules
+
+### Kegs
+- **Individual units:** Tracked individually with unique IDs
+- **Pallet capacity:** 
+  - 1/2 bbl: ~6 per pallet
+  - 1/6 bbl: ~TBD per pallet
+- **Mixed pallets:** Allowed (different sizes, different products)
+- **Loose units:** Allowed (kegs can exist outside pallets)
+
+### Bottles
+- **Sold as:** Individual OR by case
+- **Case size:** Variable (12-pack, 24-pack, etc.)
+- **Pallet capacity:** ~56 cases (standard, varies by case size)
+- **Mixed pallets:** Allowed (different products, different case sizes)
+
+### Cans
+- **Minimum unit:** 6-pack (cannot create individual can)
+- **Case size:** 4x 6-packs = 24-pack case
+- **Pallet capacity:** Variable by case type
+- **Mixed 6-packs:** Allowed (2x2x2 different products, labeled "X-mixed")
+- **Visual unit:** 6-pack icon (not individual cans)
+
+---
+
+## Location Types & Behaviors
+
+### Warehouse
+- **Purpose:** Inventory pool, storage
+- **Allowed actions:** Create containers, create pallets, load deliveries
+- **Visual:** Large zone, can hold many pallets/containers
+- **Zones:** May have sub-zones (production, finished goods, returns, cleaning)
+
+### Delivery Truck
+- **Purpose:** In-transit containers
+- **Allowed actions:** Load, unload, partial delivery
+- **Visual:** Shows route, current stop, contents
+- **Detail panel:** Route list, delivery schedule
+
+### Customer Location (Restaurant, Bar, Venue)
+- **Purpose:** Deployed inventory
+- **Allowed actions:** Deliver, return, track overdue
+- **Visual:** Shows current inventory, overdue alerts
+- **Detail panel:** Customer info, order history, outstanding deposits
+
+### Production Floor
+- **Purpose:** Filling, packaging operations
+- **Allowed actions:** Fill kegs, pack cases, create 6-packs
+- **Visual:** Shows active production runs
+- **Detail panel:** Batch info, production schedule
+
+### Cleaning Station
+- **Purpose:** Keg maintenance, sanitation
+- **Allowed actions:** Move kegs to/from cleaning, track cleaning cycles
+- **Visual:** Shows kegs in cleaning queue
+- **Detail panel:** Cleaning schedule, inspection status
+
+---
+
+## Printing & Labeling
+
+### Keg Labels
+- **Trigger:** Right-click keg → Print Label OR from detail panel
+- **Contents:**
+  - Keg ID (barcode)
+  - Product name
+  - Batch number
+  - Fill date
+  - Expiration date (if applicable)
+
+### Case Labels
+- **Trigger:** Right-click case → Print Label OR from detail panel
+- **Contents:**
+  - Case ID (barcode)
+  - Product name
+  - Package size (24x 12oz)
+  - Batch number
+  - Pack date
+  - Expiration date
+
+### Pallet Labels
+- **Trigger:** Right-click pallet → Print Label OR from detail panel
+- **Contents:**
+  - Pallet ID (barcode)
+  - Contents summary (mixed or single product)
+  - Total units
+  - Destination (if associated with delivery)
+  - Date
+
+### Delivery Invoice
+- **Trigger:** Drag pallet to truck → auto-generate OR from delivery detail
+- **Contents:**
+  - Delivery ID
+  - Customer info
+  - Route and stops
+  - Itemized list (pallets, cases, kegs)
+  - Quantities and products
+  - Deposit amounts
+  - Total value
+
+---
+
+## Alerts & Risk Indicators
+
+### Container-Level Alerts
+- **Overdue return:** Red border, days overdue badge
+- **Needs maintenance:** Yellow border, wrench icon
+- **Damaged:** Red X badge
+- **Low inventory:** Amber alert on location
+
+### Pallet-Level Alerts
+- **Over-capacity:** Orange warning (58/56)
+- **Under-capacity:** Amber indicator (23/56)
+- **Mixed contents:** Multi-color badge
+- **In-transit:** Motion indicator
+
+### Location-Level Alerts
+- **Customer overdue returns:** Red badge with count
+- **Low available inventory:** Amber alert
+- **Deposit imbalance:** Yellow warning
+
+---
+
+## Success Criteria (from OPS-UI-CONTRACT)
+
+An implementation is valid if an operator can:
+
+1. **Understand current operational state in under 60 seconds**
+   - Canvas provides spatial overview
+   - Alerts visible at glance
+   - Detail panels provide context
+
+2. **Take required action in under three interactions**
+   - Drag-drop for movements
+   - Click for details
+   - Context actions in panels
+
+3. **Trace any physical movement end-to-end**
+   - Container movement history
+   - Location chain visible
+   - Product/batch traceability
+
+4. **Identify compliance risk before it becomes a violation**
+   - TTB trigger visibility (delivery out for delivery)
+   - Overdue alerts
+   - Inventory discrepancies surfaced
+
+---
+
+## Next: Gap #2 - Bulk Operations
+
+**Problem Statement:** How to handle bulk operations efficiently without tedious one-by-one interactions?
+
+**Examples:**
+- Loading 30 kegs onto a truck
+- Scanning barcodes during loading
+- "Load all kegs for Order #123"
+- Multi-select and batch actions
+
+**To be defined...**
+
+---
+
+## Document Status
+
+- **Version:** 1.0
+- **Date:** 2025-01-19
+- **Status:** Gap #1 RESOLVED, Gap #2 in progress
+- **Next Review:** After Gap #2 resolution
