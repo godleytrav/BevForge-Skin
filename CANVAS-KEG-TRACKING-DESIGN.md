@@ -603,23 +603,278 @@ An implementation is valid if an operator can:
 
 ---
 
-## Next: Gap #2 - Bulk Operations
+## Gap #2: Bulk Operations
 
-**Problem Statement:** How to handle bulk operations efficiently without tedious one-by-one interactions?
+### Problem Statement
+Loading 30 kegs onto a truck one-by-one is tedious. How do you handle bulk operations efficiently?
 
-**Examples:**
-- Loading 30 kegs onto a truck
-- Scanning barcodes during loading
-- "Load all kegs for Order #123"
-- Multi-select and batch actions
+### Solution: Product-Centric Representation
 
-**To be defined...**
+**Key Principle:**
+> "We're not moving kegs as much as product. Kegs are just trackable containers for the product everyone cares about."
+
+**Canvas shows PRODUCTS, not individual containers:**
+- Visual: "🛢️ Hopped Cider (4 kegs)" not "Keg #1, Keg #2, Keg #3, Keg #4"
+- Reduces visual clutter (4 products vs 40 individual kegs)
+- Matches how people think ("I need Hopped Cider" not "I need Keg K-1234")
+- Simplifies compliance (TTB cares about product/volume, not keg IDs)
+- Makes canvas scalable (100 kegs = maybe 10 product types)
+
+### Quantity Editing in Detail Panels
+
+**Canvas View (collapsed):**
+```
+┌─────────────┐
+│  🏗️ Pallet  │
+│  4 products │
+└─────────────┘
+```
+
+**Detail Panel (expanded with editable quantities):**
+```
+┌──────────────────────────────┐
+│ Pallet P-001                 │
+├──────────────────────────────┤
+│ 🛢️ Hopped Cider    [4] kegs │  ← Editable quantity
+│ 🛢️ Aged Cider      [2] kegs │
+│ 📦 Dry Cider       [3] cases│
+│ 📦 Sweet Cider     [1] case │
+└──────────────────────────────┘
+```
+
+**Benefits:**
+- Bulk operations (change 4 → 10 kegs without dragging)
+- Quick adjustments (customer changed order)
+- Inventory corrections (found 2 more kegs)
+
+### Product Representation on Canvas
+
+**Warehouse Location:**
+```
+┌────────────────────────────────┐
+│ 🛢️ Hopped (4)  🛢️ Aged (2)    │  ← Product groups
+│ 📦 Dry (3)     📦 Sweet (1)    │     with quantities
+└────────────────────────────────┘
+```
+
+**Truck #3:**
+```
+┌────────────────────────────────┐
+│ 🏗️ 2 pallets                   │  ← Collapsed view
+│ 🛢️ Hopped (4)  📦 Dry (3)      │  ← Loose items
+└────────────────────────────────┘
+```
+
+**Each product group shows:**
+- Product type (icon + name)
+- Container format (keg vs case)
+- Quantity (number)
+
+### QR Code Tracking System
+
+**Technology Choice: QR Codes**
+- Easy to generate
+- Easy to scan with smartphone camera
+- Higher data capacity than barcodes
+- Error correction (works even if partially damaged)
+
+**QR Code Contents:**
+- Product name/ID
+- Batch number
+- Fill date
+- Container ID (keg/case number)
+- Expiration date
+
+**Best Practices:**
+- Print large enough for easy scanning (2"x2" minimum)
+- Include human-readable text below QR (for visual verification)
+- Use ruggedized phone cases for warehouse use
+- Ensure adequate lighting in scanning areas
+
+**Scanning Workflow:**
+1. Warehouse worker scans QR codes during loading
+2. System confirms each scan matches delivery
+3. Highlights discrepancies (wrong product, extra items)
+4. Operator corrects before truck leaves
+
+**Potential Drawbacks:**
+- Requires good lighting (warehouse may be dim)
+- Requires camera focus (may be slower than laser scanner)
+- Phone battery drain (if scanning all day)
+
+### Truck Capacity Constraints
+
+**Each truck has defined capacity by fleet number:**
+- Example: Truck #3 can hold 1 pallet and 3 cases
+- System enforces capacity limits
+- If order exceeds capacity, triggers second delivery
+
+**Visual Feedback:**
+
+**Truck #3 (loading):**
+```
+┌────────────────────────────────┐
+│ Capacity: 1 pallet, 3 cases    │
+│ Current:  1 pallet, 2 cases    │
+│ ✅ Space available: 1 case     │
+└────────────────────────────────┘
+```
+
+**Truck #3 (at capacity):**
+```
+┌────────────────────────────────┐
+│ Capacity: 1 pallet, 3 cases    │
+│ Current:  1 pallet, 3 cases    │
+│ ⚠️ At capacity - no more room  │
+└────────────────────────────────┘
+```
+
+**Truck #3 (over capacity):**
+```
+┌────────────────────────────────┐
+│ Capacity: 1 pallet, 3 cases    │
+│ Current:  1 pallet, 4 cases    │
+│ 🔴 Over capacity by 1 case!    │
+└────────────────────────────────┘
+```
+
+**System Triggers:**
+- Warning when approaching capacity
+- Error if trying to exceed capacity
+- Auto-suggest second delivery if order too large
+- Route optimization (which truck for which orders)
+
+### Multiple Pallet Handling
+
+**Canvas View (collapsed count):**
+```
+┌────────────────────────────────┐
+│ Truck #3                       │
+│ 🏗️ 2 pallets                   │  ← Collapsed count
+│ 🛢️ Hopped (4)  📦 Dry (3)      │  ← Loose items
+└────────────────────────────────┘
+```
+
+**Detail Panel (click truck):**
+```
+┌────────────────────────────────┐
+│ Truck #3 - Route A             │
+├────────────────────────────────┤
+│ Pallets:                       │
+│ 🏗️ P-001 → Restaurant A        │
+│    └─ 🛢️ Hopped (20 kegs)     │
+│ 🏗️ P-002 → Bar B               │
+│    └─ 📦 Dry (56 cases)        │
+│ 🏗️ P-003 → Venue C             │
+│    └─ 🛢️ Aged (15 kegs)        │
+│                                │
+│ Loose Items:                   │
+│ 🛢️ Hopped (2 kegs) → Rest. A  │
+│ 📦 Dry (5 cases) → Bar B       │
+└────────────────────────────────┘
+```
+
+**Benefits:**
+- Visual clutter reduced (3 pallets = 1 icon with count)
+- Destination tracking (each pallet has destination)
+- Route visibility (see full truck manifest)
+- No need to group pallets (they're already grouped containers)
+
+### Cleaning Queue Workflow
+
+**Principle:**
+> "Returned kegs automatically go to warehouse for cleaning. Register they were picked up, trigger cleaning task."
+
+**Canvas View (minimal clutter):**
+```
+┌────────────────────────────────┐
+│ Warehouse                      │
+│ 🧼 Cleaning (47 kegs)          │  ← Single icon with count
+└────────────────────────────────┘
+```
+
+**Detail Panel (click cleaning icon):**
+```
+┌────────────────────────────────┐
+│ Cleaning Queue                 │
+├────────────────────────────────┤
+│ 🛢️ Hopped (12 kegs)            │
+│    Returned: 2024-12-19        │
+│    From: Restaurant A, Bar B   │
+│                                │
+│ 🛢️ Aged (8 kegs)               │
+│    Returned: 2024-12-19        │
+│    From: Venue C               │
+│                                │
+│ [Start Cleaning] [View Tasks]  │
+└────────────────────────────────┘
+```
+
+**Return Workflow:**
+1. Driver scans returned kegs at customer (marks as "returned")
+2. System updates location: customer → in-transit
+3. Driver returns to warehouse
+4. Scans kegs again (confirms physical return)
+5. System auto-moves to cleaning queue
+6. Cleaning task auto-created on calendar
+7. Canvas shows "🧼 Cleaning (47)" with updated count
+8. Operator clicks to see details/start cleaning
+9. After cleaning, kegs move to "Empty Kegs Available" pool
+
+**Benefits:**
+- Automatic (low effort)
+- Visible (can see backlog)
+- Not cluttered (single icon)
+- Trackable (know which kegs from which customers)
+- Task integration (calendar reminder)
+
+**Note:** We don't track empty keg movement in detail on UI. Focus is on registration of pickup/return and triggering cleaning tasks.
+
+### Bulk Operations via Product Quantities
+
+**Primary Method: Product-Level Editing**
+- Canvas shows products (not individual containers)
+- Edit quantities in detail panel
+- System tracks individual containers behind the scenes
+
+**Loading Workflow:**
+1. Create delivery for Order #123
+2. System calculates required products
+3. Operator opens truck detail panel
+4. Adds products with quantities:
+   - "Hopped Cider: 20 kegs"
+   - "Dry Cider: 15 cases"
+5. System validates against truck capacity
+6. If over capacity, suggests second delivery
+7. Operator confirms
+8. System allocates specific containers (FIFO)
+9. Canvas updates (products appear on truck)
+
+**Inventory Validation:**
+- Order creation checks real-time inventory
+- Can't order 20 kegs if only 15 available
+- Quantity selector limited to available stock
+- If shortage happens (inventory error), alert workflow triggers
+- Driver manager contacts customer for substitutions
+
+**Validation Workflow:**
+1. Warehouse worker scans QR codes as loading
+2. System confirms each scan matches delivery
+3. Highlights discrepancies (wrong product, extra items)
+4. Operator corrects before truck leaves
+
+**Behind the Scenes:**
+- System maintains individual container IDs
+- FIFO allocation (oldest kegs shipped first)
+- Traceability maintained (which specific kegs in which delivery)
+- Compliance reporting uses individual container data
+- UI shows aggregated product view for simplicity
 
 ---
 
 ## Document Status
 
-- **Version:** 1.0
-- **Date:** 2025-01-19
-- **Status:** Gap #1 RESOLVED, Gap #2 in progress
-- **Next Review:** After Gap #2 resolution
+- **Version:** 2.0
+- **Date:** 2025-12-19
+- **Status:** Gap #1 RESOLVED, Gap #2 RESOLVED
+- **Next Review:** Gap #3 - Time Dimension
