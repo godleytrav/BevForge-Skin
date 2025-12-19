@@ -9,7 +9,7 @@ export default async function handler(_req: Request, res: Response) {
     const activeAlerts = await db
       .select()
       .from(alerts)
-      .where(eq(alerts.resolved, false))
+      .where(eq(alerts.isResolved, false))
       .orderBy(desc(alerts.createdAt))
       .limit(50);
 
