@@ -25,6 +25,11 @@ import SalesPage from './pages/ops/sales';
 import TaxPage from './pages/ops/tax';
 import CompliancePage from './pages/ops/compliance';
 import OpsReportsPage from './pages/ops/reports';
+import ProductsPage from './pages/ops/products';
+import InvoicingPage from './pages/ops/invoicing';
+import LabelsPage from './pages/ops/labels';
+import RecipesPage from './pages/ops/recipes';
+import QualityPage from './pages/ops/quality';
 
 export const routes: RouteObject[] = [
   {
@@ -74,6 +79,26 @@ export const routes: RouteObject[] = [
   {
     path: '/ops/reports',
     element: <OpsReportsPage />,
+  },
+  {
+    path: '/ops/products',
+    element: <ProductsPage />,
+  },
+  {
+    path: '/ops/invoicing',
+    element: <InvoicingPage />,
+  },
+  {
+    path: '/ops/labels',
+    element: <LabelsPage />,
+  },
+  {
+    path: '/ops/recipes',
+    element: <RecipesPage />,
+  },
+  {
+    path: '/ops/quality',
+    element: <QualityPage />,
   },
   {
     path: '/directory',
