@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -14,6 +14,7 @@ import {
   Beer,
   Wine,
   Droplet,
+  GripVertical,
 } from 'lucide-react';
 import {
   Dialog,
@@ -89,6 +90,12 @@ export default function CanvasPage() {
     locationId: '',
     batchId: 'B-001',
   });
+  const [draggedItem, setDraggedItem] = useState<{
+    containerId: string;
+    productName: string;
+    containerType: string;
+    fromLocationId: string;
+  } | null>(null);
 
   useEffect(() => {
     fetchData();
@@ -129,6 +136,107 @@ export default function CanvasPage() {
     setShowAddLocation(false);
     setNewLocation({ name: '', type: 'warehouse' });
   };
+
+  const handleDragStart = useCallback(
+    (containerId: string, productName: string, containerType: string, fromLocationId: string) => {
+      setDraggedItem({ containerId, productName, containerType, fromLocationId });
+    },
+    []
+  );
+
+  const handleDragEnd = useCallback(() => {
+    setDraggedItem(null);
+  }, []);
+
+  const handleDrop = useCallback(
+    (toLocationId: string) => {
+      if (!draggedItem) return;
+
+      // Update locations state
+      setLocations((prevLocations) => {
+        const newLocations = prevLocations.map((loc) => {
+          // Remove from source location
+          if (loc.id === draggedItem.fromLocationId) {
+            return {
+              ...loc,
+              products: loc.products.map((prod) => {
+                if (
+                  prod.productName === draggedItem.productName &&
+                  prod.containerType === draggedItem.containerType
+                ) {
+                  return {
+                    ...prod,
+                    quantity: prod.quantity - 1,
+                    containers: prod.containers.filter(
+                      (c) => c.id !== draggedItem.containerId
+                    ),
+                  };
+                }
+                return prod;
+              }).filter((prod) => prod.quantity > 0),
+            };
+          }
+
+          // Add to destination location
+          if (loc.id === toLocationId) {
+            const container = locations
+              .find((l) => l.id === draggedItem.fromLocationId)
+              ?.products.find(
+                (p) =>
+                  p.productName === draggedItem.productName &&
+                  p.containerType === draggedItem.containerType
+              )
+              ?.containers.find((c) => c.id === draggedItem.containerId);
+
+            if (!container) return loc;
+
+            const existingProduct = loc.products.find(
+              (p) =>
+                p.productName === draggedItem.productName &&
+                p.containerType === draggedItem.containerType
+            );
+
+            if (existingProduct) {
+              return {
+                ...loc,
+                products: loc.products.map((prod) =>
+                  prod.productName === draggedItem.productName &&
+                  prod.containerType === draggedItem.containerType
+                    ? {
+                        ...prod,
+                        quantity: prod.quantity + 1,
+                        containers: [...prod.containers, container],
+                      }
+                    : prod
+                ),
+              };
+            } else {
+              return {
+                ...loc,
+                products: [
+                  ...loc.products,
+                  {
+                    productId: container.productId,
+                    productName: container.productName,
+                    containerType: container.type,
+                    quantity: 1,
+                    containers: [container],
+                  },
+                ],
+              };
+            }
+          }
+
+          return loc;
+        });
+
+        return newLocations;
+      });
+
+      setDraggedItem(null);
+    },
+    [draggedItem, locations]
+  );
 
   const handleAddContainer = () => {
     if (!newContainer.locationId) return;
@@ -478,7 +586,22 @@ export default function CanvasPage() {
           ) : (
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
               {locations.map((location) => (
-                <Card key={location.id} className="p-4">
+                <Card
+                  key={location.id}
+                  className="p-4 transition-colors"
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    e.currentTarget.classList.add('ring-2', 'ring-primary');
+                  }}
+                  onDragLeave={(e) => {
+                    e.currentTarget.classList.remove('ring-2', 'ring-primary');
+                  }}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    e.currentTarget.classList.remove('ring-2', 'ring-primary');
+                    handleDrop(location.id);
+                  }}
+                >
                   <div className="mb-3 flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       {getLocationIcon(location.type)}
@@ -580,16 +703,35 @@ export default function CanvasPage() {
                       <div className="mt-2 space-y-2">
                         {selectedItem.data.containers.map(
                           (container: Container) => (
-                            <button
+                            <div
                               key={container.id}
+                              draggable
+                              onDragStart={() => {
+                                const location = locations.find((loc) =>
+                                  loc.products.some((p) =>
+                                    p.containers.some((c) => c.id === container.id)
+                                  )
+                                );
+                                if (location) {
+                                  handleDragStart(
+                                    container.id,
+                                    container.productName,
+                                    container.type,
+                                    location.id
+                                  );
+                                }
+                              }}
+                              onDragEnd={handleDragEnd}
                               onClick={() =>
                                 setSelectedItem({
                                   type: 'container',
                                   data: container,
                                 })
                               }
-                              className="w-full rounded border p-2 text-left text-sm hover:bg-accent"
+                              className="w-full cursor-move rounded border p-2 text-left text-sm hover:bg-accent"
                             >
+                              <div className="flex items-center gap-2">
+                                <GripVertical className="h-4 w-4 text-muted-foreground" />
                               <div className="flex items-center justify-between">
                                 <span className="font-mono text-xs">
                                   {container.id}
@@ -601,7 +743,8 @@ export default function CanvasPage() {
                               <p className="mt-1 text-xs text-muted-foreground">
                                 Batch: {container.batchId}
                               </p>
-                            </button>
+                              </div>
+                            </div>
                           )
                         )}
                       </div>
