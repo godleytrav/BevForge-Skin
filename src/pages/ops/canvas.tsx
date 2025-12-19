@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { validateContainerMove, formatValidationMessage } from '@/lib/validation';
 import { getAllAlerts, getAlertColor, getAlertIcon, type Alert } from '@/lib/alerts';
+import { routeToCleaningQueue, getCleaningStats, type CleaningQueueItem } from '@/lib/cleaning';
 import { CreatePalletDialog } from '@/components/canvas/CreatePalletDialog';
 import { QRCodeDisplay } from '@/components/canvas/QRCodeDisplay';
 import {
@@ -113,6 +114,7 @@ export default function CanvasPage() {
     fromLocationId: string;
   } | null>(null);
   const [pallets, setPallets] = useState<any[]>([]);
+  const [cleaningQueue, setCleaningQueue] = useState<CleaningQueueItem[]>([]);
 
   useEffect(() => {
     fetchData();
@@ -787,6 +789,12 @@ export default function CanvasPage() {
                         )}{' '}
                         items
                       </Badge>
+                      {location.type === 'cleaning' && cleaningQueue.length > 0 && (
+                        <Badge variant="outline" className="gap-1">
+                          <Droplet className="h-3 w-3" />
+                          {cleaningQueue.filter(item => item.status === 'queued').length} queued
+                        </Badge>
+                      )}
                       {location.type === 'truck' && location.products.length > 0 && (
                         <Button
                           size="sm"
