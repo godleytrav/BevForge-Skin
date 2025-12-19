@@ -78,10 +78,7 @@ export default function CanvasPage() {
   };
 
   return (
-    <AppShell
-      title="Canvas - Logistics View"
-      description="Visual logistics management for containers and deliveries"
-    >
+    <AppShell pageTitle="Canvas - Logistics View" currentSuite="ops">
       <div className="space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">
