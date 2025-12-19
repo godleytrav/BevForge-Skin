@@ -16,6 +16,8 @@ import {
   X,
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
+import { ContainerDetailPanel } from '@/components/canvas/ContainerDetailPanel';
+import { PalletDetailPanel } from '@/components/canvas/PalletDetailPanel';
 
 interface Product {
   productId: string;
@@ -54,7 +56,10 @@ interface Alert {
 export default function CanvasPage() {
   const [locations, setLocations] = useState<Location[]>([]);
   const [alerts, setAlerts] = useState<Alert[]>([]);
-  const [selectedItem, setSelectedItem] = useState<any>(null);
+  const [selectedItem, setSelectedItem] = useState<{
+    type: 'product' | 'pallet' | 'container';
+    data: any;
+  } | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -190,7 +195,7 @@ export default function CanvasPage() {
                         <div
                           key={product.productId}
                           className="flex items-center justify-between p-2 rounded bg-muted/50 hover:bg-muted transition-colors"
-                          onClick={() => setSelectedItem({ type: 'product', location, product })}
+                          onClick={() => setSelectedItem({ type: 'product', data: { location, product } })}
                         >
                           <div>
                             <p className="text-sm font-medium">{product.productName}</p>
@@ -217,7 +222,7 @@ export default function CanvasPage() {
                           <div
                             key={pallet.id}
                             className="flex items-center justify-between text-xs p-1.5 rounded hover:bg-muted/50 transition-colors cursor-pointer"
-                            onClick={() => setSelectedItem({ type: 'pallet', location, pallet })}
+                            onClick={() => setSelectedItem({ type: 'pallet', data: { location, pallet } })}
                           >
                             <span>{pallet.name}</span>
                             <Badge variant="outline" className="text-xs">
@@ -418,16 +423,36 @@ export default function CanvasPage() {
           </div>
         </div>
 
-        {/* Detail Panel */}
-        {selectedItem && (
+        {/* Detail Panels */}
+        {selectedItem?.type === 'pallet' && (
+          <PalletDetailPanel
+            pallet={{
+              id: selectedItem.data.pallet.id,
+              qrCode: selectedItem.data.pallet.name,
+              status: selectedItem.data.pallet.status,
+              currentLocation: selectedItem.data.location.name,
+              locationType: selectedItem.data.location.type,
+              containers: [],
+            }}
+            onClose={() => setSelectedItem(null)}
+            onAddContainer={(palletId) => {
+              console.log('Add container to pallet', palletId);
+            }}
+            onRemoveContainer={(palletId, containerId) => {
+              console.log('Remove container', containerId, 'from pallet', palletId);
+            }}
+            onMove={(palletId, newLocation) => {
+              console.log('Move pallet', palletId, 'to', newLocation);
+            }}
+          />
+        )}
+        {selectedItem?.type === 'product' && (
           <Card className="fixed bottom-4 right-4 w-96 shadow-2xl z-50">
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <Info className="h-4 w-4" />
-                  <CardTitle className="text-base">
-                    {selectedItem.type === 'product' ? 'Product Details' : 'Pallet Details'}
-                  </CardTitle>
+                  <CardTitle className="text-base">Product Details</CardTitle>
                 </div>
                 <Button
                   variant="ghost"
@@ -440,73 +465,41 @@ export default function CanvasPage() {
               </div>
             </CardHeader>
             <CardContent>
-              {selectedItem.type === 'product' ? (
-                <div className="space-y-3">
-                  <div>
-                    <p className="text-xs text-muted-foreground">Product</p>
-                    <p className="font-semibold">{selectedItem.product.productName}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground">Type</p>
-                    <p className="text-sm">{selectedItem.product.productType}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground">Location</p>
-                    <p className="text-sm">{selectedItem.location.name}</p>
-                  </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <p className="text-xs text-muted-foreground">Containers</p>
-                      <p className="text-lg font-bold">{selectedItem.product.containerCount}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-muted-foreground">Total Volume</p>
-                      <p className="text-lg font-bold">
-                        {selectedItem.product.totalVolume.toFixed(1)}L
-                      </p>
-                    </div>
-                  </div>
-                  <Separator />
-                  <div className="flex gap-2">
-                    <Button size="sm" className="flex-1">
-                      Move
-                    </Button>
-                    <Button size="sm" variant="outline" className="flex-1">
-                      Details
-                    </Button>
-                  </div>
+              <div className="space-y-3">
+                <div>
+                  <p className="text-xs text-muted-foreground">Product</p>
+                  <p className="font-semibold">{selectedItem.data.product.productName}</p>
                 </div>
-              ) : (
-                <div className="space-y-3">
-                  <div>
-                    <p className="text-xs text-muted-foreground">Pallet</p>
-                    <p className="font-semibold">{selectedItem.pallet.name}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground">Status</p>
-                    <Badge variant={getStatusColor(selectedItem.pallet.status)}>
-                      {selectedItem.pallet.status}
-                    </Badge>
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground">Location</p>
-                    <p className="text-sm">{selectedItem.location.name}</p>
-                  </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Type</p>
+                  <p className="text-sm">{selectedItem.data.product.productType}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Location</p>
+                  <p className="text-sm">{selectedItem.data.location.name}</p>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
                   <div>
                     <p className="text-xs text-muted-foreground">Containers</p>
-                    <p className="text-lg font-bold">{selectedItem.pallet.containerCount}</p>
+                    <p className="text-lg font-bold">{selectedItem.data.product.containerCount}</p>
                   </div>
-                  <Separator />
-                  <div className="flex gap-2">
-                    <Button size="sm" className="flex-1">
-                      Load
-                    </Button>
-                    <Button size="sm" variant="outline" className="flex-1">
-                      View Contents
-                    </Button>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Total Volume</p>
+                    <p className="text-lg font-bold">
+                      {selectedItem.data.product.totalVolume.toFixed(1)}L
+                    </p>
                   </div>
                 </div>
-              )}
+                <Separator />
+                <div className="flex gap-2">
+                  <Button size="sm" className="flex-1">
+                    View Details
+                  </Button>
+                  <Button size="sm" variant="outline" className="flex-1">
+                    Move
+                  </Button>
+                </div>
+              </div>
             </CardContent>
           </Card>
         )}
