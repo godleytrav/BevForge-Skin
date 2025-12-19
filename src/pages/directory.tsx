@@ -1,254 +1,424 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
-import Dashboard from '@/layouts/Dashboard';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { AppShell } from '@/components/AppShell';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
-import {
-  Users,
-  Building2,
-  Factory,
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { 
+  Users, 
+  Building2, 
+  Warehouse, 
+  Phone, 
+  Mail, 
+  MapPin, 
   Search,
-  Plus,
   ShoppingCart,
   Truck,
-  Phone,
-  Mail,
-  MapPin,
-  Calendar,
+  FileText,
   DollarSign,
   Package,
-  FileText,
+  TrendingUp,
+  Calendar,
+  CheckCircle2
 } from 'lucide-react';
 
-// Mock data - replace with API calls
-const mockCustomers = [
-  {
-    id: 'C001',
-    name: 'Riverside Tavern',
-    type: 'Restaurant',
-    contact: 'John Smith',
-    email: 'john@riverside.com',
-    phone: '(555) 123-4567',
-    address: '123 River St, Portland, OR',
-    status: 'active',
-    totalOrders: 45,
-    totalRevenue: 12500,
-    lastOrder: '2025-12-15',
-    creditLimit: 5000,
-    currentBalance: 1200,
-  },
-  {
-    id: 'C002',
-    name: 'Downtown Bottle Shop',
-    type: 'Retail',
-    contact: 'Sarah Johnson',
-    email: 'sarah@downtown.com',
-    phone: '(555) 234-5678',
-    address: '456 Main St, Portland, OR',
-    status: 'active',
-    totalOrders: 78,
-    totalRevenue: 28900,
-    lastOrder: '2025-12-18',
-    creditLimit: 10000,
-    currentBalance: 3400,
-  },
-  {
-    id: 'C003',
-    name: 'Sunset Bar & Grill',
-    type: 'Restaurant',
-    contact: 'Mike Davis',
-    email: 'mike@sunset.com',
-    phone: '(555) 345-6789',
-    address: '789 Sunset Blvd, Portland, OR',
-    status: 'pending',
-    totalOrders: 12,
-    totalRevenue: 4200,
-    lastOrder: '2025-12-10',
-    creditLimit: 3000,
-    currentBalance: 800,
-  },
-  {
-    id: 'C004',
-    name: 'Craft Beer Emporium',
-    type: 'Retail',
-    contact: 'Emily Chen',
-    email: 'emily@craftemporium.com',
-    phone: '(555) 456-7890',
-    address: '321 Craft Ave, Portland, OR',
-    status: 'active',
-    totalOrders: 156,
-    totalRevenue: 67800,
-    lastOrder: '2025-12-19',
-    creditLimit: 15000,
-    currentBalance: 5600,
-  },
-];
+type EntityType = 'customer' | 'vendor' | 'facility';
+type EntityStatus = 'active' | 'pending' | 'operational';
 
-const mockVendors = [
-  {
-    id: 'V001',
-    name: 'Pacific Hops Supply',
-    type: 'Ingredients',
-    contact: 'Tom Wilson',
-    email: 'tom@pacifichops.com',
-    phone: '(555) 111-2222',
-    address: '100 Hop Lane, Yakima, WA',
-    status: 'active',
-    totalPurchases: 89,
-    totalSpend: 45600,
-    lastPurchase: '2025-12-12',
-    paymentTerms: 'Net 30',
-  },
-  {
-    id: 'V002',
-    name: 'Northwest Malt Co.',
-    type: 'Ingredients',
-    contact: 'Lisa Brown',
-    email: 'lisa@nwmalt.com',
-    phone: '(555) 222-3333',
-    address: '200 Grain St, Seattle, WA',
-    status: 'active',
-    totalPurchases: 67,
-    totalSpend: 34200,
-    lastPurchase: '2025-12-14',
-    paymentTerms: 'Net 30',
-  },
-  {
-    id: 'V003',
-    name: 'Keg & Barrel Supply',
-    type: 'Equipment',
-    contact: 'David Lee',
-    email: 'david@kegbarrel.com',
-    phone: '(555) 333-4444',
-    address: '300 Industrial Way, Portland, OR',
-    status: 'active',
-    totalPurchases: 23,
-    totalSpend: 18900,
-    lastPurchase: '2025-11-28',
-    paymentTerms: 'Net 15',
-  },
-];
-
-const mockFacilities = [
-  {
-    id: 'F001',
-    name: 'Main Production Facility',
-    type: 'Brewery',
-    address: '500 Brewery Ln, Portland, OR',
-    capacity: '50,000 BBL/year',
-    status: 'operational',
-    manager: 'Alex Martinez',
-    phone: '(555) 444-5555',
-    currentUtilization: 78,
-  },
-  {
-    id: 'F002',
-    name: 'Eastside Warehouse',
-    type: 'Storage',
-    address: '600 Storage Dr, Portland, OR',
-    capacity: '100,000 sq ft',
-    status: 'operational',
-    manager: 'Rachel Green',
-    phone: '(555) 555-6666',
-    currentUtilization: 65,
-  },
-  {
-    id: 'F003',
-    name: 'Taproom & Retail',
-    type: 'Retail',
-    address: '700 Main St, Portland, OR',
-    capacity: '150 seats',
-    status: 'operational',
-    manager: 'Chris Taylor',
-    phone: '(555) 666-7777',
-    currentUtilization: 85,
-  },
-];
-
-// Mock interaction history
-const mockInteractions = [
-  { date: '2025-12-19', type: 'order', description: 'Order #ORD-1234 - 10 kegs Pear Cider', amount: 850 },
-  { date: '2025-12-15', type: 'delivery', description: 'Delivery completed - Order #ORD-1200', amount: 0 },
-  { date: '2025-12-10', type: 'payment', description: 'Payment received - Invoice #INV-5678', amount: 1200 },
-  { date: '2025-12-05', type: 'order', description: 'Order #ORD-1180 - 15 kegs IPA', amount: 1275 },
-  { date: '2025-11-28', type: 'note', description: 'Customer requested delivery schedule change', amount: 0 },
-];
+interface Entity {
+  id: string;
+  name: string;
+  type: EntityType;
+  status: EntityStatus;
+  contact: {
+    phone: string;
+    email: string;
+    address: string;
+  };
+  stats?: {
+    totalOrders?: number;
+    totalRevenue?: string;
+    totalPurchases?: number;
+    totalSpend?: string;
+    capacity?: string;
+    utilization?: number;
+    lastActivity?: string;
+  };
+  details?: {
+    creditLimit?: string;
+    currentBalance?: string;
+    paymentTerms?: string;
+    manager?: string;
+  };
+}
 
 export default function DirectoryPage() {
-  const [searchTerm, setSearchTerm] = useState('');
-  const [filterStatus, setFilterStatus] = useState('all');
-  const [selectedEntity, setSelectedEntity] = useState<any>(null);
-  const [showDetail, setShowDetail] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [selectedEntity, setSelectedEntity] = useState<Entity | null>(null);
+  const [dialogOpen, setDialogOpen] = useState(false);
 
-  const filterEntities = (entities: any[]) => {
-    return entities.filter((entity) => {
-      const matchesSearch =
-        entity.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        entity.contact?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        entity.type.toLowerCase().includes(searchTerm.toLowerCase());
-      const matchesStatus = filterStatus === 'all' || entity.status === filterStatus;
-      return matchesSearch && matchesStatus;
-    });
-  };
+  // Mock data
+  const entities: Entity[] = [
+    // Customers
+    {
+      id: 'C001',
+      name: 'Downtown Taproom',
+      type: 'customer',
+      status: 'active',
+      contact: {
+        phone: '(555) 123-4567',
+        email: 'orders@downtowntaproom.com',
+        address: '123 Main St, Portland, OR 97201'
+      },
+      stats: {
+        totalOrders: 47,
+        totalRevenue: '$23,450',
+        lastActivity: '2 days ago'
+      },
+      details: {
+        creditLimit: '$10,000',
+        currentBalance: '$2,340'
+      }
+    },
+    {
+      id: 'C002',
+      name: 'Riverside Bar & Grill',
+      type: 'customer',
+      status: 'active',
+      contact: {
+        phone: '(555) 234-5678',
+        email: 'purchasing@riversidebar.com',
+        address: '456 River Rd, Portland, OR 97202'
+      },
+      stats: {
+        totalOrders: 32,
+        totalRevenue: '$18,920',
+        lastActivity: '5 days ago'
+      },
+      details: {
+        creditLimit: '$8,000',
+        currentBalance: '$1,200'
+      }
+    },
+    {
+      id: 'C003',
+      name: 'City Brewery Co.',
+      type: 'customer',
+      status: 'active',
+      contact: {
+        phone: '(555) 345-6789',
+        email: 'orders@citybrewery.com',
+        address: '789 Industrial Way, Portland, OR 97203'
+      },
+      stats: {
+        totalOrders: 28,
+        totalRevenue: '$15,680',
+        lastActivity: '1 week ago'
+      },
+      details: {
+        creditLimit: '$12,000',
+        currentBalance: '$3,450'
+      }
+    },
+    {
+      id: 'C004',
+      name: 'Main Street Market',
+      type: 'customer',
+      status: 'pending',
+      contact: {
+        phone: '(555) 456-7890',
+        email: 'info@mainstreetmarket.com',
+        address: '321 Main St, Portland, OR 97204'
+      },
+      stats: {
+        totalOrders: 5,
+        totalRevenue: '$2,340',
+        lastActivity: '3 days ago'
+      },
+      details: {
+        creditLimit: '$5,000',
+        currentBalance: '$450'
+      }
+    },
+    // Vendors
+    {
+      id: 'V001',
+      name: 'Pacific Hops Supply',
+      type: 'vendor',
+      status: 'active',
+      contact: {
+        phone: '(555) 567-8901',
+        email: 'sales@pacifichops.com',
+        address: '555 Industrial Pkwy, Seattle, WA 98101'
+      },
+      stats: {
+        totalPurchases: 156,
+        totalSpend: '$45,230',
+        lastActivity: '1 day ago'
+      },
+      details: {
+        paymentTerms: 'Net 30'
+      }
+    },
+    {
+      id: 'V002',
+      name: 'Northwest Malt Co.',
+      type: 'vendor',
+      status: 'active',
+      contact: {
+        phone: '(555) 678-9012',
+        email: 'orders@nwmalt.com',
+        address: '777 Grain Ave, Spokane, WA 99201'
+      },
+      stats: {
+        totalPurchases: 89,
+        totalSpend: '$32,100',
+        lastActivity: '4 days ago'
+      },
+      details: {
+        paymentTerms: 'Net 15'
+      }
+    },
+    {
+      id: 'V003',
+      name: 'Cascade Equipment Supply',
+      type: 'vendor',
+      status: 'active',
+      contact: {
+        phone: '(555) 789-0123',
+        email: 'info@cascadeequip.com',
+        address: '999 Equipment Dr, Portland, OR 97205'
+      },
+      stats: {
+        totalPurchases: 23,
+        totalSpend: '$18,750',
+        lastActivity: '1 week ago'
+      },
+      details: {
+        paymentTerms: 'Net 30'
+      }
+    },
+    // Facilities
+    {
+      id: 'F001',
+      name: 'Main Brewery',
+      type: 'facility',
+      status: 'operational',
+      contact: {
+        phone: '(555) 890-1234',
+        email: 'ops@bevforge.com',
+        address: '100 Brewery Ln, Portland, OR 97206'
+      },
+      stats: {
+        capacity: '5,000 BBL/year',
+        utilization: 78
+      },
+      details: {
+        manager: 'John Smith'
+      }
+    },
+    {
+      id: 'F002',
+      name: 'Cold Storage Facility',
+      type: 'facility',
+      status: 'operational',
+      contact: {
+        phone: '(555) 901-2345',
+        email: 'storage@bevforge.com',
+        address: '200 Storage Way, Portland, OR 97207'
+      },
+      stats: {
+        capacity: '10,000 sq ft',
+        utilization: 65
+      },
+      details: {
+        manager: 'Sarah Johnson'
+      }
+    },
+    {
+      id: 'F003',
+      name: 'Retail Taproom',
+      type: 'facility',
+      status: 'operational',
+      contact: {
+        phone: '(555) 012-3456',
+        email: 'taproom@bevforge.com',
+        address: '300 Taproom St, Portland, OR 97208'
+      },
+      stats: {
+        capacity: '150 seats',
+        utilization: 82
+      },
+      details: {
+        manager: 'Mike Davis'
+      }
+    }
+  ];
 
-  const handleEntityClick = (entity: any) => {
+  // Filter entities
+  const filteredEntities = entities.filter(entity => {
+    const matchesSearch = 
+      entity.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      entity.contact.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      entity.contact.phone.includes(searchQuery);
+    
+    const matchesStatus = statusFilter === 'all' || entity.status === statusFilter;
+    
+    return matchesSearch && matchesStatus;
+  });
+
+  const customers = filteredEntities.filter(e => e.type === 'customer');
+  const vendors = filteredEntities.filter(e => e.type === 'vendor');
+  const facilities = filteredEntities.filter(e => e.type === 'facility');
+
+  const handleEntityClick = (entity: Entity) => {
     setSelectedEntity(entity);
-    setShowDetail(true);
+    setDialogOpen(true);
   };
 
-  return (
-    <Dashboard>
-      <div className="space-y-6">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight">Directory</h1>
-            <p className="text-muted-foreground">
-              Manage customers, vendors, and facilities
-            </p>
+  const getStatusColor = (status: EntityStatus) => {
+    switch (status) {
+      case 'active':
+        return 'bg-green-500/10 text-green-500 border-green-500/20';
+      case 'pending':
+        return 'bg-yellow-500/10 text-yellow-500 border-yellow-500/20';
+      case 'operational':
+        return 'bg-blue-500/10 text-blue-500 border-blue-500/20';
+      default:
+        return 'bg-muted text-muted-foreground';
+    }
+  };
+
+  const EntityCard = ({ entity }: { entity: Entity }) => (
+    <Card 
+      className="cursor-pointer transition-all hover:shadow-lg hover:border-primary/50 bg-card/50 backdrop-blur"
+      onClick={() => handleEntityClick(entity)}
+    >
+      <CardHeader>
+        <div className="flex items-start justify-between">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
+              {entity.type === 'customer' && <Users className="h-5 w-5 text-primary" />}
+              {entity.type === 'vendor' && <Building2 className="h-5 w-5 text-primary" />}
+              {entity.type === 'facility' && <Warehouse className="h-5 w-5 text-primary" />}
+            </div>
+            <div>
+              <CardTitle className="text-lg">{entity.name}</CardTitle>
+              <CardDescription className="text-sm">{entity.id}</CardDescription>
+            </div>
           </div>
-          <div className="flex gap-2">
-            <Button variant="outline">
-              <Plus className="mr-2 h-4 w-4" />
-              Add Customer
-            </Button>
-            <Button variant="outline">
-              <Plus className="mr-2 h-4 w-4" />
-              Add Vendor
-            </Button>
+          <Badge variant="outline" className={getStatusColor(entity.status)}>
+            {entity.status}
+          </Badge>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <div className="space-y-2 text-sm">
+          <div className="flex items-center gap-2 text-muted-foreground">
+            <Phone className="h-4 w-4" />
+            <span>{entity.contact.phone}</span>
+          </div>
+          <div className="flex items-center gap-2 text-muted-foreground">
+            <Mail className="h-4 w-4" />
+            <span className="truncate">{entity.contact.email}</span>
+          </div>
+          <div className="flex items-center gap-2 text-muted-foreground">
+            <MapPin className="h-4 w-4" />
+            <span className="truncate">{entity.contact.address}</span>
           </div>
         </div>
 
-        {/* Search and Filter */}
-        <div className="flex gap-4">
+        {entity.stats && (
+          <div className="grid grid-cols-2 gap-3 pt-3 border-t border-border">
+            {entity.type === 'customer' && (
+              <>
+                <div>
+                  <div className="text-xs text-muted-foreground">Total Orders</div>
+                  <div className="text-lg font-semibold">{entity.stats.totalOrders}</div>
+                </div>
+                <div>
+                  <div className="text-xs text-muted-foreground">Revenue</div>
+                  <div className="text-lg font-semibold text-green-500">{entity.stats.totalRevenue}</div>
+                </div>
+              </>
+            )}
+            {entity.type === 'vendor' && (
+              <>
+                <div>
+                  <div className="text-xs text-muted-foreground">Purchases</div>
+                  <div className="text-lg font-semibold">{entity.stats.totalPurchases}</div>
+                </div>
+                <div>
+                  <div className="text-xs text-muted-foreground">Total Spend</div>
+                  <div className="text-lg font-semibold text-blue-500">{entity.stats.totalSpend}</div>
+                </div>
+              </>
+            )}
+            {entity.type === 'facility' && (
+              <>
+                <div>
+                  <div className="text-xs text-muted-foreground">Capacity</div>
+                  <div className="text-sm font-semibold">{entity.stats.capacity}</div>
+                </div>
+                <div>
+                  <div className="text-xs text-muted-foreground">Utilization</div>
+                  <div className="flex items-center gap-2">
+                    <div className="text-sm font-semibold">{entity.stats.utilization}%</div>
+                    <div className="h-2 flex-1 rounded-full bg-muted overflow-hidden">
+                      <div 
+                        className="h-full bg-primary transition-all"
+                        style={{ width: `${entity.stats.utilization}%` }}
+                      />
+                    </div>
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+        )}
+
+        <div className="flex gap-2 pt-2">
+          <Button size="sm" variant="outline" className="flex-1">
+            <ShoppingCart className="h-4 w-4 mr-1" />
+            Create Order
+          </Button>
+          <Button size="sm" variant="outline" className="flex-1">
+            <Truck className="h-4 w-4 mr-1" />
+            Schedule Delivery
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
+
+  return (
+    <AppShell pageTitle="Directory — OPS" currentSuite="ops">
+      <div className="space-y-6">
+        {/* Header */}
+        <div>
+          <h1 className="text-3xl font-bold text-foreground">Directory — OPS</h1>
+          <p className="text-muted-foreground mt-1">
+            Manage customers, vendors, and facilities
+          </p>
+        </div>
+
+        {/* Search and Filters */}
+        <div className="flex flex-col sm:flex-row gap-4">
           <div className="relative flex-1">
-            <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="Search by name, contact, or type..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10"
+              placeholder="Search by name, email, or phone..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-10 bg-card/50 backdrop-blur"
             />
           </div>
-          <Select value={filterStatus} onValueChange={setFilterStatus}>
-            <SelectTrigger className="w-[180px]">
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger className="w-full sm:w-[180px] bg-card/50 backdrop-blur">
               <SelectValue placeholder="Filter by status" />
             </SelectTrigger>
             <SelectContent>
@@ -260,318 +430,298 @@ export default function DirectoryPage() {
           </Select>
         </div>
 
-        {/* Tabs for Customers, Vendors, Facilities */}
-        <Tabs defaultValue="customers" className="space-y-4">
-          <TabsList>
-            <TabsTrigger value="customers">
-              <Users className="mr-2 h-4 w-4" />
-              Customers ({mockCustomers.length})
+        {/* Tabs */}
+        <Tabs defaultValue="customers" className="space-y-6">
+          <TabsList className="bg-card/50 backdrop-blur">
+            <TabsTrigger value="customers" className="gap-2">
+              <Users className="h-4 w-4" />
+              Customers ({customers.length})
             </TabsTrigger>
-            <TabsTrigger value="vendors">
-              <Building2 className="mr-2 h-4 w-4" />
-              Vendors ({mockVendors.length})
+            <TabsTrigger value="vendors" className="gap-2">
+              <Building2 className="h-4 w-4" />
+              Vendors ({vendors.length})
             </TabsTrigger>
-            <TabsTrigger value="facilities">
-              <Factory className="mr-2 h-4 w-4" />
-              Facilities ({mockFacilities.length})
+            <TabsTrigger value="facilities" className="gap-2">
+              <Warehouse className="h-4 w-4" />
+              Facilities ({facilities.length})
             </TabsTrigger>
           </TabsList>
 
-          {/* Customers Tab */}
           <TabsContent value="customers" className="space-y-4">
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-              {filterEntities(mockCustomers).map((customer) => (
-                <Card
-                  key={customer.id}
-                  className="cursor-pointer transition-all hover:shadow-lg hover:border-primary"
-                  onClick={() => handleEntityClick(customer)}
-                >
-                  <CardHeader>
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <CardTitle className="text-lg">{customer.name}</CardTitle>
-                        <CardDescription>{customer.type}</CardDescription>
-                      </div>
-                      <Badge variant={customer.status === 'active' ? 'default' : 'secondary'}>
-                        {customer.status}
-                      </Badge>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="space-y-3">
-                    <div className="space-y-2 text-sm">
-                      <div className="flex items-center gap-2 text-muted-foreground">
-                        <Phone className="h-4 w-4" />
-                        {customer.phone}
-                      </div>
-                      <div className="flex items-center gap-2 text-muted-foreground">
-                        <Mail className="h-4 w-4" />
-                        {customer.email}
-                      </div>
-                      <div className="flex items-center gap-2 text-muted-foreground">
-                        <MapPin className="h-4 w-4" />
-                        {customer.address}
-                      </div>
-                    </div>
-                    <div className="flex items-center justify-between pt-2 border-t">
-                      <div className="text-sm">
-                        <div className="font-medium">{customer.totalOrders} orders</div>
-                        <div className="text-muted-foreground">
-                          ${customer.totalRevenue.toLocaleString()}
-                        </div>
-                      </div>
-                      <div className="flex gap-2">
-                        <Button size="sm" variant="outline" asChild>
-                          <Link to="/ops/orders">
-                            <ShoppingCart className="h-4 w-4" />
-                          </Link>
-                        </Button>
-                        <Button size="sm" variant="outline" asChild>
-                          <Link to="/ops/sales">
-                            <Truck className="h-4 w-4" />
-                          </Link>
-                        </Button>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
+              {customers.map(entity => (
+                <EntityCard key={entity.id} entity={entity} />
               ))}
             </div>
+            {customers.length === 0 && (
+              <Card className="bg-card/50 backdrop-blur">
+                <CardContent className="flex flex-col items-center justify-center py-12">
+                  <Users className="h-12 w-12 text-muted-foreground mb-4" />
+                  <p className="text-muted-foreground">No customers found</p>
+                </CardContent>
+              </Card>
+            )}
           </TabsContent>
 
-          {/* Vendors Tab */}
           <TabsContent value="vendors" className="space-y-4">
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-              {filterEntities(mockVendors).map((vendor) => (
-                <Card
-                  key={vendor.id}
-                  className="cursor-pointer transition-all hover:shadow-lg hover:border-primary"
-                  onClick={() => handleEntityClick(vendor)}
-                >
-                  <CardHeader>
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <CardTitle className="text-lg">{vendor.name}</CardTitle>
-                        <CardDescription>{vendor.type}</CardDescription>
-                      </div>
-                      <Badge variant={vendor.status === 'active' ? 'default' : 'secondary'}>
-                        {vendor.status}
-                      </Badge>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="space-y-3">
-                    <div className="space-y-2 text-sm">
-                      <div className="flex items-center gap-2 text-muted-foreground">
-                        <Phone className="h-4 w-4" />
-                        {vendor.phone}
-                      </div>
-                      <div className="flex items-center gap-2 text-muted-foreground">
-                        <Mail className="h-4 w-4" />
-                        {vendor.email}
-                      </div>
-                      <div className="flex items-center gap-2 text-muted-foreground">
-                        <MapPin className="h-4 w-4" />
-                        {vendor.address}
-                      </div>
-                    </div>
-                    <div className="flex items-center justify-between pt-2 border-t">
-                      <div className="text-sm">
-                        <div className="font-medium">{vendor.totalPurchases} purchases</div>
-                        <div className="text-muted-foreground">
-                          ${vendor.totalSpend.toLocaleString()}
-                        </div>
-                      </div>
-                      <Badge variant="outline">{vendor.paymentTerms}</Badge>
-                    </div>
-                  </CardContent>
-                </Card>
+              {vendors.map(entity => (
+                <EntityCard key={entity.id} entity={entity} />
               ))}
             </div>
+            {vendors.length === 0 && (
+              <Card className="bg-card/50 backdrop-blur">
+                <CardContent className="flex flex-col items-center justify-center py-12">
+                  <Building2 className="h-12 w-12 text-muted-foreground mb-4" />
+                  <p className="text-muted-foreground">No vendors found</p>
+                </CardContent>
+              </Card>
+            )}
           </TabsContent>
 
-          {/* Facilities Tab */}
           <TabsContent value="facilities" className="space-y-4">
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-              {filterEntities(mockFacilities).map((facility) => (
-                <Card
-                  key={facility.id}
-                  className="cursor-pointer transition-all hover:shadow-lg hover:border-primary"
-                  onClick={() => handleEntityClick(facility)}
-                >
-                  <CardHeader>
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <CardTitle className="text-lg">{facility.name}</CardTitle>
-                        <CardDescription>{facility.type}</CardDescription>
-                      </div>
-                      <Badge variant={facility.status === 'operational' ? 'default' : 'secondary'}>
-                        {facility.status}
-                      </Badge>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="space-y-3">
-                    <div className="space-y-2 text-sm">
-                      <div className="flex items-center gap-2 text-muted-foreground">
-                        <MapPin className="h-4 w-4" />
-                        {facility.address}
-                      </div>
-                      <div className="flex items-center gap-2 text-muted-foreground">
-                        <Package className="h-4 w-4" />
-                        Capacity: {facility.capacity}
-                      </div>
-                      <div className="flex items-center gap-2 text-muted-foreground">
-                        <Phone className="h-4 w-4" />
-                        {facility.phone}
-                      </div>
-                    </div>
-                    <div className="pt-2 border-t">
-                      <div className="flex items-center justify-between text-sm mb-2">
-                        <span className="text-muted-foreground">Utilization</span>
-                        <span className="font-medium">{facility.currentUtilization}%</span>
-                      </div>
-                      <div className="w-full bg-muted rounded-full h-2">
-                        <div
-                          className="bg-primary rounded-full h-2 transition-all"
-                          style={{ width: `${facility.currentUtilization}%` }}
-                        />
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
+              {facilities.map(entity => (
+                <EntityCard key={entity.id} entity={entity} />
               ))}
             </div>
+            {facilities.length === 0 && (
+              <Card className="bg-card/50 backdrop-blur">
+                <CardContent className="flex flex-col items-center justify-center py-12">
+                  <Warehouse className="h-12 w-12 text-muted-foreground mb-4" />
+                  <p className="text-muted-foreground">No facilities found</p>
+                </CardContent>
+              </Card>
+            )}
           </TabsContent>
         </Tabs>
+      </div>
 
-        {/* Detail Dialog */}
-        <Dialog open={showDetail} onOpenChange={setShowDetail}>
-          <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>{selectedEntity?.name}</DialogTitle>
-              <DialogDescription>{selectedEntity?.type}</DialogDescription>
-            </DialogHeader>
-            {selectedEntity && (
+      {/* Entity Detail Dialog */}
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+          {selectedEntity && (
+            <>
+              <DialogHeader>
+                <div className="flex items-center gap-3 mb-2">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10">
+                    {selectedEntity.type === 'customer' && <Users className="h-6 w-6 text-primary" />}
+                    {selectedEntity.type === 'vendor' && <Building2 className="h-6 w-6 text-primary" />}
+                    {selectedEntity.type === 'facility' && <Warehouse className="h-6 w-6 text-primary" />}
+                  </div>
+                  <div>
+                    <DialogTitle className="text-2xl">{selectedEntity.name}</DialogTitle>
+                    <DialogDescription>{selectedEntity.id}</DialogDescription>
+                  </div>
+                </div>
+                <Badge variant="outline" className={`w-fit ${getStatusColor(selectedEntity.status)}`}>
+                  {selectedEntity.status}
+                </Badge>
+              </DialogHeader>
+
               <div className="space-y-6">
                 {/* Contact Information */}
                 <div>
-                  <h3 className="font-semibold mb-3">Contact Information</h3>
-                  <div className="grid gap-3 text-sm">
+                  <h3 className="text-lg font-semibold mb-3">Contact Information</h3>
+                  <div className="space-y-2 text-sm">
                     <div className="flex items-center gap-2">
                       <Phone className="h-4 w-4 text-muted-foreground" />
-                      {selectedEntity.phone}
+                      <span>{selectedEntity.contact.phone}</span>
                     </div>
                     <div className="flex items-center gap-2">
                       <Mail className="h-4 w-4 text-muted-foreground" />
-                      {selectedEntity.email}
+                      <span>{selectedEntity.contact.email}</span>
                     </div>
                     <div className="flex items-center gap-2">
                       <MapPin className="h-4 w-4 text-muted-foreground" />
-                      {selectedEntity.address}
+                      <span>{selectedEntity.contact.address}</span>
                     </div>
                   </div>
                 </div>
 
                 {/* Quick Actions */}
                 <div>
-                  <h3 className="font-semibold mb-3">Quick Actions</h3>
-                  <div className="flex gap-2">
-                    <Button size="sm" asChild>
-                      <Link to="/ops/orders">
-                        <ShoppingCart className="mr-2 h-4 w-4" />
-                        Create Order
-                      </Link>
+                  <h3 className="text-lg font-semibold mb-3">Quick Actions</h3>
+                  <div className="grid grid-cols-3 gap-2">
+                    <Button variant="outline" size="sm">
+                      <ShoppingCart className="h-4 w-4 mr-1" />
+                      Create Order
                     </Button>
-                    <Button size="sm" variant="outline" asChild>
-                      <Link to="/ops/sales">
-                        <Truck className="mr-2 h-4 w-4" />
-                        Schedule Delivery
-                      </Link>
+                    <Button variant="outline" size="sm">
+                      <Truck className="h-4 w-4 mr-1" />
+                      Schedule Delivery
                     </Button>
-                    <Button size="sm" variant="outline">
-                      <FileText className="mr-2 h-4 w-4" />
+                    <Button variant="outline" size="sm">
+                      <FileText className="h-4 w-4 mr-1" />
                       View Documents
                     </Button>
                   </div>
                 </div>
 
-                {/* Statistics (for customers/vendors) */}
-                {(selectedEntity.totalOrders || selectedEntity.totalPurchases) && (
+                {/* Statistics */}
+                {selectedEntity.stats && (
                   <div>
-                    <h3 className="font-semibold mb-3">Statistics</h3>
-                    <div className="grid grid-cols-3 gap-4">
-                      <Card>
-                        <CardHeader className="pb-2">
-                          <CardDescription>
-                            {selectedEntity.totalOrders ? 'Total Orders' : 'Total Purchases'}
-                          </CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                          <div className="text-2xl font-bold">
-                            {selectedEntity.totalOrders || selectedEntity.totalPurchases}
-                          </div>
-                        </CardContent>
-                      </Card>
-                      <Card>
-                        <CardHeader className="pb-2">
-                          <CardDescription>
-                            {selectedEntity.totalRevenue ? 'Total Revenue' : 'Total Spend'}
-                          </CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                          <div className="text-2xl font-bold">
-                            ${(selectedEntity.totalRevenue || selectedEntity.totalSpend).toLocaleString()}
-                          </div>
-                        </CardContent>
-                      </Card>
-                      <Card>
-                        <CardHeader className="pb-2">
-                          <CardDescription>Last Activity</CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                          <div className="text-sm font-medium">
-                            {selectedEntity.lastOrder || selectedEntity.lastPurchase}
-                          </div>
-                        </CardContent>
-                      </Card>
+                    <h3 className="text-lg font-semibold mb-3">Statistics</h3>
+                    <div className="grid grid-cols-2 gap-4">
+                      {selectedEntity.type === 'customer' && (
+                        <>
+                          <Card className="bg-card/50">
+                            <CardContent className="pt-6">
+                              <div className="flex items-center gap-2 text-muted-foreground mb-1">
+                                <Package className="h-4 w-4" />
+                                <span className="text-sm">Total Orders</span>
+                              </div>
+                              <div className="text-2xl font-bold">{selectedEntity.stats.totalOrders}</div>
+                            </CardContent>
+                          </Card>
+                          <Card className="bg-card/50">
+                            <CardContent className="pt-6">
+                              <div className="flex items-center gap-2 text-muted-foreground mb-1">
+                                <DollarSign className="h-4 w-4" />
+                                <span className="text-sm">Total Revenue</span>
+                              </div>
+                              <div className="text-2xl font-bold text-green-500">{selectedEntity.stats.totalRevenue}</div>
+                            </CardContent>
+                          </Card>
+                          <Card className="bg-card/50">
+                            <CardContent className="pt-6">
+                              <div className="flex items-center gap-2 text-muted-foreground mb-1">
+                                <TrendingUp className="h-4 w-4" />
+                                <span className="text-sm">Credit Limit</span>
+                              </div>
+                              <div className="text-2xl font-bold">{selectedEntity.details?.creditLimit}</div>
+                            </CardContent>
+                          </Card>
+                          <Card className="bg-card/50">
+                            <CardContent className="pt-6">
+                              <div className="flex items-center gap-2 text-muted-foreground mb-1">
+                                <Calendar className="h-4 w-4" />
+                                <span className="text-sm">Last Activity</span>
+                              </div>
+                              <div className="text-lg font-semibold">{selectedEntity.stats.lastActivity}</div>
+                            </CardContent>
+                          </Card>
+                        </>
+                      )}
+                      {selectedEntity.type === 'vendor' && (
+                        <>
+                          <Card className="bg-card/50">
+                            <CardContent className="pt-6">
+                              <div className="flex items-center gap-2 text-muted-foreground mb-1">
+                                <Package className="h-4 w-4" />
+                                <span className="text-sm">Total Purchases</span>
+                              </div>
+                              <div className="text-2xl font-bold">{selectedEntity.stats.totalPurchases}</div>
+                            </CardContent>
+                          </Card>
+                          <Card className="bg-card/50">
+                            <CardContent className="pt-6">
+                              <div className="flex items-center gap-2 text-muted-foreground mb-1">
+                                <DollarSign className="h-4 w-4" />
+                                <span className="text-sm">Total Spend</span>
+                              </div>
+                              <div className="text-2xl font-bold text-blue-500">{selectedEntity.stats.totalSpend}</div>
+                            </CardContent>
+                          </Card>
+                          <Card className="bg-card/50">
+                            <CardContent className="pt-6">
+                              <div className="flex items-center gap-2 text-muted-foreground mb-1">
+                                <FileText className="h-4 w-4" />
+                                <span className="text-sm">Payment Terms</span>
+                              </div>
+                              <div className="text-lg font-semibold">{selectedEntity.details?.paymentTerms}</div>
+                            </CardContent>
+                          </Card>
+                          <Card className="bg-card/50">
+                            <CardContent className="pt-6">
+                              <div className="flex items-center gap-2 text-muted-foreground mb-1">
+                                <Calendar className="h-4 w-4" />
+                                <span className="text-sm">Last Activity</span>
+                              </div>
+                              <div className="text-lg font-semibold">{selectedEntity.stats.lastActivity}</div>
+                            </CardContent>
+                          </Card>
+                        </>
+                      )}
+                      {selectedEntity.type === 'facility' && (
+                        <>
+                          <Card className="bg-card/50">
+                            <CardContent className="pt-6">
+                              <div className="flex items-center gap-2 text-muted-foreground mb-1">
+                                <Warehouse className="h-4 w-4" />
+                                <span className="text-sm">Capacity</span>
+                              </div>
+                              <div className="text-xl font-bold">{selectedEntity.stats.capacity}</div>
+                            </CardContent>
+                          </Card>
+                          <Card className="bg-card/50">
+                            <CardContent className="pt-6">
+                              <div className="flex items-center gap-2 text-muted-foreground mb-1">
+                                <TrendingUp className="h-4 w-4" />
+                                <span className="text-sm">Utilization</span>
+                              </div>
+                              <div className="text-2xl font-bold">{selectedEntity.stats.utilization}%</div>
+                              <div className="mt-2 h-2 rounded-full bg-muted overflow-hidden">
+                                <div 
+                                  className="h-full bg-primary transition-all"
+                                  style={{ width: `${selectedEntity.stats.utilization}%` }}
+                                />
+                              </div>
+                            </CardContent>
+                          </Card>
+                          <Card className="bg-card/50 col-span-2">
+                            <CardContent className="pt-6">
+                              <div className="flex items-center gap-2 text-muted-foreground mb-1">
+                                <Users className="h-4 w-4" />
+                                <span className="text-sm">Facility Manager</span>
+                              </div>
+                              <div className="text-xl font-semibold">{selectedEntity.details?.manager}</div>
+                            </CardContent>
+                          </Card>
+                        </>
+                      )}
                     </div>
                   </div>
                 )}
 
-                {/* Interaction History */}
+                {/* Recent Activity */}
                 <div>
-                  <h3 className="font-semibold mb-3">Recent Activity</h3>
+                  <h3 className="text-lg font-semibold mb-3">Recent Activity</h3>
                   <div className="space-y-3">
-                    {mockInteractions.map((interaction, idx) => (
-                      <div
-                        key={idx}
-                        className="flex items-start gap-3 p-3 rounded-lg border bg-card"
-                      >
-                        <div className="mt-1">
-                          {interaction.type === 'order' && <ShoppingCart className="h-4 w-4 text-primary" />}
-                          {interaction.type === 'delivery' && <Truck className="h-4 w-4 text-green-600" />}
-                          {interaction.type === 'payment' && <DollarSign className="h-4 w-4 text-blue-600" />}
-                          {interaction.type === 'note' && <FileText className="h-4 w-4 text-muted-foreground" />}
-                        </div>
-                        <div className="flex-1">
-                          <div className="flex items-center justify-between">
-                            <p className="text-sm font-medium">{interaction.description}</p>
-                            {interaction.amount > 0 && (
-                              <span className="text-sm font-medium">${interaction.amount}</span>
-                            )}
-                          </div>
-                          <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
-                            <Calendar className="h-3 w-3" />
-                            {interaction.date}
-                          </div>
-                        </div>
+                    <div className="flex items-start gap-3 p-3 rounded-lg bg-card/50">
+                      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-green-500/10">
+                        <CheckCircle2 className="h-4 w-4 text-green-500" />
                       </div>
-                    ))}
+                      <div className="flex-1">
+                        <div className="font-medium">Order #1245 completed</div>
+                        <div className="text-sm text-muted-foreground">2 days ago</div>
+                      </div>
+                    </div>
+                    <div className="flex items-start gap-3 p-3 rounded-lg bg-card/50">
+                      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-500/10">
+                        <Truck className="h-4 w-4 text-blue-500" />
+                      </div>
+                      <div className="flex-1">
+                        <div className="font-medium">Delivery scheduled</div>
+                        <div className="text-sm text-muted-foreground">5 days ago</div>
+                      </div>
+                    </div>
+                    <div className="flex items-start gap-3 p-3 rounded-lg bg-card/50">
+                      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-purple-500/10">
+                        <DollarSign className="h-4 w-4 text-purple-500" />
+                      </div>
+                      <div className="flex-1">
+                        <div className="font-medium">Payment received</div>
+                        <div className="text-sm text-muted-foreground">1 week ago</div>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
-            )}
-          </DialogContent>
-        </Dialog>
-      </div>
-    </Dashboard>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
+    </AppShell>
   );
 }
