@@ -1,21 +1,21 @@
 import { RouteObject } from 'react-router-dom';
 
 // Direct imports instead of lazy loading
-import IndexPage from './pages/index';
+import IndexPage from './pages/suites/bevforge/index';
 import NotFoundPage from './pages/_404';
-import ConnectPage from './pages/connect';
-import FlowPage from './pages/flow';
-import LabPage from './pages/lab';
-import OpsPage from './pages/ops';
-import OsPage from './pages/os';
+import ConnectPage from './pages/suites/connect/connect';
+import FlowPage from './pages/suites/flow/flow';
+import LabPage from './pages/suites/lab/lab';
+import OpsPage from './pages/suites/ops/ops';
+import OsPage from './pages/suites/os/os';
 import ReportsPage from './pages/reports';
 import SettingsPage from './pages/settings';
 import ProfilePage from './pages/profile';
 import HelpPage from './pages/help';
-import CalendarPage from './pages/calendar';
+import CalendarPage from './pages/suites/ops/calendar';
 import NotificationsPage from './pages/notifications';
-import DirectoryPage from './pages/directory';
-import TasksPage from './pages/tasks';
+import DirectoryPage from './pages/suites/ops/directory';
+import TasksPage from './pages/suites/ops/tasks';
 
 // OPS subpages
 import OrdersPage from './pages/ops/orders';
