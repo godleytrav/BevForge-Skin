@@ -1,66 +1,97 @@
-import { AppShell } from '@/components/AppShell';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { Separator } from '@/components/ui/separator';
-import {
-  Warehouse,
-  Truck,
-  Building2,
-  Beaker,
-  Droplets,
-  AlertTriangle,
-  Package,
-  Info,
-  X,
-} from 'lucide-react';
 import { useState, useEffect } from 'react';
-import { ContainerDetailPanel } from '@/components/canvas/ContainerDetailPanel';
-import { PalletDetailPanel } from '@/components/canvas/PalletDetailPanel';
-
-interface Product {
-  productId: string;
-  productName: string;
-  productType: string;
-  containerCount: number;
-  totalVolume: number;
-}
-
-interface Pallet {
-  id: string;
-  name: string;
-  status: string;
-  containerCount: number;
-}
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import {
+  Plus,
+  Package,
+  Truck,
+  Warehouse,
+  MapPin,
+  AlertCircle,
+  Boxes,
+  Beer,
+  Wine,
+  Droplet,
+} from 'lucide-react';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import ContainerDetailPanel from '@/components/canvas/ContainerDetailPanel';
+import PalletDetailPanel from '@/components/canvas/PalletDetailPanel';
+import CreatePalletDialog from '@/components/canvas/CreatePalletDialog';
 
 interface Location {
   id: string;
   name: string;
-  type: string;
-  capacity: number | null;
-  products: Product[];
-  pallets: Pallet[];
+  type: 'warehouse' | 'truck' | 'customer' | 'production' | 'cleaning';
+  capacity?: number;
+  products: ProductGroup[];
+}
+
+interface ProductGroup {
+  productId: string;
+  productName: string;
+  containerType: 'keg' | 'case' | 'bottle' | 'can';
+  quantity: number;
+  containers: Container[];
+}
+
+interface Container {
+  id: string;
+  productId: string;
+  productName: string;
+  batchId: string;
+  type: 'keg' | 'case' | 'bottle' | 'can';
+  status: string;
+  locationId: string;
+  palletId?: string;
 }
 
 interface Alert {
   id: string;
-  type: string;
-  severity: string;
+  type: 'overdue' | 'low_inventory' | 'maintenance' | 'capacity';
   message: string;
-  entityType: string | null;
-  entityId: string | null;
-  createdAt: string;
+  severity: 'high' | 'medium' | 'low';
 }
 
 export default function CanvasPage() {
   const [locations, setLocations] = useState<Location[]>([]);
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [selectedItem, setSelectedItem] = useState<{
-    type: 'product' | 'pallet' | 'container';
+    type: 'container' | 'pallet' | 'product';
     data: any;
   } | null>(null);
   const [loading, setLoading] = useState(true);
+  const [showAddLocation, setShowAddLocation] = useState(false);
+  const [showAddContainer, setShowAddContainer] = useState(false);
+  const [newLocation, setNewLocation] = useState({
+    name: '',
+    type: 'warehouse' as Location['type'],
+  });
+  const [newContainer, setNewContainer] = useState({
+    productName: '',
+    type: 'keg' as Container['type'],
+    quantity: 1,
+    locationId: '',
+    batchId: 'B-001',
+  });
 
   useEffect(() => {
     fetchData();
@@ -84,426 +115,515 @@ export default function CanvasPage() {
         setAlerts(alertsData.alerts || []);
       }
     } catch (error) {
-      console.error('Error fetching canvas data:', error);
+      console.error('Failed to fetch canvas data:', error);
     } finally {
       setLoading(false);
     }
   };
 
-  const getLocationIcon = (type: string) => {
+  const handleAddLocation = () => {
+    const location: Location = {
+      id: `LOC-${Date.now()}`,
+      name: newLocation.name,
+      type: newLocation.type,
+      products: [],
+    };
+    setLocations([...locations, location]);
+    setShowAddLocation(false);
+    setNewLocation({ name: '', type: 'warehouse' });
+  };
+
+  const handleAddContainer = () => {
+    if (!newContainer.locationId) return;
+
+    const containers: Container[] = [];
+    for (let i = 0; i < newContainer.quantity; i++) {
+      containers.push({
+        id: `${newContainer.type.toUpperCase()}-${Date.now()}-${i}`,
+        productId: `PROD-${Date.now()}`,
+        productName: newContainer.productName,
+        batchId: newContainer.batchId,
+        type: newContainer.type,
+        status: 'available',
+        locationId: newContainer.locationId,
+      });
+    }
+
+    // Update location with new containers
+    setLocations(
+      locations.map((loc) => {
+        if (loc.id === newContainer.locationId) {
+          const existingProduct = loc.products.find(
+            (p) =>
+              p.productName === newContainer.productName &&
+              p.containerType === newContainer.type
+          );
+
+          if (existingProduct) {
+            return {
+              ...loc,
+              products: loc.products.map((p) =>
+                p.productName === newContainer.productName &&
+                p.containerType === newContainer.type
+                  ? {
+                      ...p,
+                      quantity: p.quantity + newContainer.quantity,
+                      containers: [...p.containers, ...containers],
+                    }
+                  : p
+              ),
+            };
+          } else {
+            return {
+              ...loc,
+              products: [
+                ...loc.products,
+                {
+                  productId: `PROD-${Date.now()}`,
+                  productName: newContainer.productName,
+                  containerType: newContainer.type,
+                  quantity: newContainer.quantity,
+                  containers,
+                },
+              ],
+            };
+          }
+        }
+        return loc;
+      })
+    );
+
+    setShowAddContainer(false);
+    setNewContainer({
+      productName: '',
+      type: 'keg',
+      quantity: 1,
+      locationId: '',
+      batchId: 'B-001',
+    });
+  };
+
+  const getLocationIcon = (type: Location['type']) => {
     switch (type) {
       case 'warehouse':
         return <Warehouse className="h-5 w-5" />;
       case 'truck':
         return <Truck className="h-5 w-5" />;
       case 'customer':
-        return <Building2 className="h-5 w-5" />;
+        return <MapPin className="h-5 w-5" />;
       case 'production':
-        return <Beaker className="h-5 w-5" />;
+        return <Boxes className="h-5 w-5" />;
       case 'cleaning':
-        return <Droplets className="h-5 w-5" />;
-      default:
-        return <Package className="h-5 w-5" />;
+        return <Droplet className="h-5 w-5" />;
     }
   };
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'error':
-      case 'critical':
-        return 'destructive';
-      case 'warning':
-        return 'default';
-      default:
-        return 'secondary';
+  const getContainerIcon = (type: Container['type']) => {
+    switch (type) {
+      case 'keg':
+        return <Beer className="h-4 w-4" />;
+      case 'case':
+        return <Package className="h-4 w-4" />;
+      case 'bottle':
+        return <Wine className="h-4 w-4" />;
+      case 'can':
+        return <Package className="h-4 w-4" />;
     }
   };
-
-  const locationsByType = locations.reduce((acc, location) => {
-    if (!acc[location.type]) {
-      acc[location.type] = [];
-    }
-    acc[location.type].push(location);
-    return acc;
-  }, {} as Record<string, Location[]>);
-
-  const criticalAlerts = alerts.filter((a) => a.severity === 'critical' || a.severity === 'error');
 
   if (loading) {
     return (
-      <AppShell pageTitle="Logistics Canvas">
-        <div className="flex items-center justify-center h-96">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-            <p className="text-muted-foreground">Loading canvas data...</p>
-          </div>
+      <div className="flex h-full items-center justify-center">
+        <div className="text-center">
+          <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Loading canvas...
+          </p>
         </div>
-      </AppShell>
+      </div>
     );
   }
 
   return (
-    <AppShell pageTitle="Logistics Canvas">
-      <div className="space-y-6">
-        {/* Alert Bar */}
-        {criticalAlerts.length > 0 && (
-          <Card className="border-red-500/50 bg-red-500/10">
-            <CardContent className="pt-6">
-              <div className="flex items-start gap-3">
-                <AlertTriangle className="h-5 w-5 text-red-500 mt-0.5 flex-shrink-0" />
-                <div className="flex-1 space-y-2">
-                  <p className="font-semibold text-red-500">
-                    {criticalAlerts.length} Critical Alert{criticalAlerts.length !== 1 ? 's' : ''}
-                  </p>
-                  <div className="space-y-1">
-                    {criticalAlerts.slice(0, 3).map((alert) => (
-                      <p key={alert.id} className="text-sm text-muted-foreground">
-                        • {alert.message}
-                      </p>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Main Canvas Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Left Column - Warehouse & Production */}
-          <div className="space-y-6">
-            {/* Warehouse Locations */}
-            {locationsByType.warehouse?.map((location) => (
-              <Card key={location.id} className="cursor-pointer hover:shadow-lg transition-shadow">
-                <CardHeader className="pb-3">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      {getLocationIcon(location.type)}
-                      <CardTitle className="text-lg">{location.name}</CardTitle>
-                    </div>
-                    {location.capacity && (
-                      <Badge variant="outline" className="text-xs">
-                        Cap: {location.capacity}
-                      </Badge>
-                    )}
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  {location.products.length > 0 ? (
-                    <div className="space-y-2">
-                      {location.products.map((product) => (
-                        <div
-                          key={product.productId}
-                          className="flex items-center justify-between p-2 rounded bg-muted/50 hover:bg-muted transition-colors"
-                          onClick={() => setSelectedItem({ type: 'product', data: { location, product } })}
-                        >
-                          <div>
-                            <p className="text-sm font-medium">{product.productName}</p>
-                            <p className="text-xs text-muted-foreground">{product.productType}</p>
-                          </div>
-                          <div className="text-right">
-                            <p className="text-sm font-bold">{product.containerCount}</p>
-                            <p className="text-xs text-muted-foreground">
-                              {product.totalVolume.toFixed(1)}L
-                            </p>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-sm text-muted-foreground text-center py-4">Empty</p>
-                  )}
-                  {location.pallets.length > 0 && (
-                    <>
-                      <Separator className="my-3" />
-                      <div className="space-y-1">
-                        <p className="text-xs font-semibold text-muted-foreground">Pallets</p>
-                        {location.pallets.map((pallet) => (
-                          <div
-                            key={pallet.id}
-                            className="flex items-center justify-between text-xs p-1.5 rounded hover:bg-muted/50 transition-colors cursor-pointer"
-                            onClick={() => setSelectedItem({ type: 'pallet', data: { location, pallet } })}
-                          >
-                            <span>{pallet.name}</span>
-                            <Badge variant="outline" className="text-xs">
-                              {pallet.containerCount} items
-                            </Badge>
-                          </div>
-                        ))}
-                      </div>
-                    </>
-                  )}
-                </CardContent>
-              </Card>
-            ))}
-
-            {/* Production Locations */}
-            {locationsByType.production?.map((location) => (
-              <Card key={location.id} className="cursor-pointer hover:shadow-lg transition-shadow">
-                <CardHeader className="pb-3">
-                  <div className="flex items-center gap-2">
-                    {getLocationIcon(location.type)}
-                    <CardTitle className="text-lg">{location.name}</CardTitle>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  {location.products.length > 0 ? (
-                    <div className="space-y-2">
-                      {location.products.map((product) => (
-                        <div
-                          key={product.productId}
-                          className="flex items-center justify-between p-2 rounded bg-muted/50"
-                        >
-                          <div>
-                            <p className="text-sm font-medium">{product.productName}</p>
-                            <p className="text-xs text-muted-foreground">{product.productType}</p>
-                          </div>
-                          <p className="text-sm font-bold">{product.containerCount}</p>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-sm text-muted-foreground text-center py-4">Empty</p>
-                  )}
-                </CardContent>
-              </Card>
-            ))}
-
-            {/* Cleaning Locations */}
-            {locationsByType.cleaning?.map((location) => (
-              <Card key={location.id} className="cursor-pointer hover:shadow-lg transition-shadow">
-                <CardHeader className="pb-3">
-                  <div className="flex items-center gap-2">
-                    {getLocationIcon(location.type)}
-                    <CardTitle className="text-lg">{location.name}</CardTitle>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  {location.products.length > 0 ? (
-                    <div className="space-y-2">
-                      {location.products.map((product) => (
-                        <div
-                          key={product.productId}
-                          className="flex items-center justify-between p-2 rounded bg-muted/50"
-                        >
-                          <p className="text-sm font-medium">{product.productName}</p>
-                          <p className="text-sm font-bold">{product.containerCount}</p>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-sm text-muted-foreground text-center py-4">Empty</p>
-                  )}
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-
-          {/* Middle Column - Trucks */}
-          <div className="space-y-6">
-            {locationsByType.truck?.map((location) => (
-              <Card
-                key={location.id}
-                className="cursor-pointer hover:shadow-lg transition-shadow border-blue-500/30"
-              >
-                <CardHeader className="pb-3">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      {getLocationIcon(location.type)}
-                      <CardTitle className="text-lg">{location.name}</CardTitle>
-                    </div>
-                    {location.capacity && (
-                      <Badge variant="outline" className="text-xs">
-                        {location.products.reduce((sum, p) => sum + p.containerCount, 0)} /{' '}
-                        {location.capacity}
-                      </Badge>
-                    )}
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  {location.products.length > 0 ? (
-                    <div className="space-y-2">
-                      {location.products.map((product) => (
-                        <div
-                          key={product.productId}
-                          className="flex items-center justify-between p-2 rounded bg-muted/50"
-                        >
-                          <div>
-                            <p className="text-sm font-medium">{product.productName}</p>
-                            <p className="text-xs text-muted-foreground">{product.productType}</p>
-                          </div>
-                          <p className="text-sm font-bold">{product.containerCount}</p>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-sm text-muted-foreground text-center py-4">Empty</p>
-                  )}
-                  {location.pallets.length > 0 && (
-                    <>
-                      <Separator className="my-3" />
-                      <div className="space-y-1">
-                        <p className="text-xs font-semibold text-muted-foreground">Pallets</p>
-                        {location.pallets.map((pallet) => (
-                          <div
-                            key={pallet.id}
-                            className="flex items-center justify-between text-xs p-1.5 rounded hover:bg-muted/50 transition-colors"
-                          >
-                            <span>{pallet.name}</span>
-                            <Badge variant="outline" className="text-xs">
-                              {pallet.containerCount} items
-                            </Badge>
-                          </div>
-                        ))}
-                      </div>
-                    </>
-                  )}
-                </CardContent>
-              </Card>
-            ))}
-
-            {(!locationsByType.truck || locationsByType.truck.length === 0) && (
-              <Card className="border-dashed">
-                <CardContent className="pt-6">
-                  <div className="text-center py-8">
-                    <Truck className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
-                    <p className="text-sm text-muted-foreground">No trucks configured</p>
-                    <Button variant="outline" size="sm" className="mt-3">
-                      Add Truck
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-          </div>
-
-          {/* Right Column - Customers */}
-          <div className="space-y-6">
-            {locationsByType.customer?.map((location) => (
-              <Card key={location.id} className="cursor-pointer hover:shadow-lg transition-shadow">
-                <CardHeader className="pb-3">
-                  <div className="flex items-center gap-2">
-                    {getLocationIcon(location.type)}
-                    <CardTitle className="text-lg">{location.name}</CardTitle>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  {location.products.length > 0 ? (
-                    <div className="space-y-2">
-                      {location.products.map((product) => (
-                        <div
-                          key={product.productId}
-                          className="flex items-center justify-between p-2 rounded bg-muted/50"
-                        >
-                          <div>
-                            <p className="text-sm font-medium">{product.productName}</p>
-                            <p className="text-xs text-muted-foreground">{product.productType}</p>
-                          </div>
-                          <p className="text-sm font-bold">{product.containerCount}</p>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-sm text-muted-foreground text-center py-4">No inventory</p>
-                  )}
-                </CardContent>
-              </Card>
-            ))}
-
-            {(!locationsByType.customer || locationsByType.customer.length === 0) && (
-              <Card className="border-dashed">
-                <CardContent className="pt-6">
-                  <div className="text-center py-8">
-                    <Building2 className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
-                    <p className="text-sm text-muted-foreground">No customer locations</p>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
+    <div className="flex h-full flex-col">
+      {/* Alert Bar */}
+      {alerts.length > 0 && (
+        <div className="border-b bg-destructive/10 p-3">
+          <div className="flex items-center gap-2">
+            <AlertCircle className="h-4 w-4 text-destructive" />
+            <span className="text-sm font-medium">
+              {alerts.length} Active Alert{alerts.length > 1 ? 's' : ''}
+            </span>
+            <div className="flex gap-2">
+              {alerts.slice(0, 3).map((alert) => (
+                <Badge key={alert.id} variant="destructive">
+                  {alert.message}
+                </Badge>
+              ))}
+            </div>
           </div>
         </div>
+      )}
 
-        {/* Detail Panels */}
-        {selectedItem?.type === 'pallet' && (
-          <PalletDetailPanel
-            pallet={{
-              id: selectedItem.data.pallet.id,
-              qrCode: selectedItem.data.pallet.name,
-              status: selectedItem.data.pallet.status,
-              currentLocation: selectedItem.data.location.name,
-              locationType: selectedItem.data.location.type,
-              containers: [],
-            }}
-            onClose={() => setSelectedItem(null)}
-            onAddContainer={(palletId) => {
-              console.log('Add container to pallet', palletId);
-            }}
-            onRemoveContainer={(palletId, containerId) => {
-              console.log('Remove container', containerId, 'from pallet', palletId);
-            }}
-            onMove={(palletId, newLocation) => {
-              console.log('Move pallet', palletId, 'to', newLocation);
-            }}
-          />
-        )}
-        {selectedItem?.type === 'product' && (
-          <Card className="fixed bottom-4 right-4 w-96 shadow-2xl z-50">
-            <CardHeader className="pb-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Info className="h-4 w-4" />
-                  <CardTitle className="text-base">Product Details</CardTitle>
+      {/* Toolbar */}
+      <div className="border-b bg-card p-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <h2 className="text-lg font-semibold">Logistics Canvas</h2>
+            <Badge variant="secondary">{locations.length} Locations</Badge>
+          </div>
+          <div className="flex gap-2">
+            <Dialog open={showAddLocation} onOpenChange={setShowAddLocation}>
+              <DialogTrigger asChild>
+                <Button variant="outline" size="sm">
+                  <Plus className="mr-2 h-4 w-4" />
+                  Add Location
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Add New Location</DialogTitle>
+                  <DialogDescription>
+                    Create a new location for tracking containers
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4 py-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="location-name">Location Name</Label>
+                    <Input
+                      id="location-name"
+                      placeholder="e.g., Warehouse A, Truck #3"
+                      value={newLocation.name}
+                      onChange={(e) =>
+                        setNewLocation({ ...newLocation, name: e.target.value })
+                      }
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="location-type">Location Type</Label>
+                    <Select
+                      value={newLocation.type}
+                      onValueChange={(value: Location['type']) =>
+                        setNewLocation({ ...newLocation, type: value })
+                      }
+                    >
+                      <SelectTrigger id="location-type">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="warehouse">Warehouse</SelectItem>
+                        <SelectItem value="truck">Truck</SelectItem>
+                        <SelectItem value="customer">Customer</SelectItem>
+                        <SelectItem value="production">Production</SelectItem>
+                        <SelectItem value="cleaning">Cleaning</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
+                <DialogFooter>
+                  <Button
+                    variant="outline"
+                    onClick={() => setShowAddLocation(false)}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    onClick={handleAddLocation}
+                    disabled={!newLocation.name}
+                  >
+                    Add Location
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+
+            <Dialog open={showAddContainer} onOpenChange={setShowAddContainer}>
+              <DialogTrigger asChild>
+                <Button size="sm">
+                  <Plus className="mr-2 h-4 w-4" />
+                  Add Containers
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Add Containers</DialogTitle>
+                  <DialogDescription>
+                    Add kegs, cases, bottles, or cans to a location
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4 py-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="product-name">Product Name</Label>
+                    <Input
+                      id="product-name"
+                      placeholder="e.g., Hopped Cider, Dry Cider"
+                      value={newContainer.productName}
+                      onChange={(e) =>
+                        setNewContainer({
+                          ...newContainer,
+                          productName: e.target.value,
+                        })
+                      }
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="container-type">Container Type</Label>
+                    <Select
+                      value={newContainer.type}
+                      onValueChange={(value: Container['type']) =>
+                        setNewContainer({ ...newContainer, type: value })
+                      }
+                    >
+                      <SelectTrigger id="container-type">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="keg">Keg</SelectItem>
+                        <SelectItem value="case">Case</SelectItem>
+                        <SelectItem value="bottle">Bottle</SelectItem>
+                        <SelectItem value="can">Can (6-pack)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="quantity">Quantity</Label>
+                    <Input
+                      id="quantity"
+                      type="number"
+                      min="1"
+                      value={newContainer.quantity}
+                      onChange={(e) =>
+                        setNewContainer({
+                          ...newContainer,
+                          quantity: parseInt(e.target.value) || 1,
+                        })
+                      }
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="location">Location</Label>
+                    <Select
+                      value={newContainer.locationId}
+                      onValueChange={(value) =>
+                        setNewContainer({ ...newContainer, locationId: value })
+                      }
+                    >
+                      <SelectTrigger id="location">
+                        <SelectValue placeholder="Select location" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {locations.map((loc) => (
+                          <SelectItem key={loc.id} value={loc.id}>
+                            {loc.name} ({loc.type})
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="batch">Batch ID</Label>
+                    <Input
+                      id="batch"
+                      placeholder="e.g., B-001"
+                      value={newContainer.batchId}
+                      onChange={(e) =>
+                        setNewContainer({
+                          ...newContainer,
+                          batchId: e.target.value,
+                        })
+                      }
+                    />
+                  </div>
+                </div>
+                <DialogFooter>
+                  <Button
+                    variant="outline"
+                    onClick={() => setShowAddContainer(false)}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    onClick={handleAddContainer}
+                    disabled={
+                      !newContainer.productName || !newContainer.locationId
+                    }
+                  >
+                    Add Containers
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+
+            <CreatePalletDialog onPalletCreated={fetchData} />
+          </div>
+        </div>
+      </div>
+
+      {/* Canvas Area */}
+      <div className="flex flex-1 overflow-hidden">
+        {/* Locations Grid */}
+        <ScrollArea className="flex-1 p-6">
+          {locations.length === 0 ? (
+            <div className="flex h-full items-center justify-center">
+              <div className="text-center">
+                <Warehouse className="mx-auto h-12 w-12 text-muted-foreground" />
+                <h3 className="mt-4 text-lg font-semibold">No Locations</h3>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  Add a location to start tracking containers
+                </p>
                 <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-6 w-6"
-                  onClick={() => setSelectedItem(null)}
+                  className="mt-4"
+                  onClick={() => setShowAddLocation(true)}
                 >
-                  <X className="h-4 w-4" />
+                  <Plus className="mr-2 h-4 w-4" />
+                  Add Location
                 </Button>
               </div>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                <div>
-                  <p className="text-xs text-muted-foreground">Product</p>
-                  <p className="font-semibold">{selectedItem.data.product.productName}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Type</p>
-                  <p className="text-sm">{selectedItem.data.product.productType}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Location</p>
-                  <p className="text-sm">{selectedItem.data.location.name}</p>
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <p className="text-xs text-muted-foreground">Containers</p>
-                    <p className="text-lg font-bold">{selectedItem.data.product.containerCount}</p>
+            </div>
+          ) : (
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+              {locations.map((location) => (
+                <Card key={location.id} className="p-4">
+                  <div className="mb-3 flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      {getLocationIcon(location.type)}
+                      <div>
+                        <h3 className="font-semibold">{location.name}</h3>
+                        <p className="text-xs text-muted-foreground capitalize">
+                          {location.type}
+                        </p>
+                      </div>
+                    </div>
+                    <Badge variant="secondary">
+                      {location.products.reduce(
+                        (sum, p) => sum + p.quantity,
+                        0
+                      )}{' '}
+                      items
+                    </Badge>
                   </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground">Total Volume</p>
-                    <p className="text-lg font-bold">
-                      {selectedItem.data.product.totalVolume.toFixed(1)}L
-                    </p>
+
+                  {location.products.length === 0 ? (
+                    <div className="py-8 text-center">
+                      <Package className="mx-auto h-8 w-8 text-muted-foreground" />
+                      <p className="mt-2 text-sm text-muted-foreground">
+                        No containers
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      {location.products.map((product) => (
+                        <button
+                          key={`${product.productId}-${product.containerType}`}
+                          onClick={() =>
+                            setSelectedItem({ type: 'product', data: product })
+                          }
+                          className="w-full rounded-lg border bg-card p-3 text-left transition-colors hover:bg-accent"
+                        >
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              {getContainerIcon(product.containerType)}
+                              <div>
+                                <p className="font-medium text-sm">
+                                  {product.productName}
+                                </p>
+                                <p className="text-xs text-muted-foreground capitalize">
+                                  {product.containerType}
+                                </p>
+                              </div>
+                            </div>
+                            <Badge>{product.quantity}</Badge>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </Card>
+              ))}
+            </div>
+          )}
+        </ScrollArea>
+
+        {/* Detail Panel */}
+        {selectedItem && (
+          <div className="w-96 border-l bg-card">
+            <div className="flex items-center justify-between border-b p-4">
+              <h3 className="font-semibold">Details</h3>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setSelectedItem(null)}
+              >
+                ×
+              </Button>
+            </div>
+            <ScrollArea className="h-[calc(100vh-12rem)]">
+              {selectedItem.type === 'container' && (
+                <ContainerDetailPanel container={selectedItem.data} />
+              )}
+              {selectedItem.type === 'pallet' && (
+                <PalletDetailPanel pallet={selectedItem.data} />
+              )}
+              {selectedItem.type === 'product' && (
+                <div className="p-4">
+                  <h4 className="mb-4 font-semibold">
+                    {selectedItem.data.productName}
+                  </h4>
+                  <div className="space-y-4">
+                    <div>
+                      <Label className="text-xs text-muted-foreground">
+                        Container Type
+                      </Label>
+                      <p className="capitalize">
+                        {selectedItem.data.containerType}
+                      </p>
+                    </div>
+                    <div>
+                      <Label className="text-xs text-muted-foreground">
+                        Total Quantity
+                      </Label>
+                      <p>{selectedItem.data.quantity}</p>
+                    </div>
+                    <div>
+                      <Label className="text-xs text-muted-foreground">
+                        Containers
+                      </Label>
+                      <div className="mt-2 space-y-2">
+                        {selectedItem.data.containers.map(
+                          (container: Container) => (
+                            <button
+                              key={container.id}
+                              onClick={() =>
+                                setSelectedItem({
+                                  type: 'container',
+                                  data: container,
+                                })
+                              }
+                              className="w-full rounded border p-2 text-left text-sm hover:bg-accent"
+                            >
+                              <div className="flex items-center justify-between">
+                                <span className="font-mono text-xs">
+                                  {container.id}
+                                </span>
+                                <Badge variant="outline" className="text-xs">
+                                  {container.status}
+                                </Badge>
+                              </div>
+                              <p className="mt-1 text-xs text-muted-foreground">
+                                Batch: {container.batchId}
+                              </p>
+                            </button>
+                          )
+                        )}
+                      </div>
+                    </div>
                   </div>
                 </div>
-                <Separator />
-                <div className="flex gap-2">
-                  <Button size="sm" className="flex-1">
-                    View Details
-                  </Button>
-                  <Button size="sm" variant="outline" className="flex-1">
-                    Move
-                  </Button>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+              )}
+            </ScrollArea>
+          </div>
         )}
       </div>
-    </AppShell>
+    </div>
   );
 }
