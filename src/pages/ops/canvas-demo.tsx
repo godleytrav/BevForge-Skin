@@ -1,150 +1,62 @@
-import { useState, useEffect } from 'react';
-import { useNotifications } from '@/contexts/NotificationContext';
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import {
-  Package,
-  Truck,
-  Warehouse,
-  Factory,
-  Store,
-  RotateCcw,
-  FileCheck,
-  Bell,
-  AlertCircle,
-  Printer,
-  CheckCircle,
-} from 'lucide-react';
+import { Bell, Printer, Package, Truck, Home, Factory, RotateCcw, Shield } from 'lucide-react';
+import { useNotifications } from '@/contexts/NotificationContext';
 
-// Types
-interface StageItem {
-  id: string;
-  orderId: string;
-  customer: string;
-  items: string[];
-  status: 'pending' | 'approved' | 'loaded' | 'in-route' | 'delivered';
-  dueDate: string;
-}
+// Mock data
+const mockOrders = [
+  {
+    id: 'ORD-001',
+    customer: "Joe's Bar",
+    items: ['2x Keg (IPA)', '1x Case (Bottles, 12-pack)'],
+    status: 'pending' as const,
+  },
+  {
+    id: 'ORD-002',
+    customer: 'Main St Pub',
+    items: ['5x Keg (Lager)'],
+    status: 'pending' as const,
+  },
+  {
+    id: 'ORD-003',
+    customer: 'Downtown Pub',
+    items: ['3x Keg (Stout)', '2x Case (Cans, 6-pack)'],
+    status: 'pending' as const,
+  },
+];
 
-interface Stage {
-  id: string;
-  name: string;
-  icon: any;
-  color: string;
-  position: { x: number; y: number };
-  items: StageItem[];
-}
+const stages = [
+  { id: 'tax', name: 'Tax Determination', icon: Shield, color: 'text-purple-500', angle: 0 },
+  { id: 'production', name: 'Production House', icon: Factory, color: 'text-blue-500', angle: 60 },
+  { id: 'packaging', name: 'Packaging', icon: Package, color: 'text-green-500', angle: 120 },
+  { id: 'delivery', name: 'Delivery', icon: Truck, color: 'text-orange-500', angle: 180 },
+  { id: 'restaurant', name: 'Restaurant', icon: Home, color: 'text-red-500', angle: 240 },
+  { id: 'returns', name: 'Returns/Empties', icon: RotateCcw, color: 'text-gray-500', angle: 300 },
+];
 
-export default function CanvasDemoPage() {
+export default function CanvasDemo() {
+  const [orders, setOrders] = useState(mockOrders);
+  const [selectedStage, setSelectedStage] = useState<string | null>(null);
+  const [truckLoad, setTruckLoad] = useState<typeof mockOrders>([]);
   const { addNotification } = useNotifications();
-  const [selectedStage, setSelectedStage] = useState<Stage | null>(null);
-  const [stagingItems, setStagingItems] = useState<StageItem[]>([
-    {
-      id: 'item-1',
-      orderId: 'ORD-123',
-      customer: "Joe's Bar",
-      items: ['2x Keg (IPA)', '1x Case (Bottles, 12-pack)'],
-      status: 'pending',
-      dueDate: '2025-12-20',
-    },
-    {
-      id: 'item-2',
-      orderId: 'ORD-124',
-      customer: 'Main St Pub',
-      items: ['5x Keg (Lager)'],
-      status: 'pending',
-      dueDate: '2025-12-20',
-    },
-    {
-      id: 'item-3',
-      orderId: 'ORD-125',
-      customer: 'Downtown Pub',
-      items: ['3x Keg (Stout)', '2x Case (Cans, 6-pack)'],
-      status: 'pending',
-      dueDate: '2025-12-21',
-    },
-  ]);
 
-  const [stages, setStages] = useState<Stage[]>([
-    {
-      id: 'tax',
-      name: 'Tax Determination',
-      icon: FileCheck,
-      color: 'bg-purple-500',
-      position: { x: 50, y: 5 },
-      items: [],
-    },
-    {
-      id: 'production',
-      name: 'Production House',
-      icon: Factory,
-      color: 'bg-blue-500',
-      position: { x: 80, y: 25 },
-      items: [],
-    },
-    {
-      id: 'packaging',
-      name: 'Packaging',
-      icon: Package,
-      color: 'bg-green-500',
-      position: { x: 90, y: 55 },
-      items: [],
-    },
-    {
-      id: 'delivery',
-      name: 'Delivery',
-      icon: Truck,
-      color: 'bg-orange-500',
-      position: { x: 70, y: 85 },
-      items: [],
-    },
-    {
-      id: 'restaurant',
-      name: 'Restaurant',
-      icon: Store,
-      color: 'bg-red-500',
-      position: { x: 30, y: 85 },
-      items: [],
-    },
-    {
-      id: 'returns',
-      name: 'Returns/Empties',
-      icon: RotateCcw,
-      color: 'bg-gray-500',
-      position: { x: 10, y: 55 },
-      items: [],
-    },
-  ]);
-
-  const [trucks, setTrucks] = useState([
-    {
-      id: 'TRUCK-1',
-      name: 'Truck #1 - Route A',
-      capacity: 20,
-      loaded: [] as StageItem[],
-    },
-  ]);
-
-  const handleApprove = (itemId: string) => {
-    setStagingItems((prev) =>
-      prev.map((item) =>
-        item.id === itemId ? { ...item, status: 'approved' as const } : item
+  const handleApprove = (orderId: string) => {
+    setOrders(prev =>
+      prev.map(order =>
+        order.id === orderId ? { ...order, status: 'approved' as const } : order
       )
     );
     addNotification({
       title: 'Order Approved',
-      message: `Order ${stagingItems.find((i) => i.id === itemId)?.orderId} approved for loading`,
+      message: `Order ${orderId} has been approved for loading`,
       type: 'success',
     });
   };
 
-  const handleLoadToTruck = (itemId: string) => {
-    const item = stagingItems.find((i) => i.id === itemId);
-    if (!item) return;
-
-    if (item.status !== 'approved') {
+  const handleLoadToTruck = (order: typeof mockOrders[0]) => {
+    if (order.status !== 'approved') {
       addNotification({
         title: 'Cannot Load',
         message: 'Order must be approved before loading',
@@ -152,368 +64,343 @@ export default function CanvasDemoPage() {
       });
       return;
     }
-
-    setStagingItems((prev) =>
-      prev.map((i) => (i.id === itemId ? { ...i, status: 'loaded' as const } : i))
+    setOrders(prev =>
+      prev.map(o => (o.id === order.id ? { ...o, status: 'loaded' as const } : o))
     );
-
-    setTrucks((prev) =>
-      prev.map((truck) =>
-        truck.id === 'TRUCK-1'
-          ? { ...truck, loaded: [...truck.loaded, { ...item, status: 'loaded' as const }] }
-          : truck
-      )
-    );
-
+    setTruckLoad(prev => [...prev, { ...order, status: 'loaded' as const }]);
     addNotification({
       title: 'Loaded to Truck',
-      message: `Order ${item.orderId} loaded to Truck #1`,
+      message: `${order.customer} order loaded to TRUCK-1`,
       type: 'success',
     });
   };
 
-  const handleStageClick = (stage: Stage) => {
-    if (stage.id === 'delivery') {
-      setSelectedStage({
-        ...stage,
-        items: trucks[0].loaded,
-      });
-    } else {
-      setSelectedStage(stage);
+  const getStageContent = (stageId: string) => {
+    switch (stageId) {
+      case 'tax':
+        return (
+          <div className="space-y-2">
+            <p className="text-sm text-muted-foreground">
+              Bonded storage tracking for TTB compliance
+            </p>
+            <div className="space-y-1">
+              <div className="flex justify-between text-sm">
+                <span>Current Inventory:</span>
+                <span className="font-medium">2,450 units</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span>Tax Liability:</span>
+                <span className="font-medium text-orange-500">$12,450.00</span>
+              </div>
+            </div>
+          </div>
+        );
+      case 'production':
+        return (
+          <div className="space-y-2">
+            <p className="text-sm text-muted-foreground">Active production batches</p>
+            <div className="space-y-1">
+              <div className="text-sm">Batch #2024-045 - IPA (Fermenting)</div>
+              <div className="text-sm">Batch #2024-046 - Lager (Conditioning)</div>
+              <div className="text-sm">Batch #2024-047 - Stout (Packaging)</div>
+            </div>
+          </div>
+        );
+      case 'packaging':
+        return (
+          <div className="space-y-2">
+            <p className="text-sm text-muted-foreground">Packaging operations</p>
+            <div className="space-y-1">
+              <div className="text-sm">Kegs filled today: 45</div>
+              <div className="text-sm">Bottles packaged: 1,200</div>
+              <div className="text-sm">Cans packaged: 2,400</div>
+            </div>
+          </div>
+        );
+      case 'delivery':
+        return (
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <h4 className="font-semibold">TRUCK-1 - Route A</h4>
+              <Badge variant="outline">Capacity: 75%</Badge>
+            </div>
+            {truckLoad.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No items loaded yet</p>
+            ) : (
+              <div className="space-y-2">
+                {truckLoad.map((order, idx) => (
+                  <div key={order.id} className="border-l-2 border-primary pl-3 py-1">
+                    <div className="text-sm font-medium">
+                      Stop {idx + 1}: {order.customer}
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      {order.items.join(', ')}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+            <Button size="sm" className="w-full">
+              Start Route
+            </Button>
+          </div>
+        );
+      case 'restaurant':
+        return (
+          <div className="space-y-2">
+            <p className="text-sm text-muted-foreground">Active customer locations</p>
+            <div className="space-y-1">
+              <div className="text-sm">Joe's Bar - 12 kegs on-site</div>
+              <div className="text-sm">Main St Pub - 8 kegs on-site</div>
+              <div className="text-sm">Downtown Pub - 15 kegs on-site</div>
+            </div>
+          </div>
+        );
+      case 'returns':
+        return (
+          <div className="space-y-2">
+            <p className="text-sm text-muted-foreground">Empty containers awaiting pickup</p>
+            <div className="space-y-1">
+              <div className="text-sm">Kegs to collect: 23</div>
+              <div className="text-sm">Cases to collect: 8</div>
+              <div className="text-sm">Next pickup: Tomorrow 9:00 AM</div>
+            </div>
+          </div>
+        );
+      default:
+        return null;
     }
   };
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'pending':
-        return 'bg-yellow-500';
-      case 'approved':
-        return 'bg-green-500';
-      case 'loaded':
-        return 'bg-blue-500';
-      case 'in-route':
-        return 'bg-orange-500';
-      case 'delivered':
-        return 'bg-gray-500';
-      default:
-        return 'bg-gray-400';
-    }
-  };
+  const selectedStageData = stages.find(s => s.id === selectedStage);
+
+  // Calculate positions for stages on a circle
+  const radius = 280; // Distance from center
+  const centerX = 400; // Center of the canvas
+  const centerY = 400;
 
   return (
-    <div className="h-screen flex flex-col bg-background">
+    <div className="min-h-screen bg-background">
       {/* Header */}
       <div className="border-b bg-card">
-        <div className="flex items-center justify-between p-4">
-          <div>
-            <h1 className="text-2xl font-bold text-foreground">Logistics Canvas - Circular Lifecycle</h1>
-            <p className="text-sm text-muted-foreground">
-              Staging area with circular workflow visualization
-            </p>
-          </div>
-          <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm">
-              <Bell className="h-4 w-4 mr-2" />
-              Alerts
-              <Badge variant="destructive" className="ml-2">
-                3
-              </Badge>
-            </Button>
-            <Button variant="outline" size="sm">
-              <Printer className="h-4 w-4 mr-2" />
-              Print Labels
-            </Button>
-          </div>
-        </div>
-      </div>
-
-      {/* Main Content */}
-      <div className="flex-1 overflow-hidden">
-        <div className="h-full p-6">
-          {/* Circular Lifecycle Container */}
-          <div className="relative w-full h-full">
-            {/* Lifecycle Stages - Positioned in Circle */}
-            {stages.map((stage) => {
-              const Icon = stage.icon;
-              return (
-                <button
-                  key={stage.id}
-                  onClick={() => handleStageClick(stage)}
-                  className={`absolute transform -translate-x-1/2 -translate-y-1/2 ${stage.color} hover:opacity-80 transition-all duration-200 rounded-full p-6 shadow-lg hover:shadow-xl hover:scale-110`}
-                  style={{
-                    left: `${stage.position.x}%`,
-                    top: `${stage.position.y}%`,
-                  }}
-                >
-                  <div className="flex flex-col items-center gap-2">
-                    <Icon className="h-8 w-8 text-white" />
-                    <span className="text-xs font-semibold text-white whitespace-nowrap">
-                      {stage.name}
-                    </span>
-                  </div>
-                </button>
-              );
-            })}
-
-            {/* Center Staging Area */}
-            <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px]">
-              <Card className="w-full h-full border-2 border-primary shadow-2xl">
-                <div className="h-full flex flex-col">
-                  {/* Staging Header */}
-                  <div className="border-b bg-primary/5 p-4">
-                    <h2 className="text-xl font-bold text-foreground">Staging Area</h2>
-                    <p className="text-sm text-muted-foreground">
-                      Approve and load orders for delivery
-                    </p>
-                  </div>
-
-                  {/* Staging Items */}
-                  <ScrollArea className="flex-1 p-4">
-                    <div className="space-y-3">
-                      {stagingItems.map((item) => (
-                        <Card
-                          key={item.id}
-                          className="p-4 border-l-4"
-                          style={{
-                            borderLeftColor:
-                              item.status === 'pending'
-                                ? '#eab308'
-                                : item.status === 'approved'
-                                ? '#22c55e'
-                                : '#3b82f6',
-                          }}
-                        >
-                          <div className="flex items-start justify-between mb-2">
-                            <div>
-                              <div className="flex items-center gap-2 mb-1">
-                                <span className="font-semibold text-foreground">
-                                  {item.orderId}
-                                </span>
-                                <Badge className={getStatusColor(item.status)}>
-                                  {item.status}
-                                </Badge>
-                              </div>
-                              <p className="text-sm text-muted-foreground">{item.customer}</p>
-                              <p className="text-xs text-muted-foreground">Due: {item.dueDate}</p>
-                            </div>
-                          </div>
-
-                          <div className="space-y-1 mb-3">
-                            {item.items.map((product, idx) => (
-                              <div
-                                key={idx}
-                                className="text-sm text-foreground flex items-center gap-2"
-                              >
-                                <Package className="h-3 w-3 text-muted-foreground" />
-                                {product}
-                              </div>
-                            ))}
-                          </div>
-
-                          <div className="flex gap-2">
-                            {item.status === 'pending' && (
-                              <Button
-                                size="sm"
-                                onClick={() => handleApprove(item.id)}
-                                className="flex-1"
-                              >
-                                <CheckCircle className="h-4 w-4 mr-2" />
-                                Approve
-                              </Button>
-                            )}
-                            {item.status === 'approved' && (
-                              <Button
-                                size="sm"
-                                onClick={() => handleLoadToTruck(item.id)}
-                                className="flex-1"
-                                variant="default"
-                              >
-                                <Truck className="h-4 w-4 mr-2" />
-                                Load to Truck
-                              </Button>
-                            )}
-                            {item.status === 'loaded' && (
-                              <Badge variant="secondary" className="flex-1 justify-center py-2">
-                                Loaded on Truck #1
-                              </Badge>
-                            )}
-                          </div>
-                        </Card>
-                      ))}
-                    </div>
-                  </ScrollArea>
-                </div>
-              </Card>
+        <div className="container mx-auto px-6 py-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-2xl font-bold text-foreground">Logistics Canvas</h1>
+              <p className="text-sm text-muted-foreground">Circular Lifecycle Demo</p>
             </div>
-
-            {/* Connecting Lines (SVG) */}
-            <svg className="absolute inset-0 w-full h-full pointer-events-none" style={{ zIndex: 0 }}>
-              <defs>
-                <marker
-                  id="arrowhead"
-                  markerWidth="10"
-                  markerHeight="10"
-                  refX="9"
-                  refY="3"
-                  orient="auto"
-                >
-                  <polygon points="0 0, 10 3, 0 6" fill="hsl(var(--muted-foreground))" opacity="0.3" />
-                </marker>
-              </defs>
-              {/* Draw lines connecting stages in circular flow */}
-              <line
-                x1="50%"
-                y1="5%"
-                x2="80%"
-                y2="25%"
-                stroke="hsl(var(--muted-foreground))"
-                strokeWidth="2"
-                opacity="0.3"
-                markerEnd="url(#arrowhead)"
-              />
-              <line
-                x1="80%"
-                y1="25%"
-                x2="90%"
-                y2="55%"
-                stroke="hsl(var(--muted-foreground))"
-                strokeWidth="2"
-                opacity="0.3"
-                markerEnd="url(#arrowhead)"
-              />
-              <line
-                x1="90%"
-                y1="55%"
-                x2="70%"
-                y2="85%"
-                stroke="hsl(var(--muted-foreground))"
-                strokeWidth="2"
-                opacity="0.3"
-                markerEnd="url(#arrowhead)"
-              />
-              <line
-                x1="70%"
-                y1="85%"
-                x2="30%"
-                y2="85%"
-                stroke="hsl(var(--muted-foreground))"
-                strokeWidth="2"
-                opacity="0.3"
-                markerEnd="url(#arrowhead)"
-              />
-              <line
-                x1="30%"
-                y1="85%"
-                x2="10%"
-                y2="55%"
-                stroke="hsl(var(--muted-foreground))"
-                strokeWidth="2"
-                opacity="0.3"
-                markerEnd="url(#arrowhead)"
-              />
-              <line
-                x1="10%"
-                y1="55%"
-                x2="50%"
-                y2="5%"
-                stroke="hsl(var(--muted-foreground))"
-                strokeWidth="2"
-                opacity="0.3"
-                markerEnd="url(#arrowhead)"
-              />
-            </svg>
-          </div>
-        </div>
-      </div>
-
-      {/* Stage Detail Panel */}
-      {selectedStage && (
-        <div className="fixed bottom-0 left-0 right-0 bg-card border-t shadow-lg animate-in slide-in-from-bottom duration-300">
-          <div className="p-6 max-w-7xl mx-auto">
-            <div className="flex items-start justify-between mb-4">
-              <div className="flex items-center gap-3">
-                {(() => {
-                  const Icon = selectedStage.icon;
-                  return <Icon className="h-6 w-6 text-primary" />;
-                })()}
-                <div>
-                  <h3 className="text-lg font-bold text-foreground">{selectedStage.name}</h3>
-                  <p className="text-sm text-muted-foreground">
-                    {selectedStage.id === 'delivery'
-                      ? `${trucks[0].loaded.length} items loaded on ${trucks[0].name}`
-                      : 'Stage details and inventory'}
-                  </p>
-                </div>
-              </div>
-              <Button variant="ghost" size="sm" onClick={() => setSelectedStage(null)}>
-                Close
+            <div className="flex items-center gap-3">
+              <Button variant="outline" size="sm">
+                <Bell className="h-4 w-4 mr-2" />
+                Alerts
+              </Button>
+              <Button variant="outline" size="sm">
+                <Printer className="h-4 w-4 mr-2" />
+                Print Labels
               </Button>
             </div>
-
-            {selectedStage.id === 'delivery' ? (
-              <Card className="p-4">
-                <div className="flex items-center justify-between mb-4">
-                  <div>
-                    <h4 className="font-semibold text-foreground">{trucks[0].name}</h4>
-                    <p className="text-sm text-muted-foreground">
-                      Capacity: {trucks[0].loaded.length}/{trucks[0].capacity} items
-                    </p>
-                  </div>
-                  <Button variant="default">
-                    <Truck className="h-4 w-4 mr-2" />
-                    Start Route
-                  </Button>
-                </div>
-
-                <div className="space-y-3">
-                  {trucks[0].loaded.length === 0 ? (
-                    <p className="text-sm text-muted-foreground text-center py-8">
-                      No items loaded yet. Approve and load items from staging area.
-                    </p>
-                  ) : (
-                    trucks[0].loaded.map((item, idx) => (
-                      <Card key={item.id} className="p-3 bg-muted/50">
-                        <div className="flex items-start justify-between">
-                          <div>
-                            <div className="flex items-center gap-2 mb-1">
-                              <span className="font-semibold text-sm text-foreground">
-                                Stop {idx + 1}: {item.customer}
-                              </span>
-                              <Badge variant="secondary">{item.orderId}</Badge>
-                            </div>
-                            <div className="space-y-1">
-                              {item.items.map((product, pidx) => (
-                                <div
-                                  key={pidx}
-                                  className="text-xs text-muted-foreground flex items-center gap-2"
-                                >
-                                  <Package className="h-3 w-3" />
-                                  {product}
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                          <Button variant="outline" size="sm">
-                            <Printer className="h-3 w-3 mr-1" />
-                            Label
-                          </Button>
-                        </div>
-                      </Card>
-                    ))
-                  )}
-                </div>
-              </Card>
-            ) : (
-              <Card className="p-4">
-                <p className="text-sm text-muted-foreground text-center py-8">
-                  {selectedStage.name} stage details will be shown here. This includes inventory,
-                  status updates, and stage-specific actions.
-                </p>
-              </Card>
-            )}
           </div>
         </div>
-      )}
+      </div>
+
+      {/* Main Canvas */}
+      <div className="container mx-auto px-6 py-8">
+        <div className="relative" style={{ height: '800px' }}>
+          {/* SVG for the circular connection line */}
+          <svg
+            className="absolute inset-0 pointer-events-none"
+            style={{ width: '800px', height: '800px', left: '50%', transform: 'translateX(-50%)' }}
+          >
+            {/* Main circle */}
+            <circle
+              cx={centerX}
+              cy={centerY}
+              r={radius}
+              fill="none"
+              stroke="hsl(var(--border))"
+              strokeWidth="2"
+              strokeDasharray="8 4"
+              opacity="0.5"
+            />
+            
+            {/* Connection lines between stages */}
+            {stages.map((stage, idx) => {
+              const nextStage = stages[(idx + 1) % stages.length];
+              const x1 = centerX + radius * Math.cos((stage.angle * Math.PI) / 180);
+              const y1 = centerY + radius * Math.sin((stage.angle * Math.PI) / 180);
+              const x2 = centerX + radius * Math.cos((nextStage.angle * Math.PI) / 180);
+              const y2 = centerY + radius * Math.sin((nextStage.angle * Math.PI) / 180);
+              
+              return (
+                <line
+                  key={`line-${stage.id}`}
+                  x1={x1}
+                  y1={y1}
+                  x2={x2}
+                  y2={y2}
+                  stroke="hsl(var(--primary))"
+                  strokeWidth="2"
+                  opacity="0.3"
+                />
+              );
+            })}
+          </svg>
+
+          {/* Stage nodes */}
+          {stages.map(stage => {
+            const x = centerX + radius * Math.cos((stage.angle * Math.PI) / 180);
+            const y = centerY + radius * Math.sin((stage.angle * Math.PI) / 180);
+            const Icon = stage.icon;
+            const isSelected = selectedStage === stage.id;
+
+            return (
+              <button
+                key={stage.id}
+                onClick={() => setSelectedStage(stage.id === selectedStage ? null : stage.id)}
+                className={`absolute transform -translate-x-1/2 -translate-y-1/2 transition-all duration-300 ${
+                  isSelected ? 'scale-110' : 'hover:scale-105'
+                }`}
+                style={{
+                  left: '50%',
+                  top: 0,
+                  marginLeft: `${x - centerX}px`,
+                  marginTop: `${y}px`,
+                }}
+              >
+                <div
+                  className={`relative flex flex-col items-center gap-2 p-4 rounded-xl bg-card border-2 transition-all ${
+                    isSelected
+                      ? 'border-primary shadow-lg shadow-primary/20'
+                      : 'border-border hover:border-primary/50'
+                  }`}
+                  style={{ width: '140px' }}
+                >
+                  {/* Glow effect when selected */}
+                  {isSelected && (
+                    <div className="absolute inset-0 rounded-xl bg-primary/10 animate-pulse" />
+                  )}
+                  
+                  <div
+                    className={`relative z-10 p-3 rounded-full bg-background border-2 ${
+                      isSelected ? 'border-primary' : 'border-border'
+                    }`}
+                  >
+                    <Icon className={`h-6 w-6 ${stage.color}`} />
+                  </div>
+                  <span className="relative z-10 text-xs font-medium text-center leading-tight">
+                    {stage.name}
+                  </span>
+                </div>
+              </button>
+            );
+          })}
+
+          {/* Center staging area */}
+          <div
+            className="absolute transform -translate-x-1/2 -translate-y-1/2"
+            style={{
+              left: '50%',
+              top: `${centerY}px`,
+              width: '360px',
+              height: '360px',
+            }}
+          >
+            <Card className="h-full border-2 border-primary shadow-xl">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-center">Staging Area</CardTitle>
+              </CardHeader>
+              <CardContent className="overflow-y-auto" style={{ maxHeight: '280px' }}>
+                <div className="space-y-3">
+                  {orders.map(order => (
+                    <Card
+                      key={order.id}
+                      className={`border-l-4 ${
+                        order.status === 'pending'
+                          ? 'border-l-yellow-500'
+                          : order.status === 'approved'
+                          ? 'border-l-green-500'
+                          : 'border-l-blue-500'
+                      }`}
+                    >
+                      <CardContent className="p-3 space-y-2">
+                        <div className="flex items-start justify-between">
+                          <div>
+                            <div className="font-medium text-sm">{order.customer}</div>
+                            <div className="text-xs text-muted-foreground">{order.id}</div>
+                          </div>
+                          <Badge
+                            variant={
+                              order.status === 'pending'
+                                ? 'secondary'
+                                : order.status === 'approved'
+                                ? 'default'
+                                : 'outline'
+                            }
+                          >
+                            {order.status}
+                          </Badge>
+                        </div>
+                        <div className="text-xs space-y-1">
+                          {order.items.map((item, idx) => (
+                            <div key={idx} className="text-muted-foreground">
+                              • {item}
+                            </div>
+                          ))}
+                        </div>
+                        <div className="flex gap-2">
+                          {order.status === 'pending' && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="flex-1 text-xs"
+                              onClick={() => handleApprove(order.id)}
+                            >
+                              Approve
+                            </Button>
+                          )}
+                          {order.status === 'approved' && (
+                            <Button
+                              size="sm"
+                              className="flex-1 text-xs"
+                              onClick={() => handleLoadToTruck(order)}
+                            >
+                              Load to Truck
+                            </Button>
+                          )}
+                          {order.status === 'loaded' && (
+                            <Badge variant="outline" className="flex-1 justify-center">
+                              On Truck
+                            </Badge>
+                          )}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+
+        {/* Stage detail panel */}
+        {selectedStage && (
+          <Card className="mt-6 border-2 border-primary animate-in slide-in-from-bottom-4">
+            <CardHeader>
+              <div className="flex items-center gap-3">
+                {selectedStageData && (
+                  <>
+                    <div className={`p-2 rounded-lg bg-background border`}>
+                      <selectedStageData.icon className={`h-5 w-5 ${selectedStageData.color}`} />
+                    </div>
+                    <CardTitle>{selectedStageData.name}</CardTitle>
+                  </>
+                )}
+              </div>
+            </CardHeader>
+            <CardContent>{getStageContent(selectedStage)}</CardContent>
+          </Card>
+        )}
+      </div>
     </div>
   );
 }
