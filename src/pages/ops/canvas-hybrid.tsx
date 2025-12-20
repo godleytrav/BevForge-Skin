@@ -2,12 +2,12 @@ import { useState, useEffect } from 'react';
 import { useNotifications } from '@/contexts/NotificationContext';
 import { validateContainerMove, formatValidationMessage } from '@/lib/validation';
 import { getAllAlerts, getAlertColor, getAlertIcon, type Alert } from '@/lib/alerts';
-import { CreatePalletDialog } from '@/components/canvas/CreatePalletDialog';
+
 import { QRCodeDisplay } from '@/components/canvas/QRCodeDisplay';
 import {
   generateContainerLabel,
   generatePalletManifest,
-  generateBatchLabels,
+
   printHTML,
 } from '@/lib/printing';
 import { Button } from '@/components/ui/button';
@@ -20,18 +20,15 @@ import {
   Plus,
   Package,
   Truck,
-  Warehouse,
-  MapPin,
-  AlertCircle,
+
   Boxes,
   Beer,
   Wine,
   Droplet,
-  GripVertical,
+
   Printer,
   Bell,
-  AlertTriangle,
-  X,
+
   Factory,
   Home,
   RotateCcw,
@@ -42,13 +39,13 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
-  DialogFooter,
+
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
 
 // Types
-interface Location {
+interface LocationType {
   id: string;
   name: string;
   type: 'warehouse' | 'truck' | 'customer' | 'production' | 'cleaning' | 'tax';
@@ -249,7 +246,7 @@ export default function CanvasHybrid() {
   const [trucks, setTrucks] = useState<TruckManifest[]>(mockTrucks);
   const [selectedStage, setSelectedStage] = useState<string>('delivery');
   const [selectedContainer, setSelectedContainer] = useState<Container | null>(null);
-  const [showQRCode, setShowQRCode] = useState(false);
+
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [showAlerts, setShowAlerts] = useState(false);
 
@@ -267,9 +264,10 @@ export default function CanvasHybrid() {
       )
     );
     addNotification({
+      type: 'system',
       title: 'Order Approved',
       message: `Order ${orderId} has been approved for loading`,
-      type: 'success',
+      priority: 'medium'
     });
   };
 
@@ -277,9 +275,10 @@ export default function CanvasHybrid() {
   const handleLoadToTruck = (order: Order, truckId: string) => {
     if (order.status !== 'approved') {
       addNotification({
+        type: 'system',
         title: 'Cannot Load',
         message: 'Order must be approved before loading',
-        type: 'error',
+        priority: 'medium'
       });
       return;
     }
@@ -299,9 +298,10 @@ export default function CanvasHybrid() {
     );
 
     addNotification({
+      type: 'system',
       title: 'Loaded to Truck',
       message: `${order.customer} order loaded to ${truckId}`,
-      type: 'success',
+      priority: 'medium'
     });
   };
 
@@ -319,9 +319,10 @@ export default function CanvasHybrid() {
     );
 
     addNotification({
+      type: 'system',
       title: 'Route Started',
       message: `${truckId} is now in route`,
-      type: 'success',
+      priority: 'medium'
     });
   };
 
@@ -330,9 +331,10 @@ export default function CanvasHybrid() {
     const html = generateContainerLabel(container);
     printHTML(html);
     addNotification({
+      type: 'system',
       title: 'Label Printed',
       message: `Label for ${container.id} sent to printer`,
-      type: 'success',
+      priority: 'medium'
     });
   };
 
@@ -347,9 +349,10 @@ export default function CanvasHybrid() {
     });
     printHTML(html);
     addNotification({
+      type: 'system',
       title: 'Manifest Printed',
       message: `Manifest for ${truck.name} sent to printer`,
-      type: 'success',
+      priority: 'medium'
     });
   };
 
