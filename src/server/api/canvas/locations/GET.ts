@@ -1,6 +1,6 @@
 import type { Request, Response } from 'express';
 import { db } from '../../../db/client';
-import { locations, containers, pallets, palletContainers, products } from '../../../db/schema';
+import { locations, containers, pallets, products } from '../../../db/schema';
 import { eq, sql } from 'drizzle-orm';
 
 export default async function handler(_req: Request, res: Response) {
