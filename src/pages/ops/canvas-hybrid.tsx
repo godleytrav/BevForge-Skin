@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useNotifications } from '@/contexts/NotificationContext';
-import { validateContainerMove, formatValidationMessage } from '@/lib/validation';
+// Validation utilities available if needed
+// import { validateContainerMove, formatValidationMessage } from '@/lib/validation';
 import { getAllAlerts, getAlertColor, getAlertIcon, type Alert } from '@/lib/alerts';
 
 import { QRCodeDisplay } from '@/components/canvas/QRCodeDisplay';
@@ -45,13 +46,7 @@ import {
 } from '@/components/ui/dialog';
 
 // Types
-interface LocationType {
-  id: string;
-  name: string;
-  type: 'warehouse' | 'truck' | 'customer' | 'production' | 'cleaning' | 'tax';
-  capacity?: number;
-  products: ProductGroup[];
-}
+// LocationType interface available if needed for future features
 
 interface ProductGroup {
   productId: string;
@@ -266,8 +261,9 @@ export default function CanvasHybrid() {
     addNotification({
       type: 'system',
       title: 'Order Approved',
-      message: `Order ${orderId} has been approved for loading`,
-      priority: 'medium'
+      description: `Order ${orderId} has been approved for loading`,
+      time: 'Just now',
+      icon: 'check-circle'
     });
   };
 
@@ -277,8 +273,9 @@ export default function CanvasHybrid() {
       addNotification({
         type: 'system',
         title: 'Cannot Load',
-        message: 'Order must be approved before loading',
-        priority: 'medium'
+        description: 'Order must be approved before loading',
+        time: 'Just now',
+        icon: 'alert-circle'
       });
       return;
     }
@@ -300,8 +297,9 @@ export default function CanvasHybrid() {
     addNotification({
       type: 'system',
       title: 'Loaded to Truck',
-      message: `${order.customer} order loaded to ${truckId}`,
-      priority: 'medium'
+      description: `${order.customer} order loaded to ${truckId}`,
+      time: 'Just now',
+      icon: 'truck'
     });
   };
 
@@ -321,8 +319,9 @@ export default function CanvasHybrid() {
     addNotification({
       type: 'system',
       title: 'Route Started',
-      message: `${truckId} is now in route`,
-      priority: 'medium'
+      description: `${truckId} is now in route`,
+      time: 'Just now',
+      icon: 'truck'
     });
   };
 
@@ -333,8 +332,9 @@ export default function CanvasHybrid() {
     addNotification({
       type: 'system',
       title: 'Label Printed',
-      message: `Label for ${container.id} sent to printer`,
-      priority: 'medium'
+      description: `Label for ${container.id} sent to printer`,
+      time: 'Just now',
+      icon: 'printer'
     });
   };
 
@@ -351,8 +351,9 @@ export default function CanvasHybrid() {
     addNotification({
       type: 'system',
       title: 'Manifest Printed',
-      message: `Manifest for ${truck.name} sent to printer`,
-      priority: 'medium'
+      description: `Manifest for ${truck.name} sent to printer`,
+      time: 'Just now',
+      icon: 'printer'
     });
   };
 
@@ -807,7 +808,7 @@ export default function CanvasHybrid() {
                   <div className="space-y-3">
                     <h4 className="font-semibold">QR Code</h4>
                     <div className="flex justify-center p-4 bg-background rounded-lg border">
-                      <QRCodeDisplay value={selectedContainer.qrCode} size={200} />
+                      <QRCodeDisplay type="container" id={selectedContainer.id} label={selectedContainer.product} />
                     </div>
                   </div>
                 )}
