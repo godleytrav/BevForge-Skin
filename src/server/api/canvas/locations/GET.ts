@@ -1,6 +1,6 @@
 import type { Request, Response } from 'express';
 import { db } from '../../../db/client';
-import { locations, containers, pallets, products } from '../../../db/schema';
+import { locations, containers, products } from '../../../db/schema';
 import { eq, sql } from 'drizzle-orm';
 
 export default async function handler(_req: Request, res: Response) {
@@ -32,20 +32,6 @@ export default async function handler(_req: Request, res: Response) {
       )
       .orderBy(locations.name);
 
-    // Get pallet information
-    const palletsData = await db
-      .select({
-        palletId: pallets.id,
-        palletName: pallets.name,
-        locationId: pallets.locationId,
-        status: pallets.status,
-        containerCount: sql<number>`count(${palletContainers.containerId})`,
-      })
-      .from(pallets)
-      .leftJoin(palletContainers, eq(palletContainers.palletId, pallets.id))
-      .groupBy(pallets.id, pallets.name, pallets.locationId, pallets.status)
-      .orderBy(pallets.name);
-
     // Group data by location
     const locationMap = new Map<string, any>();
 
@@ -57,7 +43,6 @@ export default async function handler(_req: Request, res: Response) {
           type: row.locationType,
           capacity: row.capacity,
           products: [],
-          pallets: [],
         });
       }
 
@@ -69,20 +54,7 @@ export default async function handler(_req: Request, res: Response) {
           productName: row.productName,
           productType: row.productType,
           containerCount: Number(row.containerCount),
-          totalVolume: Number(row.totalVolume),
-        });
-      }
-    });
-
-    // Add pallets to locations
-    palletsData.forEach((pallet) => {
-      const location = locationMap.get(pallet.locationId);
-      if (location) {
-        location.pallets.push({
-          id: pallet.palletId,
-          name: pallet.palletName,
-          status: pallet.status,
-          containerCount: Number(pallet.containerCount),
+          totalVolume: Number(row.totalVolume || 0),
         });
       }
     });
