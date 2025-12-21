@@ -273,7 +273,7 @@ export default function CanvasLogistics() {
           title: 'Production',
           content: (
             <div className="space-y-3">
-              <div className="bg-blue-50 border border-blue-200 p-4 rounded">
+              <div className="bg-blue-500/10 border border-blue-500/20 p-4 rounded">
                 <h4 className="font-semibold mb-2">Active Batches</h4>
                 <div className="space-y-2">
                   <div className="flex justify-between">
@@ -294,7 +294,7 @@ export default function CanvasLogistics() {
           title: 'Packaging',
           content: (
             <div className="space-y-3">
-              <div className="bg-green-50 border border-green-200 p-4 rounded">
+              <div className="bg-green-500/10 border border-green-500/20 p-4 rounded">
                 <h4 className="font-semibold mb-2">Today's Packaging</h4>
                 <div className="space-y-2">
                   <div className="flex justify-between">
@@ -449,9 +449,9 @@ export default function CanvasLogistics() {
   const approvedOrders = orders.filter((o) => o.status === 'approved');
 
   return (
-    <div className="h-full flex flex-col bg-gray-50">
+    <div className="h-full flex flex-col bg-background">
       {/* Top 30% - Workflow Tiles */}
-      <div className="h-[30%] bg-white border-b p-4">
+      <div className="h-[30%] bg-card border-b border-border p-4">
         <div className="flex items-center justify-between mb-4">
           <h1 className="text-2xl font-bold">Logistics Management</h1>
           <div className="flex gap-2">
@@ -521,12 +521,12 @@ export default function CanvasLogistics() {
       </div>
 
       {/* Bottom 70% - Split View */}
-      <div className="flex-1 flex gap-4 p-4 overflow-hidden">
+      <div className="flex-1 flex gap-4 p-4 overflow-hidden bg-background">
         {/* Left 50% - Virtual Staging Area */}
         <div className="w-1/2 flex flex-col gap-4 overflow-hidden">
-          <Card className="flex-1 flex flex-col overflow-hidden">
-            <CardHeader>
-              <CardTitle>Virtual Staging Area</CardTitle>
+          <Card className="flex-1 flex flex-col overflow-hidden border-border">
+            <CardHeader className="border-b border-border">
+              <CardTitle className="text-foreground">Virtual Staging Area</CardTitle>
             </CardHeader>
             <CardContent className="flex-1 overflow-y-auto space-y-4">
               {/* Pending Orders */}
@@ -539,14 +539,14 @@ export default function CanvasLogistics() {
                     {pendingOrders.map((order) => (
                       <div
                         key={order.id}
-                        className="border-2 border-yellow-300 bg-yellow-50 p-4 rounded-lg"
+                        className="border-2 border-yellow-500/20 bg-yellow-500/10 p-4 rounded-lg"
                       >
                         <div className="flex justify-between items-start mb-2">
                           <div>
                             <h4 className="font-semibold">{order.customer}</h4>
                             <p className="text-sm text-muted-foreground">{order.id}</p>
                           </div>
-                          <Badge variant="outline" className="bg-yellow-100">
+                          <Badge variant="outline" className="bg-yellow-500/10 text-yellow-500 border-yellow-500/20">
                             {order.status}
                           </Badge>
                         </div>
@@ -591,14 +591,14 @@ export default function CanvasLogistics() {
                       return (
                         <div
                           key={order.id}
-                          className="border-2 border-green-300 bg-green-50 p-4 rounded-lg"
+                          className="border-2 border-green-500/20 bg-green-500/10 p-4 rounded-lg"
                         >
                           <div className="flex justify-between items-start mb-2">
                             <div>
                               <h4 className="font-semibold">{order.customer}</h4>
                               <p className="text-sm text-muted-foreground">{order.id}</p>
                             </div>
-                            <Badge variant="outline" className="bg-green-100">
+                            <Badge variant="outline" className="bg-green-500/10 text-green-500 border-green-500/20">
                               {order.status}
                             </Badge>
                           </div>
@@ -642,9 +642,9 @@ export default function CanvasLogistics() {
 
         {/* Right 50% - Stage Info */}
         <div className="w-1/2 flex flex-col overflow-hidden">
-          <Card className="flex-1 flex flex-col overflow-hidden">
-            <CardHeader>
-              <CardTitle>{stageInfo?.title || 'Select a Stage'}</CardTitle>
+          <Card className="flex-1 flex flex-col overflow-hidden border-border">
+            <CardHeader className="border-b border-border">
+              <CardTitle className="text-foreground">{stageInfo?.title || 'Select a Stage'}</CardTitle>
             </CardHeader>
             <CardContent className="flex-1 overflow-y-auto">
               {stageInfo ? (
