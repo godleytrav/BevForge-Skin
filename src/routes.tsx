@@ -34,6 +34,7 @@ import CanvasPage from './pages/ops/canvas';
 import CanvasDemoPage from './pages/ops/canvas-demo';
 import CanvasHybridPage from './pages/ops/canvas-hybrid';
 import CanvasV3Page from './pages/ops/canvas-v3';
+import CanvasLogisticsPage from './pages/ops/canvas-logistics';
 
 export const routes: RouteObject[] = [
   {
@@ -119,6 +120,10 @@ export const routes: RouteObject[] = [
   {
     path: '/ops/canvas-v3',
     element: <CanvasV3Page />,
+  },
+  {
+    path: '/ops/canvas-logistics',
+    element: <CanvasLogisticsPage />,
   },
   {
     path: '/directory',
