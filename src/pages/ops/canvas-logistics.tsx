@@ -6,7 +6,7 @@ import {
   Bell,
   Printer,
   Package,
-  Truck,
+  Truck as TruckIcon,
   Home,
   Factory,
   RotateCcw,
@@ -17,6 +17,94 @@ import {
   Wine,
 } from 'lucide-react';
 import { useNotifications } from '@/contexts/NotificationContext';
+import { ContainerDetailModal } from '@/components/canvas/ContainerDetailModal';
+import {
+  type Container,
+  type Truck,
+  type Location,
+  createContainer,
+  createTruck,
+  createLocation,
+  loadContainerOnTruck,
+  startTruckRoute,
+  updateContainerStatus,
+  getTruckCapacityPercentage,
+} from '@/lib/container-tracking';
+
+// Initialize sample data with tracking IDs
+const initializeContainers = (): Container[] => {
+  const containers: Container[] = [];
+  
+  // Create kegs for Joe's Bar order
+  for (let i = 0; i < 2; i++) {
+    containers.push(
+      createContainer('keg', 'IPA', 'BATCH-2024-001', {
+        volume: '15.5 gal',
+        weight: 160,
+        orderId: 'ORD-001',
+        customerId: "Joe's Bar",
+        status: 'staging',
+        location: 'Staging Area',
+      })
+    );
+  }
+  
+  // Create case for Joe's Bar
+  containers.push(
+    createContainer('case', 'Bottles, 12-pack', 'BATCH-2024-002', {
+      quantity: 12,
+      weight: 30,
+      orderId: 'ORD-001',
+      customerId: "Joe's Bar",
+      status: 'staging',
+      location: 'Staging Area',
+    })
+  );
+  
+  // Create kegs for Main St Pub order
+  for (let i = 0; i < 5; i++) {
+    containers.push(
+      createContainer('keg', 'Lager', 'BATCH-2024-003', {
+        volume: '15.5 gal',
+        weight: 160,
+        orderId: 'ORD-002',
+        customerId: 'Main St Pub',
+        status: 'staging',
+        location: 'Staging Area',
+      })
+    );
+  }
+  
+  // Create kegs for Downtown Pub order
+  for (let i = 0; i < 3; i++) {
+    containers.push(
+      createContainer('keg', 'Stout', 'BATCH-2024-004', {
+        volume: '15.5 gal',
+        weight: 160,
+        orderId: 'ORD-003',
+        customerId: 'Downtown Pub',
+        status: 'staging',
+        location: 'Staging Area',
+      })
+    );
+  }
+  
+  // Create cases for Downtown Pub
+  for (let i = 0; i < 2; i++) {
+    containers.push(
+      createContainer('case', 'Cans, 6-pack', 'BATCH-2024-005', {
+        quantity: 6,
+        weight: 15,
+        orderId: 'ORD-003',
+        customerId: 'Downtown Pub',
+        status: 'staging',
+        location: 'Staging Area',
+      })
+    );
+  }
+  
+  return containers;
+};
 
 // Mock orders data
 const mockOrders = [
@@ -50,7 +138,7 @@ const mockOrders = [
 const stages = [
   { id: 'production', name: 'Production', icon: Factory, color: 'bg-blue-500' },
   { id: 'packaging', name: 'Packaging', icon: Package, color: 'bg-green-500' },
-  { id: 'delivery', name: 'Delivery', icon: Truck, color: 'bg-orange-500' },
+  { id: 'delivery', name: 'Delivery', icon: TruckIcon, color: 'bg-orange-500' },
   { id: 'tax', name: 'Tax Determination', icon: Shield, color: 'bg-purple-500' },
   { id: 'restaurant', name: 'Restaurant', icon: Home, color: 'bg-red-500' },
   { id: 'returns', name: 'Keg Returns', icon: RotateCcw, color: 'bg-gray-500' },
@@ -59,7 +147,20 @@ const stages = [
 export default function CanvasLogistics() {
   const [orders, setOrders] = useState(mockOrders);
   const [selectedStage, setSelectedStage] = useState<string | null>('delivery');
-  const [truckLoad, setTruckLoad] = useState<typeof mockOrders>([]);
+  const [containers, setContainers] = useState<Container[]>(initializeContainers());
+  const [trucks, setTrucks] = useState<Truck[]>([
+    createTruck('TRUCK-1', 'Route A', 10000),
+  ]);
+  const [locations, setLocations] = useState<Location[]>([
+    createLocation("Joe's Bar", 'restaurant', '123 Main St'),
+    createLocation('Main St Pub', 'restaurant', '456 Oak Ave'),
+    createLocation('Downtown Pub', 'restaurant', '789 Elm St'),
+  ]);
+  const [selectedDetail, setSelectedDetail] = useState<{
+    container?: Container;
+    truck?: Truck;
+    location?: Location;
+  } | null>(null);
   const { addNotification } = useNotifications();
 
   const handleApprove = (orderId: string) => {
@@ -68,6 +169,16 @@ export default function CanvasLogistics() {
         order.id === orderId ? { ...order, status: 'approved' as const } : order
       )
     );
+    
+    // Update container statuses
+    setContainers((prev) =>
+      prev.map((container) =>
+        container.orderId === orderId
+          ? updateContainerStatus(container, 'staging', 'Staging Area', 'Order approved')
+          : container
+      )
+    );
+    
     addNotification({
       title: 'Order Approved',
       message: `Order ${orderId} has been approved for loading`,
@@ -84,250 +195,368 @@ export default function CanvasLogistics() {
       });
       return;
     }
+    
+    const truck = trucks[0];
+    const orderContainers = containers.filter((c) => c.orderId === order.id);
+    
+    // Load containers onto truck
+    let updatedTruck = truck;
+    const updatedContainers = containers.map((container) => {
+      if (container.orderId === order.id) {
+        updatedTruck = loadContainerOnTruck(updatedTruck, container);
+        return updateContainerStatus(container, 'loaded', 'Truck', `Loaded on ${truck.name}`);
+      }
+      return container;
+    });
+    
+    setTrucks([updatedTruck]);
+    setContainers(updatedContainers);
     setOrders((prev) =>
       prev.map((o) => (o.id === order.id ? { ...o, status: 'loaded' as const } : o))
     );
-    setTruckLoad((prev) => [...prev, { ...order, status: 'loaded' as const }]);
+    
     addNotification({
       title: 'Loaded to Truck',
-      message: `${order.customer} order loaded to TRUCK-1`,
+      message: `${order.customer} order loaded to ${truck.name}`,
       type: 'success',
     });
   };
 
   const handleStartRoute = () => {
-    if (truckLoad.length === 0) {
+    const truck = trucks[0];
+    if (truck.containers.length === 0) {
       addNotification({
         title: 'Cannot Start Route',
-        message: 'No items loaded on truck',
+        message: 'No containers loaded on truck',
         type: 'error',
       });
       return;
     }
+    
+    const updatedTruck = startTruckRoute(truck);
+    setTrucks([updatedTruck]);
+    
+    // Update container statuses
+    setContainers((prev) =>
+      prev.map((container) =>
+        truck.containers.includes(container.id)
+          ? updateContainerStatus(container, 'in-transit', 'On Road', 'Truck departed')
+          : container
+      )
+    );
+    
     addNotification({
       title: 'Route Started',
-      message: 'TRUCK-1 is now on the road. Tax determination triggered.',
+      message: 'Tax determination triggered (TTB requirement)',
       type: 'success',
     });
   };
 
-  // Get content for selected stage
-  const getStageContent = (stageId: string) => {
-    switch (stageId) {
+  const handleContainerClick = (container: Container) => {
+    setSelectedDetail({ container });
+  };
+
+  const handleTruckClick = (truck: Truck) => {
+    setSelectedDetail({ truck });
+  };
+
+  const handleLocationClick = (location: Location) => {
+    setSelectedDetail({ location });
+  };
+
+  const getStageInfo = () => {
+    if (!selectedStage) return null;
+
+    switch (selectedStage) {
       case 'production':
-        return (
-          <div className="space-y-2">
-            <p className="text-sm text-muted-foreground">Active production batches</p>
-            <div className="space-y-1">
-              <div className="text-sm">Batch #2024-045 - IPA (Fermenting)</div>
-              <div className="text-sm">Batch #2024-046 - Lager (Conditioning)</div>
-              <div className="text-sm">Batch #2024-047 - Stout (Packaging)</div>
+        return {
+          title: 'Production',
+          content: (
+            <div className="space-y-3">
+              <div className="bg-blue-50 border border-blue-200 p-4 rounded">
+                <h4 className="font-semibold mb-2">Active Batches</h4>
+                <div className="space-y-2">
+                  <div className="flex justify-between">
+                    <span>BATCH-2024-001 (IPA)</span>
+                    <Badge variant="outline">Fermenting</Badge>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>BATCH-2024-002 (Lager)</span>
+                    <Badge variant="outline">Conditioning</Badge>
+                  </div>
+                </div>
+              </div>
             </div>
-          </div>
-        );
+          ),
+        };
       case 'packaging':
-        return (
-          <div className="space-y-2">
-            <p className="text-sm text-muted-foreground">Packaging operations</p>
-            <div className="space-y-1">
-              <div className="text-sm">Kegs filled today: 45</div>
-              <div className="text-sm">Bottles packaged: 1,200</div>
-              <div className="text-sm">Cans packaged: 2,400</div>
+        return {
+          title: 'Packaging',
+          content: (
+            <div className="space-y-3">
+              <div className="bg-green-50 border border-green-200 p-4 rounded">
+                <h4 className="font-semibold mb-2">Today's Packaging</h4>
+                <div className="space-y-2">
+                  <div className="flex justify-between">
+                    <span>Kegs Filled</span>
+                    <span className="font-semibold">24</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Cases Packed</span>
+                    <span className="font-semibold">48</span>
+                  </div>
+                </div>
+              </div>
             </div>
-          </div>
-        );
+          ),
+        };
       case 'delivery':
-        return (
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <h4 className="font-semibold">TRUCK-1 - Route A</h4>
-              <Badge variant="outline">Capacity: 75%</Badge>
+        const truck = trucks[0];
+        const capacity = getTruckCapacityPercentage(truck);
+        return {
+          title: 'Delivery',
+          content: (
+            <div className="space-y-3">
+              <div 
+                className="bg-orange-50 border border-orange-200 p-4 rounded cursor-pointer hover:bg-orange-100 transition-colors"
+                onClick={() => handleTruckClick(truck)}
+              >
+                <div className="flex justify-between items-start mb-3">
+                  <div>
+                    <h4 className="font-semibold">{truck.name} - {truck.route}</h4>
+                    <Badge variant="outline" className="mt-1">
+                      {truck.status.toUpperCase().replace('-', ' ')}
+                    </Badge>
+                  </div>
+                  <TruckIcon className="h-5 w-5 text-orange-600" />
+                </div>
+                <div className="space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span>Capacity</span>
+                    <span className="font-semibold">{capacity}%</span>
+                  </div>
+                  <div className="w-full bg-gray-200 rounded-full h-2">
+                    <div
+                      className="bg-orange-500 h-2 rounded-full transition-all"
+                      style={{ width: `${capacity}%` }}
+                    />
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span>Loaded Items</span>
+                    <span className="font-semibold">{truck.containers.length}</span>
+                  </div>
+                </div>
+                {truck.status === 'loading' && (
+                  <Button
+                    className="w-full mt-3"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleStartRoute();
+                    }}
+                  >
+                    Start Route
+                  </Button>
+                )}
+              </div>
             </div>
-            {truckLoad.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No items loaded yet</p>
-            ) : (
-              <div className="space-y-2">
-                {truckLoad.map((order, idx) => (
-                  <div key={order.id} className="border-l-2 border-primary pl-3 py-1">
-                    <div className="text-sm font-medium">
-                      Stop {idx + 1}: {order.customer}
+          ),
+        };
+      case 'tax':
+        const bondedContainers = containers.filter((c) => c.status === 'staging' || c.status === 'production');
+        return {
+          title: 'Tax Determination',
+          content: (
+            <div className="space-y-3">
+              <div className="bg-purple-50 border border-purple-200 p-4 rounded">
+                <h4 className="font-semibold mb-2">Bonded Storage</h4>
+                <div className="space-y-2">
+                  <div className="flex justify-between">
+                    <span>Containers in Bond</span>
+                    <span className="font-semibold">{bondedContainers.length}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Tax Liability</span>
+                    <span className="font-semibold text-purple-600">$0.00</span>
+                  </div>
+                </div>
+                <p className="text-xs text-muted-foreground mt-3">
+                  Tax triggered when product leaves bonded facility (TTB requirement)
+                </p>
+              </div>
+            </div>
+          ),
+        };
+      case 'restaurant':
+        return {
+          title: 'Restaurant',
+          content: (
+            <div className="space-y-3">
+              {locations.map((location) => {
+                const locationContainers = containers.filter((c) =>
+                  location.containers.includes(c.id)
+                );
+                return (
+                  <div
+                    key={location.id}
+                    className="bg-red-50 border border-red-200 p-4 rounded cursor-pointer hover:bg-red-100 transition-colors"
+                    onClick={() => handleLocationClick(location)}
+                  >
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <h4 className="font-semibold">{location.name}</h4>
+                        <p className="text-sm text-muted-foreground">{location.address}</p>
+                      </div>
+                      <Home className="h-5 w-5 text-red-600" />
                     </div>
-                    <div className="text-xs text-muted-foreground">
-                      {order.items.map((item) => `${item.quantity}x ${item.type} (${item.product})`).join(', ')}
+                    <div className="mt-2 flex justify-between text-sm">
+                      <span>Kegs On-Site</span>
+                      <span className="font-semibold">{locationContainers.length}</span>
                     </div>
                   </div>
-                ))}
-              </div>
-            )}
-            <Button size="sm" className="w-full" onClick={handleStartRoute}>
-              Start Route
-            </Button>
-          </div>
-        );
-      case 'tax':
-        return (
-          <div className="space-y-2">
-            <p className="text-sm text-muted-foreground">
-              Bonded storage tracking for TTB compliance
-            </p>
-            <div className="space-y-1">
-              <div className="flex justify-between text-sm">
-                <span>Current Inventory:</span>
-                <span className="font-medium">2,450 units</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span>Tax Liability:</span>
-                <span className="font-medium text-orange-500">$12,450.00</span>
-              </div>
-              <div className="text-xs text-muted-foreground mt-2">
-                Tax determination triggers when product leaves bonded facility
-              </div>
+                );
+              })}
             </div>
-          </div>
-        );
-      case 'restaurant':
-        return (
-          <div className="space-y-2">
-            <p className="text-sm text-muted-foreground">Active customer locations</p>
-            <div className="space-y-1">
-              <div className="text-sm">Joe's Bar - 12 kegs on-site</div>
-              <div className="text-sm">Main St Pub - 8 kegs on-site</div>
-              <div className="text-sm">Downtown Pub - 15 kegs on-site</div>
-            </div>
-          </div>
-        );
+          ),
+        };
       case 'returns':
-        return (
-          <div className="space-y-2">
-            <p className="text-sm text-muted-foreground">Empty containers awaiting pickup</p>
-            <div className="space-y-1">
-              <div className="text-sm">Kegs to collect: 23</div>
-              <div className="text-sm">Cases to collect: 8</div>
-              <div className="text-sm">Next pickup: Tomorrow 9:00 AM</div>
+        return {
+          title: 'Keg Returns',
+          content: (
+            <div className="space-y-3">
+              <div className="bg-gray-50 border border-gray-200 p-4 rounded">
+                <h4 className="font-semibold mb-2">Empty Containers</h4>
+                <div className="space-y-2">
+                  <div className="flex justify-between">
+                    <span>Awaiting Pickup</span>
+                    <span className="font-semibold">0</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>In Transit</span>
+                    <span className="font-semibold">0</span>
+                  </div>
+                </div>
+              </div>
             </div>
-          </div>
-        );
+          ),
+        };
       default:
-        return <p className="text-sm text-muted-foreground">Select a stage to view details</p>;
+        return null;
     }
   };
 
-  const selectedStageData = stages.find((s) => s.id === selectedStage);
-
-  // Count items in each stage
-  const getStageCounts = () => {
-    return {
-      production: 3,
-      packaging: 45,
-      delivery: truckLoad.length,
-      tax: 2450,
-      restaurant: 35,
-      returns: 31,
-    };
-  };
-
-  const stageCounts = getStageCounts();
+  const stageInfo = getStageInfo();
+  const pendingOrders = orders.filter((o) => o.status === 'pending');
+  const approvedOrders = orders.filter((o) => o.status === 'approved');
 
   return (
-    <div className="h-screen flex flex-col bg-background">
-      {/* Top 30% - Linear Workflow Tiles */}
-      <div className="h-[30vh] border-b bg-card">
-        <div className="h-full flex flex-col">
-          {/* Header with tools */}
-          <div className="border-b px-6 py-3">
-            <div className="flex items-center justify-between">
-              <div>
-                <h1 className="text-xl font-bold text-foreground">Logistics Canvas</h1>
-                <p className="text-xs text-muted-foreground">Production to Delivery Workflow</p>
-              </div>
-              <div className="flex items-center gap-2">
-                <Button variant="outline" size="sm">
-                  <Plus className="h-4 w-4 mr-1" />
-                  Add Container
-                </Button>
-                <Button variant="outline" size="sm">
-                  <QrCode className="h-4 w-4 mr-1" />
-                  QR Code
-                </Button>
-                <Button variant="outline" size="sm">
-                  <Printer className="h-4 w-4 mr-1" />
-                  Print
-                </Button>
-                <Button variant="outline" size="sm">
-                  <Bell className="h-4 w-4 mr-1" />
-                  Alerts
-                </Button>
-              </div>
-            </div>
+    <div className="h-full flex flex-col bg-gray-50">
+      {/* Top 30% - Workflow Tiles */}
+      <div className="h-[30%] bg-white border-b p-4">
+        <div className="flex items-center justify-between mb-4">
+          <h1 className="text-2xl font-bold">Logistics Management</h1>
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm">
+              <Plus className="h-4 w-4 mr-2" />
+              Add Container
+            </Button>
+            <Button variant="outline" size="sm">
+              <Package className="h-4 w-4 mr-2" />
+              Create Pallet
+            </Button>
+            <Button variant="outline" size="sm">
+              <Printer className="h-4 w-4 mr-2" />
+              Print Labels
+            </Button>
+            <Button variant="outline" size="sm">
+              <QrCode className="h-4 w-4 mr-2" />
+              Generate QR
+            </Button>
+            <Button variant="outline" size="sm">
+              <Bell className="h-4 w-4 mr-2" />
+              Alerts
+            </Button>
           </div>
+        </div>
 
-          {/* Linear workflow tiles */}
-          <div className="flex-1 flex items-center justify-center gap-4 px-6">
-            {stages.map((stage, idx) => {
-              const Icon = stage.icon;
-              const isSelected = selectedStage === stage.id;
-              const count = stageCounts[stage.id as keyof typeof stageCounts];
+        {/* Linear Workflow */}
+        <div className="grid grid-cols-6 gap-4">
+          {stages.map((stage, index) => {
+            const Icon = stage.icon;
+            const isSelected = selectedStage === stage.id;
+            const stageContainers = containers.filter((c) => {
+              if (stage.id === 'production') return c.status === 'production';
+              if (stage.id === 'packaging') return c.status === 'packaging';
+              if (stage.id === 'delivery') return c.status === 'loaded' || c.status === 'in-transit';
+              if (stage.id === 'tax') return c.status === 'staging';
+              if (stage.id === 'restaurant') return c.status === 'delivered';
+              if (stage.id === 'returns') return c.status === 'returned';
+              return false;
+            });
 
-              return (
-                <div key={stage.id} className="flex items-center gap-4">
-                  <button
-                    onClick={() => setSelectedStage(stage.id)}
-                    className={`relative flex flex-col items-center gap-2 p-4 rounded-lg border-2 transition-all ${
-                      isSelected
-                        ? 'border-primary bg-primary/10 shadow-lg scale-105'
-                        : 'border-border bg-card hover:border-primary/50 hover:shadow-md'
-                    }`}
-                  >
-                    <div
-                      className={`w-12 h-12 rounded-full ${stage.color} flex items-center justify-center text-white`}
-                    >
+            return (
+              <Card
+                key={stage.id}
+                className={`cursor-pointer transition-all ${
+                  isSelected
+                    ? 'ring-2 ring-primary shadow-lg scale-105'
+                    : 'hover:shadow-md'
+                }`}
+                onClick={() => setSelectedStage(stage.id)}
+              >
+                <CardContent className="p-4">
+                  <div className="flex flex-col items-center text-center gap-2">
+                    <div className={`${stage.color} p-3 rounded-full text-white`}>
                       <Icon className="h-6 w-6" />
                     </div>
-                    <div className="text-center">
-                      <div className="text-xs font-medium">{stage.name}</div>
-                      <div className="text-xs text-muted-foreground">{count}</div>
+                    <div>
+                      <p className="font-semibold text-sm">{stage.name}</p>
+                      <p className="text-2xl font-bold">{stageContainers.length}</p>
                     </div>
-                  </button>
-                  {idx < stages.length - 1 && (
-                    <div className="w-8 h-0.5 bg-border" />
-                  )}
-                </div>
-              );
-            })}
-          </div>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
         </div>
       </div>
 
       {/* Bottom 70% - Split View */}
-      <div className="flex-1 flex">
+      <div className="flex-1 flex gap-4 p-4 overflow-hidden">
         {/* Left 50% - Virtual Staging Area */}
-        <div className="w-1/2 border-r p-6 overflow-auto">
-          <Card>
+        <div className="w-1/2 flex flex-col gap-4 overflow-hidden">
+          <Card className="flex-1 flex flex-col overflow-hidden">
             <CardHeader>
-              <CardTitle className="text-lg">Staging Area</CardTitle>
+              <CardTitle>Virtual Staging Area</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="flex-1 overflow-y-auto space-y-4">
               {/* Pending Orders */}
-              {orders
-                .filter((order) => order.status === 'pending')
-                .map((order) => (
-                  <Card key={order.id} className="border-yellow-500">
-                    <CardContent className="pt-4">
-                      <div className="space-y-2">
-                        <div className="flex items-center justify-between">
-                          <h4 className="font-semibold">{order.customer}</h4>
-                          <Badge variant="outline" className="text-yellow-600">
-                            {order.id}
+              {pendingOrders.length > 0 && (
+                <div>
+                  <h3 className="font-semibold mb-2 text-sm text-muted-foreground">
+                    Pending Orders
+                  </h3>
+                  <div className="space-y-3">
+                    {pendingOrders.map((order) => (
+                      <div
+                        key={order.id}
+                        className="border-2 border-yellow-300 bg-yellow-50 p-4 rounded-lg"
+                      >
+                        <div className="flex justify-between items-start mb-2">
+                          <div>
+                            <h4 className="font-semibold">{order.customer}</h4>
+                            <p className="text-sm text-muted-foreground">{order.id}</p>
+                          </div>
+                          <Badge variant="outline" className="bg-yellow-100">
+                            {order.status}
                           </Badge>
                         </div>
-                        <Badge variant="secondary">{order.status}</Badge>
-                        <ul className="space-y-1 text-sm">
+                        <ul className="space-y-1 mb-3">
                           {order.items.map((item, idx) => (
-                            <li key={idx} className="flex items-center gap-2">
+                            <li key={idx} className="text-sm flex items-center gap-2">
                               {item.type === 'Keg' ? (
-                                <Beer className="h-4 w-4" />
+                                <Beer className="h-4 w-4 text-amber-600" />
                               ) : (
-                                <Wine className="h-4 w-4" />
+                                <Wine className="h-4 w-4 text-purple-600" />
                               )}
                               <span>
                                 {item.quantity}x {item.type} ({item.product})
@@ -343,90 +572,110 @@ export default function CanvasLogistics() {
                           Approve
                         </Button>
                       </div>
-                    </CardContent>
-                  </Card>
-                ))}
+                    ))}
+                  </div>
+                </div>
+              )}
 
-              {/* Approved Orders - Ready to Load */}
-              {orders
-                .filter((order) => order.status === 'approved')
-                .map((order) => (
-                  <Card key={order.id} className="border-green-500">
-                    <CardContent className="pt-4">
-                      <div className="space-y-2">
-                        <div className="flex items-center justify-between">
-                          <h4 className="font-semibold">{order.customer}</h4>
-                          <Badge variant="outline" className="text-green-600">
-                            {order.id}
-                          </Badge>
-                        </div>
-                        <Badge className="bg-green-500">Ready to Load</Badge>
-                        <ul className="space-y-1 text-sm">
-                          {order.items.map((item, idx) => (
-                            <li key={idx} className="flex items-center gap-2">
-                              {item.type === 'Keg' ? (
-                                <Beer className="h-4 w-4" />
-                              ) : (
-                                <Wine className="h-4 w-4" />
-                              )}
-                              <span>
-                                {item.quantity}x {item.type} ({item.product})
-                              </span>
-                            </li>
-                          ))}
-                        </ul>
-                        <Button
-                          size="sm"
-                          className="w-full"
-                          onClick={() => handleLoadToTruck(order)}
+              {/* Ready to Load */}
+              {approvedOrders.length > 0 && (
+                <div>
+                  <h3 className="font-semibold mb-2 text-sm text-muted-foreground">
+                    Ready to Load
+                  </h3>
+                  <div className="space-y-3">
+                    {approvedOrders.map((order) => {
+                      const orderContainers = containers.filter(
+                        (c) => c.orderId === order.id
+                      );
+                      return (
+                        <div
+                          key={order.id}
+                          className="border-2 border-green-300 bg-green-50 p-4 rounded-lg"
                         >
-                          Load to Truck
-                        </Button>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-
-              {orders.filter((o) => o.status === 'pending' || o.status === 'approved')
-                .length === 0 && (
-                <div className="text-center py-8 text-muted-foreground">
-                  <Package className="h-12 w-12 mx-auto mb-2 opacity-50" />
-                  <p>No pending orders</p>
+                          <div className="flex justify-between items-start mb-2">
+                            <div>
+                              <h4 className="font-semibold">{order.customer}</h4>
+                              <p className="text-sm text-muted-foreground">{order.id}</p>
+                            </div>
+                            <Badge variant="outline" className="bg-green-100">
+                              {order.status}
+                            </Badge>
+                          </div>
+                          <div className="space-y-2 mb-3">
+                            {orderContainers.map((container) => (
+                              <div
+                                key={container.id}
+                                className="text-sm flex items-center justify-between bg-white p-2 rounded cursor-pointer hover:bg-gray-50"
+                                onClick={() => handleContainerClick(container)}
+                              >
+                                <div className="flex items-center gap-2">
+                                  {container.type === 'keg' ? (
+                                    <Beer className="h-4 w-4 text-amber-600" />
+                                  ) : (
+                                    <Wine className="h-4 w-4 text-purple-600" />
+                                  )}
+                                  <span className="font-mono text-xs">{container.id}</span>
+                                </div>
+                                <span className="text-xs text-muted-foreground">
+                                  {container.productName}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                          <Button
+                            size="sm"
+                            className="w-full"
+                            onClick={() => handleLoadToTruck(order)}
+                          >
+                            Load to Truck
+                          </Button>
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
               )}
             </CardContent>
           </Card>
         </div>
 
-        {/* Right 50% - Info Box */}
-        <div className="w-1/2 p-6 overflow-auto">
-          <Card className="h-full">
+        {/* Right 50% - Stage Info */}
+        <div className="w-1/2 flex flex-col overflow-hidden">
+          <Card className="flex-1 flex flex-col overflow-hidden">
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                {selectedStageData && (
-                  <>
-                    <div
-                      className={`w-8 h-8 rounded-full ${selectedStageData.color} flex items-center justify-center text-white`}
-                    >
-                      <selectedStageData.icon className="h-4 w-4" />
-                    </div>
-                    {selectedStageData.name}
-                  </>
-                )}
-              </CardTitle>
+              <CardTitle>{stageInfo?.title || 'Select a Stage'}</CardTitle>
             </CardHeader>
-            <CardContent>
-              {selectedStage ? (
-                getStageContent(selectedStage)
+            <CardContent className="flex-1 overflow-y-auto">
+              {stageInfo ? (
+                stageInfo.content
               ) : (
-                <p className="text-sm text-muted-foreground">
-                  Click a stage above to view details
+                <p className="text-muted-foreground text-center py-8">
+                  Click on a workflow stage above to view details
                 </p>
               )}
             </CardContent>
           </Card>
         </div>
       </div>
+
+      {/* Detail Modal */}
+      {selectedDetail && (
+        <ContainerDetailModal
+          container={selectedDetail.container}
+          truck={selectedDetail.truck}
+          location={selectedDetail.location}
+          allContainers={containers}
+          onClose={() => setSelectedDetail(null)}
+          onPrint={() => {
+            addNotification({
+              title: 'Print Initiated',
+              message: 'Printing tracking label...',
+              type: 'success',
+            });
+          }}
+        />
+      )}
     </div>
   );
 }
