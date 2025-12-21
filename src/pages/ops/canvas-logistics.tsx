@@ -161,6 +161,8 @@ export default function CanvasLogistics() {
     truck?: Truck;
     location?: Location;
   } | null>(null);
+  const [selectedContainers, setSelectedContainers] = useState<string[]>([]);
+  const [selectionMode, setSelectionMode] = useState<'case' | 'pallet' | null>(null);
   const { addNotification } = useNotifications();
 
   const handleApprove = (orderId: string) => {
@@ -262,6 +264,95 @@ export default function CanvasLogistics() {
 
   const handleLocationClick = (location: Location) => {
     setSelectedDetail({ location });
+  };
+
+  // Automation functions
+  const toggleContainerSelection = (containerId: string) => {
+    setSelectedContainers((prev) =>
+      prev.includes(containerId)
+        ? prev.filter((id) => id !== containerId)
+        : [...prev, containerId]
+    );
+  };
+
+  const handleCreateCase = () => {
+    if (selectedContainers.length < 12) {
+      addNotification({
+        title: 'Cannot Create Case',
+        message: 'Select at least 12 bottles to create a case',
+        type: 'error',
+      });
+      return;
+    }
+
+    const selectedItems = containers.filter((c) => selectedContainers.includes(c.id));
+    const totalWeight = selectedItems.reduce((sum, c) => sum + c.weight, 0);
+    const totalVolume = selectedItems.reduce((sum, c) => sum + c.volume, 0);
+
+    const newCase = createContainer(
+      `CASE-${String(containers.filter((c) => c.type === 'case').length + 1).padStart(4, '0')}`,
+      'case',
+      selectedItems[0].product,
+      selectedItems[0].batchNumber,
+      'staging',
+      totalWeight,
+      totalVolume
+    );
+
+    // Set parent-child relationships
+    const updatedContainers = containers.map((c) =>
+      selectedContainers.includes(c.id) ? { ...c, parentId: newCase.id } : c
+    );
+
+    setContainers([...updatedContainers, newCase]);
+    setSelectedContainers([]);
+    setSelectionMode(null);
+
+    addNotification({
+      title: 'Case Created',
+      message: `Created ${newCase.id} with ${selectedContainers.length} bottles`,
+      type: 'success',
+    });
+  };
+
+  const handleCreatePallet = () => {
+    if (selectedContainers.length === 0) {
+      addNotification({
+        title: 'Cannot Create Pallet',
+        message: 'Select containers to add to pallet',
+        type: 'error',
+      });
+      return;
+    }
+
+    const selectedItems = containers.filter((c) => selectedContainers.includes(c.id));
+    const totalWeight = selectedItems.reduce((sum, c) => sum + c.weight, 0);
+    const totalVolume = selectedItems.reduce((sum, c) => sum + c.volume, 0);
+
+    const newPallet = createContainer(
+      `PLT-${String(containers.filter((c) => c.type === 'pallet').length + 1).padStart(4, '0')}`,
+      'pallet',
+      'Mixed',
+      'MIXED',
+      'staging',
+      totalWeight,
+      totalVolume
+    );
+
+    // Set parent-child relationships
+    const updatedContainers = containers.map((c) =>
+      selectedContainers.includes(c.id) ? { ...c, parentId: newPallet.id } : c
+    );
+
+    setContainers([...updatedContainers, newPallet]);
+    setSelectedContainers([]);
+    setSelectionMode(null);
+
+    addNotification({
+      title: 'Pallet Created',
+      message: `Created ${newPallet.id} with ${selectedContainers.length} containers (${totalWeight.toFixed(0)} lbs)`,
+      type: 'success',
+    });
   };
 
   const getStageInfo = () => {
@@ -459,10 +550,31 @@ export default function CanvasLogistics() {
               <Plus className="h-4 w-4 mr-2" />
               Add Container
             </Button>
-            <Button variant="outline" size="sm">
+            <Button
+              variant={selectionMode === 'case' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setSelectionMode(selectionMode === 'case' ? null : 'case')}
+            >
               <Package className="h-4 w-4 mr-2" />
-              Create Pallet
+              Create Case {selectionMode === 'case' && `(${selectedContainers.length}/12)`}
             </Button>
+            <Button
+              variant={selectionMode === 'pallet' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setSelectionMode(selectionMode === 'pallet' ? null : 'pallet')}
+            >
+              <Package className="h-4 w-4 mr-2" />
+              Create Pallet {selectionMode === 'pallet' && `(${selectedContainers.length})`}
+            </Button>
+            {selectedContainers.length > 0 && (
+              <Button
+                variant="default"
+                size="sm"
+                onClick={selectionMode === 'case' ? handleCreateCase : handleCreatePallet}
+              >
+                Confirm {selectionMode === 'case' ? 'Case' : 'Pallet'}
+              </Button>
+            )}
             <Button variant="outline" size="sm">
               <Printer className="h-4 w-4 mr-2" />
               Print Labels
@@ -607,9 +719,25 @@ export default function CanvasLogistics() {
                               <div
                                 key={container.id}
                                 className="text-sm flex items-center justify-between bg-card border border-border p-2 rounded cursor-pointer hover:bg-muted transition-colors"
-                                onClick={() => handleContainerClick(container)}
+                                onClick={(e) => {
+                                  if (selectionMode) {
+                                    e.stopPropagation();
+                                    toggleContainerSelection(container.id);
+                                  } else {
+                                    handleContainerClick(container);
+                                  }
+                                }}
                               >
                                 <div className="flex items-center gap-2">
+                                  {selectionMode && (
+                                    <input
+                                      type="checkbox"
+                                      checked={selectedContainers.includes(container.id)}
+                                      onChange={() => toggleContainerSelection(container.id)}
+                                      className="h-4 w-4"
+                                      onClick={(e) => e.stopPropagation()}
+                                    />
+                                  )}
                                   {container.type === 'keg' ? (
                                     <Beer className="h-4 w-4 text-amber-600" />
                                   ) : (
