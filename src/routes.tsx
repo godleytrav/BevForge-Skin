@@ -33,6 +33,7 @@ import QualityPage from './pages/ops/quality';
 import CanvasPage from './pages/ops/canvas';
 import CanvasDemoPage from './pages/ops/canvas-demo';
 import CanvasHybridPage from './pages/ops/canvas-hybrid';
+import CanvasV3Page from './pages/ops/canvas-v3';
 
 export const routes: RouteObject[] = [
   {
@@ -114,6 +115,10 @@ export const routes: RouteObject[] = [
   {
     path: '/ops/canvas-hybrid',
     element: <CanvasHybridPage />,
+  },
+  {
+    path: '/ops/canvas-v3',
+    element: <CanvasV3Page />,
   },
   {
     path: '/directory',
