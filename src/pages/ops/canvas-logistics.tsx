@@ -1,918 +1,524 @@
-import { useState, useEffect, useCallback } from 'react';
-import { useNotifications } from '@/contexts/NotificationContext';
-import { validateContainerMove, formatValidationMessage } from '@/lib/validation';
-import { getAllAlerts, getAlertColor, getAlertIcon, type Alert } from '@/lib/alerts';
-import { CreatePalletDialog } from '@/components/canvas/CreatePalletDialog';
-
+import { useState } from 'react';
+import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { ScrollArea } from '@/components/ui/scroll-area';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import {
-  Plus,
+  Beer,
+  Wine,
   Package,
   Truck,
   AlertCircle,
-  Beer,
-  Wine,
-  GripVertical,
+  QrCode,
   Printer,
-  Bell,
-  AlertTriangle,
-  Home,
-  Factory,
+  Plus,
+  CheckCircle,
+  Clock,
+  MapPin,
   RotateCcw,
-  Shield,
 } from 'lucide-react';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 
 // Types
-interface Location {
-  id: string;
-  name: string;
-  type: 'warehouse' | 'truck' | 'customer' | 'production' | 'cleaning' | 'tax';
-  capacity?: number;
-  products: ProductGroup[];
-  containers: Container[];
-}
-
-interface ProductGroup {
-  productId: string;
-  productName: string;
-  containerType: 'keg' | 'case' | 'bottle' | 'can';
-  quantity: number;
-  containers: Container[];
-}
+type ContainerType = 'keg' | 'case' | 'bottle' | 'can';
+type ContainerStatus = 'pending' | 'approved' | 'staged' | 'loaded' | 'in-transit' | 'delivered' | 'returned';
+type WorkflowStage = 'production' | 'packaging' | 'delivery' | 'tax' | 'restaurant' | 'returns';
 
 interface Container {
   id: string;
-  productId: string;
-  productName: string;
-  batchId: string;
-  type: 'keg' | 'case' | 'bottle' | 'can';
-  status: 'pending' | 'approved' | 'loaded' | 'in-transit' | 'delivered' | 'returned';
-  locationId: string;
-  palletId?: string;
+  type: ContainerType;
+  product: string;
+  batchNumber: string;
+  quantity: number;
+  status: ContainerStatus;
+  stage: WorkflowStage;
+  qrCode?: string;
+  orderId?: string;
+  truckId?: string;
+  restaurantId?: string;
 }
 
-// Lifecycle stages configuration
-const stages = [
-  { id: 'tax', name: 'Tax Determination', icon: Shield, color: 'text-purple-500', bgColor: 'bg-purple-500/10', borderColor: 'border-purple-500', angle: 0 },
-  { id: 'production', name: 'Production House', icon: Factory, color: 'text-blue-500', bgColor: 'bg-blue-500/10', borderColor: 'border-blue-500', angle: 60 },
-  { id: 'packaging', name: 'Packaging', icon: Package, color: 'text-green-500', bgColor: 'bg-green-500/10', borderColor: 'border-green-500', angle: 120 },
-  { id: 'delivery', name: 'Delivery', icon: Truck, color: 'text-orange-500', bgColor: 'bg-orange-500/10', borderColor: 'border-orange-500', angle: 180 },
-  { id: 'restaurant', name: 'Restaurant', icon: Home, color: 'text-red-500', bgColor: 'bg-red-500/10', borderColor: 'border-red-500', angle: 240 },
-  { id: 'returns', name: 'Returns/Empties', icon: RotateCcw, color: 'text-gray-500', bgColor: 'bg-gray-500/10', borderColor: 'border-gray-500', angle: 300 },
+interface Order {
+  id: string;
+  restaurantName: string;
+  items: Container[];
+  status: 'pending' | 'approved' | 'staged' | 'loaded' | 'delivered';
+  createdAt: Date;
+}
+
+interface Truck {
+  id: string;
+  name: string;
+  status: 'loading' | 'loaded' | 'in-transit' | 'delivered';
+  containers: Container[];
+  departureTime?: Date;
+}
+
+// Initial mock data
+const initialContainers: Container[] = [
+  {
+    id: 'keg-001',
+    type: 'keg',
+    product: 'Hopped Cider',
+    batchNumber: 'BATCH-2024-001',
+    quantity: 12,
+    status: 'pending',
+    stage: 'production',
+    qrCode: 'QR-KEG-001',
+  },
+  {
+    id: 'case-001',
+    type: 'case',
+    product: 'Dry Cider',
+    batchNumber: 'BATCH-2024-002',
+    quantity: 24,
+    status: 'pending',
+    stage: 'packaging',
+    qrCode: 'QR-CASE-001',
+  },
 ];
 
-// Mock initial data
-const initialLocations: Location[] = [
+const initialOrders: Order[] = [
   {
-    id: 'tax-zone',
-    name: 'Bonded Storage',
-    type: 'tax',
-    containers: [],
-    products: [
+    id: 'order-001',
+    restaurantName: 'The Craft House',
+    items: [
       {
-        productId: 'PROD-001',
-        productName: 'Hopped Cider',
-        containerType: 'keg',
-        quantity: 12,
-        containers: Array.from({ length: 12 }, (_, i) => ({
-          id: `KEG-${1000 + i}`,
-          productId: 'PROD-001',
-          productName: 'Hopped Cider',
-          batchId: 'B-2024-045',
-          type: 'keg' as const,
-          status: 'pending' as const,
-          locationId: 'tax-zone',
-        })),
-      },
-      {
-        productId: 'PROD-002',
-        productName: 'Dry Cider',
-        containerType: 'case',
-        quantity: 24,
-        containers: Array.from({ length: 24 }, (_, i) => ({
-          id: `CASE-${2000 + i}`,
-          productId: 'PROD-002',
-          productName: 'Dry Cider',
-          batchId: 'B-2024-046',
-          type: 'case' as const,
-          status: 'pending' as const,
-          locationId: 'tax-zone',
-        })),
+        id: 'keg-002',
+        type: 'keg',
+        product: 'Hopped Cider',
+        batchNumber: 'BATCH-2024-001',
+        quantity: 6,
+        status: 'pending',
+        stage: 'delivery',
+        qrCode: 'QR-KEG-002',
+        orderId: 'order-001',
       },
     ],
-  },
-  {
-    id: 'production-floor',
-    name: 'Production Floor',
-    type: 'production',
-    products: [],
-    containers: [],
-  },
-  {
-    id: 'packaging-area',
-    name: 'Packaging Station',
-    type: 'warehouse',
-    products: [],
-    containers: [],
-  },
-  {
-    id: 'truck-1',
-    name: 'Truck #1',
-    type: 'truck',
-    capacity: 50,
-    products: [],
-    containers: [],
-  },
-  {
-    id: 'restaurant-a',
-    name: "Joe's Bar",
-    type: 'customer',
-    products: [],
-    containers: [],
-  },
-  {
-    id: 'returns-area',
-    name: 'Returns Processing',
-    type: 'cleaning',
-    products: [],
-    containers: [],
+    status: 'pending',
+    createdAt: new Date(),
   },
 ];
 
 export default function CanvasLogistics() {
-  const { addNotification } = useNotifications();
-  const [locations, setLocations] = useState<Location[]>(initialLocations);
-  const [alerts, setAlerts] = useState<Alert[]>([]);
-  const [selectedStage, setSelectedStage] = useState<string | null>(null);
-  const [selectedItem, setSelectedItem] = useState<{
-    type: 'container' | 'product' | 'location';
-    data: any;
-  } | null>(null);
-  const [draggedItem, setDraggedItem] = useState<{
-    containerId: string;
-    productName: string;
-    containerType: string;
-    fromLocationId: string;
-  } | null>(null);
-  const [showAddContainer, setShowAddContainer] = useState(false);
-  const [showAlerts, setShowAlerts] = useState(false);
-  const [newContainer, setNewContainer] = useState({
-    productName: '',
-    type: 'keg' as Container['type'],
-    quantity: 1,
-    locationId: '',
-    batchId: 'B-001',
-  });
+  const [containers] = useState<Container[]>(initialContainers);
+  const [orders, setOrders] = useState<Order[]>(initialOrders);
+  const [trucks, setTrucks] = useState<Truck[]>([
+    { id: 'truck-001', name: 'Truck #1', status: 'loading', containers: [] },
+  ]);
+  const [stagingArea, setStagingArea] = useState<Container[]>([]);
+  const [selectedStage, setSelectedStage] = useState<WorkflowStage>('production');
+  const [selectedContainer, setSelectedContainer] = useState<Container | null>(null);
+  const [detailPanelOpen, setDetailPanelOpen] = useState(false);
+  const [draggedItem, setDraggedItem] = useState<Container | null>(null);
 
-  // Compute alerts whenever locations change
-  useEffect(() => {
-    const allContainers = locations.flatMap((loc) => loc.products.flatMap(p => p.containers));
-    const computedAlerts = getAllAlerts(locations, allContainers);
-    setAlerts(computedAlerts);
-  }, [locations]);
+  // Workflow stages in order
+  const workflowStages: { id: WorkflowStage; label: string; icon: any; color: string }[] = [
+    { id: 'production', label: 'Production', icon: Beer, color: 'bg-blue-500' },
+    { id: 'packaging', label: 'Packaging', icon: Package, color: 'bg-purple-500' },
+    { id: 'delivery', label: 'Delivery', icon: Truck, color: 'bg-orange-500' },
+    { id: 'tax', label: 'Tax Determination', icon: AlertCircle, color: 'bg-yellow-500' },
+    { id: 'restaurant', label: 'Restaurant', icon: MapPin, color: 'bg-green-500' },
+    { id: 'returns', label: 'Keg Returns', icon: RotateCcw, color: 'bg-gray-500' },
+  ];
 
-  // Drag and drop handlers
-  const handleDragStart = useCallback(
-    (containerId: string, productName: string, containerType: string, fromLocationId: string) => {
-      setDraggedItem({ containerId, productName, containerType, fromLocationId });
-    },
-    []
-  );
-
-  const handleDragEnd = useCallback(() => {
-    setDraggedItem(null);
-  }, []);
-
-  const handleDrop = useCallback(
-    (toLocationId: string) => {
-      if (!draggedItem) return;
-
-      const fromLocation = locations.find((l) => l.id === draggedItem.fromLocationId);
-      const toLocation = locations.find((l) => l.id === toLocationId);
-      
-      if (!fromLocation || !toLocation) return;
-
-      const container = fromLocation.products
-        .find(
-          (p) =>
-            p.productName === draggedItem.productName &&
-            p.containerType === draggedItem.containerType
-        )
-        ?.containers.find((c) => c.id === draggedItem.containerId);
-
-      if (!container) return;
-
-      // Validate the move
-      const validation = validateContainerMove(
-        {
-          id: container.id,
-          product: container.productName,
-          type: container.type,
-          status: container.status,
-          batchId: container.batchId,
-        } as any,
-        {
-          id: fromLocation.id,
-          name: fromLocation.name,
-          type: fromLocation.type,
-          capacity: fromLocation.capacity,
-          containers: fromLocation.products.flatMap((p) => p.containers) as any,
-        },
-        {
-          id: toLocation.id,
-          name: toLocation.name,
-          type: toLocation.type,
-          capacity: toLocation.capacity,
-          containers: toLocation.products.flatMap((p) => p.containers) as any,
-        }
-      );
-
-      if (!validation.valid) {
-        addNotification({
-          title: 'Move Blocked',
-          description: formatValidationMessage(validation),
-          time: 'Just now',
-          type: 'system',
-          icon: 'alert-circle',
-        });
-        setDraggedItem(null);
-        return;
-      }
-
-      if (validation.warnings.length > 0) {
-        addNotification({
-          title: 'Warning',
-          description: formatValidationMessage(validation),
-          time: 'Just now',
-          type: 'system',
-          icon: 'alert-triangle',
-        });
-      }
-
-      // Update locations state
-      setLocations((prevLocations) => {
-        const newLocations = prevLocations.map((loc) => {
-          // Remove from source
-          if (loc.id === draggedItem.fromLocationId) {
-            return {
-              ...loc,
-              products: loc.products.map((prod) => {
-                if (
-                  prod.productName === draggedItem.productName &&
-                  prod.containerType === draggedItem.containerType
-                ) {
-                  return {
-                    ...prod,
-                    quantity: prod.quantity - 1,
-                    containers: prod.containers.filter(
-                      (c) => c.id !== draggedItem.containerId
-                    ),
-                  };
-                }
-                return prod;
-              }).filter((prod) => prod.quantity > 0),
-            };
-          }
-
-          // Add to destination
-          if (loc.id === toLocationId) {
-            const existingProduct = loc.products.find(
-              (p) =>
-                p.productName === draggedItem.productName &&
-                p.containerType === draggedItem.containerType
-            );
-
-            const updatedContainer = { ...container, locationId: toLocationId };
-
-            if (existingProduct) {
-              return {
-                ...loc,
-                products: loc.products.map((prod) =>
-                  prod.productName === draggedItem.productName &&
-                  prod.containerType === draggedItem.containerType
-                    ? {
-                        ...prod,
-                        quantity: prod.quantity + 1,
-                        containers: [...prod.containers, updatedContainer],
-                      }
-                    : prod
-                ),
-              };
-            } else {
-              return {
-                ...loc,
-                products: [
-                  ...loc.products,
-                  {
-                    productId: container.productId,
-                    productName: container.productName,
-                    containerType: container.type,
-                    quantity: 1,
-                    containers: [updatedContainer],
-                  },
-                ],
-              };
-            }
-          }
-
-          return loc;
-        });
-
-        return newLocations;
-      });
-
-      addNotification({
-        title: 'Container Moved',
-        description: `${container.productName} moved to ${toLocation.name}`,
-        time: 'Just now',
-        type: 'inventory',
-        icon: 'package',
-      });
-
-      setDraggedItem(null);
-    },
-    [draggedItem, locations, addNotification]
-  );
-
-  const handleAddContainer = () => {
-    if (!newContainer.locationId) return;
-
-    const containers: Container[] = [];
-    for (let i = 0; i < newContainer.quantity; i++) {
-      containers.push({
-        id: `${newContainer.type.toUpperCase()}-${Date.now()}-${i}`,
-        productId: `PROD-${Date.now()}`,
-        productName: newContainer.productName,
-        batchId: newContainer.batchId,
-        type: newContainer.type,
-        status: 'pending',
-        locationId: newContainer.locationId,
-      });
-    }
-
-    setLocations(
-      locations.map((loc) => {
-        if (loc.id === newContainer.locationId) {
-          const existingProduct = loc.products.find(
-            (p) =>
-              p.productName === newContainer.productName &&
-              p.containerType === newContainer.type
-          );
-
-          if (existingProduct) {
-            return {
-              ...loc,
-              products: loc.products.map((p) =>
-                p.productName === newContainer.productName &&
-                p.containerType === newContainer.type
-                  ? {
-                      ...p,
-                      quantity: p.quantity + newContainer.quantity,
-                      containers: [...p.containers, ...containers],
-                    }
-                  : p
-              ),
-            };
-          } else {
-            return {
-              ...loc,
-              products: [
-                ...loc.products,
-                {
-                  productId: `PROD-${Date.now()}`,
-                  productName: newContainer.productName,
-                  containerType: newContainer.type,
-                  quantity: newContainer.quantity,
-                  containers,
-                },
-              ],
-            };
-          }
-        }
-        return loc;
-      })
-    );
-
-    setShowAddContainer(false);
-    setNewContainer({
-      productName: '',
-      type: 'keg',
-      quantity: 1,
-      locationId: '',
-      batchId: 'B-001',
-    });
-  };
-
-  const getContainerIcon = (type: Container['type']) => {
+  // Get icon for container type
+  const getContainerIcon = (type: ContainerType) => {
     switch (type) {
       case 'keg':
-        return <Beer className="h-4 w-4" />;
-      case 'case':
-        return <Package className="h-4 w-4" />;
+        return Beer;
       case 'bottle':
-        return <Wine className="h-4 w-4" />;
+        return Wine;
+      case 'case':
       case 'can':
-        return <Package className="h-4 w-4" />;
+        return Package;
+      default:
+        return Package;
     }
   };
 
-  const getStatusColor = (status: Container['status']) => {
+  // Get status color
+  const getStatusColor = (status: ContainerStatus) => {
     switch (status) {
       case 'pending':
-        return 'border-l-yellow-500';
+        return 'border-yellow-500';
       case 'approved':
-        return 'border-l-green-500';
+        return 'border-green-500';
+      case 'staged':
+        return 'border-blue-500';
       case 'loaded':
-        return 'border-l-blue-500';
+        return 'border-orange-500';
       case 'in-transit':
-        return 'border-l-orange-500';
+        return 'border-purple-500';
       case 'delivered':
-        return 'border-l-purple-500';
+        return 'border-emerald-500';
       case 'returned':
-        return 'border-l-gray-500';
+        return 'border-gray-500';
       default:
-        return 'border-l-gray-300';
+        return 'border-gray-300';
     }
   };
 
-  const getStageLocation = (stageId: string): Location | undefined => {
-    return locations.find(loc => {
-      if (stageId === 'tax' && loc.type === 'tax') return true;
-      if (stageId === 'production' && loc.type === 'production') return true;
-      if (stageId === 'packaging' && loc.name.includes('Packaging')) return true;
-      if (stageId === 'delivery' && loc.type === 'truck') return true;
-      if (stageId === 'restaurant' && loc.type === 'customer') return true;
-      if (stageId === 'returns' && loc.type === 'cleaning') return true;
-      return false;
-    });
+  // Drag handlers
+  const handleDragStart = (container: Container) => {
+    setDraggedItem(container);
   };
 
-  // Calculate positions for circular layout
-  const radius = 220;
-  const centerX = 300;
-  const centerY = 300;
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+  };
+
+  const handleDropToStaging = (e: React.DragEvent) => {
+    e.preventDefault();
+    if (draggedItem && !stagingArea.find((c) => c.id === draggedItem.id)) {
+      setStagingArea([...stagingArea, { ...draggedItem, status: 'staged' }]);
+      setDraggedItem(null);
+    }
+  };
+
+  const handleDropToTruck = (truckId: string) => {
+    if (draggedItem) {
+      setTrucks(
+        trucks.map((truck) =>
+          truck.id === truckId
+            ? {
+                ...truck,
+                containers: [...truck.containers, { ...draggedItem, status: 'loaded', truckId }],
+              }
+            : truck
+        )
+      );
+      setStagingArea(stagingArea.filter((c) => c.id !== draggedItem.id));
+      setDraggedItem(null);
+    }
+  };
+
+  // Approve order
+  const approveOrder = (orderId: string) => {
+    const order = orders.find((o) => o.id === orderId);
+    if (order) {
+      setStagingArea([...stagingArea, ...order.items.map((item) => ({ ...item, status: 'approved' as ContainerStatus }))]);
+      setOrders(orders.map((o) => (o.id === orderId ? { ...o, status: 'approved' } : o)));
+    }
+  };
+
+  // Mark truck as on road (triggers tax determination)
+  const markTruckOnRoad = (truckId: string) => {
+    setTrucks(
+      trucks.map((truck) =>
+        truck.id === truckId
+          ? {
+              ...truck,
+              status: 'in-transit',
+              departureTime: new Date(),
+              containers: truck.containers.map((c) => ({ ...c, status: 'in-transit', stage: 'tax' })),
+            }
+          : truck
+      )
+    );
+    // Trigger tax determination
+    alert('Tax determination triggered for truck departure from bonded facility (TTB requirement)');
+  };
+
+  // View container details
+  const viewContainerDetails = (container: Container) => {
+    setSelectedContainer(container);
+    setDetailPanelOpen(true);
+  };
+
+  // Get containers by stage
+  const getContainersByStage = (stage: WorkflowStage) => {
+    return containers.filter((c) => c.stage === stage);
+  };
 
   return (
-    <div className="flex h-full flex-col bg-background">
-      {/* Alert Bar */}
-      {alerts.length > 0 && (
-        <div className="border-b bg-destructive/10 p-3">
-          <div className="flex items-center gap-2">
-            <AlertCircle className="h-4 w-4 text-destructive" />
-            <span className="text-sm font-medium">
-              {alerts.length} Active Alert{alerts.length > 1 ? 's' : ''}
-            </span>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setShowAlerts(!showAlerts)}
-            >
-              View All
-            </Button>
-          </div>
+    <div className="h-screen flex flex-col bg-background">
+      {/* Top Toolbar - 30% */}
+      <div className="h-[30%] border-b border-border p-4">
+        {/* Power Tools Bar */}
+        <div className="flex items-center gap-2 mb-4">
+          <Button size="sm" variant="outline">
+            <Plus className="h-4 w-4 mr-2" />
+            Add Container
+          </Button>
+          <Button size="sm" variant="outline">
+            <Package className="h-4 w-4 mr-2" />
+            Create Pallet
+          </Button>
+          <Button size="sm" variant="outline">
+            <Printer className="h-4 w-4 mr-2" />
+            Print Labels
+          </Button>
+          <Button size="sm" variant="outline">
+            <QrCode className="h-4 w-4 mr-2" />
+            Generate QR
+          </Button>
+          <Button size="sm" variant="outline">
+            <AlertCircle className="h-4 w-4 mr-2" />
+            Alerts
+          </Button>
         </div>
-      )}
 
-      {/* Toolbar */}
-      <div className="border-b bg-card p-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <h2 className="text-lg font-semibold">Logistics Canvas</h2>
-            <Badge variant="secondary">
-              {locations.reduce((sum, loc) => sum + loc.products.reduce((s, p) => s + p.quantity, 0), 0)} Containers
-            </Badge>
-            {alerts.length > 0 && (
-              <Badge variant="destructive" className="gap-1">
-                <Bell className="h-3 w-3" />
-                {alerts.length}
-              </Badge>
-            )}
-          </div>
-          <div className="flex gap-2">
-            <Dialog open={showAddContainer} onOpenChange={setShowAddContainer}>
-              <DialogTrigger asChild>
-                <Button size="sm" variant="outline">
-                  <Plus className="mr-2 h-4 w-4" />
-                  Add Containers
-                </Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>Add Containers</DialogTitle>
-                  <DialogDescription>
-                    Add kegs, cases, bottles, or cans to a location
-                  </DialogDescription>
-                </DialogHeader>
-                <div className="space-y-4 py-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="product-name">Product Name</Label>
-                    <Input
-                      id="product-name"
-                      placeholder="e.g., Hopped Cider, Dry Cider"
-                      value={newContainer.productName}
-                      onChange={(e) =>
-                        setNewContainer({
-                          ...newContainer,
-                          productName: e.target.value,
-                        })
-                      }
-                    />
+        {/* Linear Workflow Stages */}
+        <div className="flex items-center gap-2 h-[calc(100%-60px)]">
+          {workflowStages.map((stage, index) => {
+            const Icon = stage.icon;
+            const stageContainers = getContainersByStage(stage.id);
+            const isSelected = selectedStage === stage.id;
+
+            return (
+              <div key={stage.id} className="flex items-center flex-1">
+                <Card
+                  className={`flex-1 h-full p-4 cursor-pointer transition-all hover:shadow-lg ${
+                    isSelected ? 'ring-2 ring-primary' : ''
+                  }`}
+                  onClick={() => setSelectedStage(stage.id)}
+                >
+                  <div className="flex flex-col items-center justify-center h-full gap-2">
+                    <div className={`${stage.color} p-3 rounded-full text-white`}>
+                      <Icon className="h-6 w-6" />
+                    </div>
+                    <div className="text-sm font-semibold text-center">{stage.label}</div>
+                    <Badge variant="secondary">{stageContainers.length}</Badge>
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="container-type">Container Type</Label>
-                    <Select
-                      value={newContainer.type}
-                      onValueChange={(value: Container['type']) =>
-                        setNewContainer({ ...newContainer, type: value })
-                      }
-                    >
-                      <SelectTrigger id="container-type">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="keg">Keg</SelectItem>
-                        <SelectItem value="case">Case</SelectItem>
-                        <SelectItem value="bottle">Bottle</SelectItem>
-                        <SelectItem value="can">Can (6-pack)</SelectItem>
-                      </SelectContent>
-                    </Select>
+                </Card>
+                {index < workflowStages.length - 1 && (
+                  <div className="w-8 flex items-center justify-center">
+                    <div className="w-full h-0.5 bg-border"></div>
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="quantity">Quantity</Label>
-                    <Input
-                      id="quantity"
-                      type="number"
-                      min="1"
-                      value={newContainer.quantity}
-                      onChange={(e) =>
-                        setNewContainer({
-                          ...newContainer,
-                          quantity: parseInt(e.target.value) || 1,
-                        })
-                      }
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="location">Location</Label>
-                    <Select
-                      value={newContainer.locationId}
-                      onValueChange={(value) =>
-                        setNewContainer({ ...newContainer, locationId: value })
-                      }
-                    >
-                      <SelectTrigger id="location">
-                        <SelectValue placeholder="Select location" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {locations.map((loc) => (
-                          <SelectItem key={loc.id} value={loc.id}>
-                            {loc.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-                <DialogFooter>
-                  <Button
-                    variant="outline"
-                    onClick={() => setShowAddContainer(false)}
-                  >
-                    Cancel
-                  </Button>
-                  <Button
-                    onClick={handleAddContainer}
-                    disabled={
-                      !newContainer.productName || !newContainer.locationId
-                    }
-                  >
-                    Add Containers
-                  </Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
-            <CreatePalletDialog
-              onCreatePallet={(data) => {
-                addNotification({
-                  title: 'Pallet Created',
-                  description: `${data.name} created successfully`,
-                  time: 'Just now',
-                  type: 'production',
-                  icon: 'package',
-                });
-              }}
-            />
-            <Button size="sm" variant="outline">
-              <Printer className="mr-2 h-4 w-4" />
-              Print Labels
-            </Button>
-          </div>
+                )}
+              </div>
+            );
+          })}
         </div>
       </div>
 
-      {/* Main Content - 50/50 Split */}
-      <div className="flex flex-1 overflow-hidden">
-        {/* Left Side - Circular Lifecycle (50%) */}
-        <div className="flex-1 relative border-r">
-          <div className="absolute inset-0 flex items-center justify-center">
-            <div className="relative" style={{ width: '600px', height: '600px' }}>
-              {/* SVG for circular connections */}
-              <svg
-                className="absolute inset-0 pointer-events-none"
-                style={{ width: '600px', height: '600px' }}
-              >
-                <circle
-                  cx={centerX}
-                  cy={centerY}
-                  r={radius}
-                  fill="none"
-                  stroke="hsl(var(--border))"
-                  strokeWidth="2"
-                  strokeDasharray="8 4"
-                  opacity="0.5"
-                />
-                {stages.map((stage, idx) => {
-                  const nextStage = stages[(idx + 1) % stages.length];
-                  const x1 = centerX + radius * Math.cos((stage.angle * Math.PI) / 180);
-                  const y1 = centerY + radius * Math.sin((stage.angle * Math.PI) / 180);
-                  const x2 = centerX + radius * Math.cos((nextStage.angle * Math.PI) / 180);
-                  const y2 = centerY + radius * Math.sin((nextStage.angle * Math.PI) / 180);
-                  
-                  return (
-                    <line
-                      key={`line-${stage.id}`}
-                      x1={x1}
-                      y1={y1}
-                      x2={x2}
-                      y2={y2}
-                      stroke="hsl(var(--primary))"
-                      strokeWidth="2"
-                      opacity="0.3"
-                    />
-                  );
-                })}
-              </svg>
+      {/* Bottom Area - 70% Split */}
+      <div className="h-[70%] flex">
+        {/* Left: Virtual Staging Area - 50% */}
+        <div
+          className="w-1/2 border-r border-border p-4 overflow-y-auto"
+          onDragOver={handleDragOver}
+          onDrop={handleDropToStaging}
+        >
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-semibold">Virtual Staging Area</h2>
+            <Badge variant="outline">{stagingArea.length} items</Badge>
+          </div>
 
-              {/* Stage nodes */}
-              {stages.map(stage => {
-                const x = centerX + radius * Math.cos((stage.angle * Math.PI) / 180);
-                const y = centerY + radius * Math.sin((stage.angle * Math.PI) / 180);
-                const Icon = stage.icon;
-                const isSelected = selectedStage === stage.id;
-                const location = getStageLocation(stage.id);
-                const itemCount = location?.products.reduce((sum, p) => sum + p.quantity, 0) || 0;
-
-                return (
-                  <button
-                    key={stage.id}
-                    onClick={() => {
-                      setSelectedStage(stage.id === selectedStage ? null : stage.id);
-                      if (location) {
-                        setSelectedItem({ type: 'location', data: location });
-                      }
-                    }}
-                    onDragOver={(e) => {
-                      e.preventDefault();
-                      e.currentTarget.classList.add('ring-2', 'ring-primary');
-                    }}
-                    onDragLeave={(e) => {
-                      e.currentTarget.classList.remove('ring-2', 'ring-primary');
-                    }}
-                    onDrop={(e) => {
-                      e.preventDefault();
-                      e.currentTarget.classList.remove('ring-2', 'ring-primary');
-                      if (location) {
-                        handleDrop(location.id);
-                      }
-                    }}
-                    className={`absolute transform -translate-x-1/2 -translate-y-1/2 transition-all duration-300 ${
-                      isSelected ? 'scale-110 z-10' : 'hover:scale-105'
-                    }`}
-                    style={{
-                      left: `${x}px`,
-                      top: `${y}px`,
-                    }}
-                  >
-                    <div
-                      className={`relative flex flex-col items-center gap-2 p-4 rounded-xl bg-card border-2 transition-all ${
-                        isSelected
-                          ? `${stage.borderColor} shadow-lg`
-                          : 'border-border hover:border-primary/50'
-                      }`}
-                      style={{ width: '120px' }}
-                    >
-                      {isSelected && (
-                        <div className={`absolute inset-0 rounded-xl ${stage.bgColor} animate-pulse`} />
-                      )}
-                      
-                      <div
-                        className={`relative z-10 p-3 rounded-full bg-background border-2 ${
-                          isSelected ? stage.borderColor : 'border-border'
-                        }`}
-                      >
-                        <Icon className={`h-5 w-5 ${stage.color}`} />
-                      </div>
-                      <span className="relative z-10 text-xs font-medium text-center leading-tight">
-                        {stage.name}
-                      </span>
-                      {itemCount > 0 && (
-                        <Badge variant="secondary" className="relative z-10 text-xs">
-                          {itemCount}
-                        </Badge>
-                      )}
+          {/* Pending Orders */}
+          <div className="mb-6">
+            <h3 className="text-sm font-medium mb-2 text-muted-foreground">Pending Orders</h3>
+            {orders
+              .filter((o) => o.status === 'pending')
+              .map((order) => (
+                <Card key={order.id} className="p-3 mb-2">
+                  <div className="flex items-center justify-between mb-2">
+                    <div>
+                      <div className="font-medium">{order.restaurantName}</div>
+                      <div className="text-xs text-muted-foreground">{order.id}</div>
                     </div>
-                  </button>
+                    <Button size="sm" onClick={() => approveOrder(order.id)}>
+                      <CheckCircle className="h-4 w-4 mr-1" />
+                      Approve
+                    </Button>
+                  </div>
+                  <div className="text-sm text-muted-foreground">
+                    {order.items.length} items • {order.items.reduce((sum, item) => sum + item.quantity, 0)} units
+                  </div>
+                </Card>
+              ))}
+          </div>
+
+          {/* Staged Items */}
+          <div>
+            <h3 className="text-sm font-medium mb-2 text-muted-foreground">Ready to Load</h3>
+            <div className="grid grid-cols-2 gap-2">
+              {stagingArea.map((container) => {
+                const Icon = getContainerIcon(container.type);
+                return (
+                  <Card
+                    key={container.id}
+                    className={`p-3 cursor-move border-2 ${getStatusColor(container.status)}`}
+                    draggable
+                    onDragStart={() => handleDragStart(container)}
+                    onClick={() => viewContainerDetails(container)}
+                  >
+                    <div className="flex items-start gap-2">
+                      <Icon className="h-5 w-5 text-primary flex-shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <div className="font-medium text-sm truncate">{container.product}</div>
+                        <div className="text-xs text-muted-foreground">{container.quantity} units</div>
+                        <Badge variant="outline" className="text-xs mt-1">
+                          {container.batchNumber}
+                        </Badge>
+                      </div>
+                    </div>
+                  </Card>
                 );
               })}
             </div>
           </div>
         </div>
 
-        {/* Right Side - Info Box (50%) */}
-        <div className="flex-1 flex items-center justify-center p-6">
-          <Card className="w-full max-w-2xl h-[600px] border-2 shadow-xl">
-            <CardHeader className="border-b">
-              <CardTitle className="flex items-center justify-between">
-                <span>
-                  {selectedItem?.type === 'location' 
-                    ? selectedItem.data.name 
-                    : selectedStage 
-                    ? stages.find(s => s.id === selectedStage)?.name 
-                    : 'Select a Stage'}
-                </span>
-                {selectedItem && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => {
-                      setSelectedItem(null);
-                      setSelectedStage(null);
-                    }}
-                  >
-                    ×
-                  </Button>
-                )}
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="p-0">
-              <ScrollArea className="h-[500px]">
-                <div className="p-6">
-                  {!selectedItem && !selectedStage ? (
-                    <div className="flex flex-col items-center justify-center h-full text-center py-20">
-                      <Package className="h-16 w-16 text-muted-foreground mb-4" />
-                      <h3 className="text-lg font-semibold mb-2">No Stage Selected</h3>
-                      <p className="text-sm text-muted-foreground">
-                        Click on a lifecycle stage to view details and manage containers
-                      </p>
-                    </div>
-                  ) : selectedItem?.type === 'location' ? (
-                    <div className="space-y-4">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <h4 className="font-semibold text-lg">{selectedItem.data.name}</h4>
-                          <p className="text-sm text-muted-foreground capitalize">
-                            {selectedItem.data.type}
-                          </p>
-                        </div>
-                        <Badge variant="secondary">
-                          {selectedItem.data.products.reduce((sum: number, p: ProductGroup) => sum + p.quantity, 0)} items
+        {/* Right: Info Bar with Tabs - 50% */}
+        <div className="w-1/2 p-4 overflow-y-auto">
+          <Tabs defaultValue="trucks" className="h-full">
+            <TabsList className="grid w-full grid-cols-3">
+              <TabsTrigger value="trucks">Trucks</TabsTrigger>
+              <TabsTrigger value="restaurants">Restaurants</TabsTrigger>
+              <TabsTrigger value="stage-info">Stage Info</TabsTrigger>
+            </TabsList>
+
+            {/* Trucks Tab */}
+            <TabsContent value="trucks" className="space-y-4">
+              {trucks.map((truck) => (
+                <Card key={truck.id} className="p-4" onDragOver={handleDragOver} onDrop={() => handleDropToTruck(truck.id)}>
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-2">
+                      <Truck className="h-5 w-5 text-primary" />
+                      <div>
+                        <div className="font-semibold">{truck.name}</div>
+                        <Badge variant="outline" className="text-xs">
+                          {truck.status}
                         </Badge>
                       </div>
-
-                      {selectedItem.data.products.length === 0 ? (
-                        <div className="text-center py-12">
-                          <Package className="h-12 w-12 mx-auto text-muted-foreground mb-3" />
-                          <p className="text-sm text-muted-foreground">No containers in this location</p>
-                        </div>
-                      ) : (
-                        <div className="space-y-3">
-                          {selectedItem.data.products.map((product: ProductGroup) => (
-                            <Card key={`${product.productId}-${product.containerType}`} className="border-l-4 border-l-primary">
-                              <CardContent className="p-4">
-                                <div className="flex items-center justify-between mb-3">
-                                  <div className="flex items-center gap-2">
-                                    {getContainerIcon(product.containerType)}
-                                    <div>
-                                      <p className="font-medium">{product.productName}</p>
-                                      <p className="text-xs text-muted-foreground capitalize">
-                                        {product.containerType}
-                                      </p>
-                                    </div>
-                                  </div>
-                                  <Badge>{product.quantity}</Badge>
-                                </div>
-                                <div className="space-y-2">
-                                  {product.containers.slice(0, 3).map((container: Container) => (
-                                    <div
-                                      key={container.id}
-                                      draggable
-                                      onDragStart={() =>
-                                        handleDragStart(
-                                          container.id,
-                                          container.productName,
-                                          container.type,
-                                          container.locationId
-                                        )
-                                      }
-                                      onDragEnd={handleDragEnd}
-                                      className={`flex items-center justify-between p-2 rounded border-l-4 ${getStatusColor(container.status)} bg-card hover:bg-accent cursor-move transition-colors`}
-                                    >
-                                      <div className="flex items-center gap-2">
-                                        <GripVertical className="h-4 w-4 text-muted-foreground" />
-                                        <div>
-                                          <p className="text-sm font-mono">{container.id}</p>
-                                          <p className="text-xs text-muted-foreground">
-                                            Batch: {container.batchId}
-                                          </p>
-                                        </div>
-                                      </div>
-                                      <Badge variant="outline" className="text-xs">
-                                        {container.status}
-                                      </Badge>
-                                    </div>
-                                  ))}
-                                  {product.quantity > 3 && (
-                                    <p className="text-xs text-muted-foreground text-center">
-                                      +{product.quantity - 3} more containers
-                                    </p>
-                                  )}
-                                </div>
-                              </CardContent>
-                            </Card>
-                          ))}
-                        </div>
-                      )}
                     </div>
-                  ) : null}
+                    {truck.status === 'loaded' && (
+                      <Button size="sm" onClick={() => markTruckOnRoad(truck.id)}>
+                        <Clock className="h-4 w-4 mr-1" />
+                        On Road
+                      </Button>
+                    )}
+                  </div>
+
+                  <div className="space-y-2">
+                    <div className="text-sm text-muted-foreground">
+                      {truck.containers.length} items loaded • {truck.containers.reduce((sum, c) => sum + c.quantity, 0)} units
+                    </div>
+                    {truck.containers.map((container) => {
+                      const Icon = getContainerIcon(container.type);
+                      return (
+                        <div
+                          key={container.id}
+                          className="flex items-center gap-2 p-2 bg-muted rounded cursor-pointer hover:bg-muted/80"
+                          onClick={() => viewContainerDetails(container)}
+                        >
+                          <Icon className="h-4 w-4 text-primary" />
+                          <div className="flex-1">
+                            <div className="text-sm font-medium">{container.product}</div>
+                            <div className="text-xs text-muted-foreground">{container.quantity} units</div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </Card>
+              ))}
+            </TabsContent>
+
+            {/* Restaurants Tab */}
+            <TabsContent value="restaurants">
+              <Card className="p-4">
+                <div className="text-center text-muted-foreground py-8">
+                  <MapPin className="h-12 w-12 mx-auto mb-2 opacity-50" />
+                  <p>No deliveries yet</p>
                 </div>
-              </ScrollArea>
-            </CardContent>
-          </Card>
+              </Card>
+            </TabsContent>
+
+            {/* Stage Info Tab */}
+            <TabsContent value="stage-info">
+              <Card className="p-4">
+                <h3 className="font-semibold mb-3">
+                  {workflowStages.find((s) => s.id === selectedStage)?.label}
+                </h3>
+                <div className="space-y-2">
+                  {getContainersByStage(selectedStage).map((container) => {
+                    const Icon = getContainerIcon(container.type);
+                    return (
+                      <div
+                        key={container.id}
+                        className={`flex items-center gap-2 p-3 border-2 rounded cursor-pointer hover:bg-muted/50 ${getStatusColor(
+                          container.status
+                        )}`}
+                        draggable
+                        onDragStart={() => handleDragStart(container)}
+                        onClick={() => viewContainerDetails(container)}
+                      >
+                        <Icon className="h-5 w-5 text-primary" />
+                        <div className="flex-1">
+                          <div className="font-medium">{container.product}</div>
+                          <div className="text-sm text-muted-foreground">
+                            {container.quantity} units • {container.batchNumber}
+                          </div>
+                        </div>
+                        <Badge variant="outline">{container.status}</Badge>
+                      </div>
+                    );
+                  })}
+                </div>
+              </Card>
+            </TabsContent>
+          </Tabs>
         </div>
       </div>
 
-      {/* Alerts Dialog */}
-      {showAlerts && (
-        <Dialog open={showAlerts} onOpenChange={setShowAlerts}>
-          <DialogContent className="max-w-2xl max-h-[80vh]">
-            <DialogHeader>
-              <DialogTitle className="flex items-center gap-2">
-                <AlertTriangle className="h-5 w-5 text-destructive" />
-                System Alerts
-              </DialogTitle>
-              <DialogDescription>
-                {alerts.length} active alert{alerts.length > 1 ? 's' : ''} requiring attention
-              </DialogDescription>
-            </DialogHeader>
-            <ScrollArea className="max-h-[60vh]">
-              <div className="space-y-3 p-4">
-                {alerts.map((alert) => (
-                  <Card key={alert.id} className="p-4">
-                    <div className="flex items-start gap-3">
-                      <div className="text-2xl">{getAlertIcon(alert.type)}</div>
-                      <div className="flex-1">
-                        <div className="flex items-center justify-between mb-1">
-                          <h4 className="font-semibold">{alert.title}</h4>
-                          <Badge className={getAlertColor(alert.severity)}>
-                            {alert.severity}
-                          </Badge>
-                        </div>
-                        <p className="text-sm text-muted-foreground">{alert.message}</p>
-                        {alert.productName && (
-                          <Badge variant="outline" className="text-xs mt-2">
-                            {alert.productName}
-                          </Badge>
-                        )}
-                      </div>
-                    </div>
-                  </Card>
-                ))}
+      {/* Detail Panel Slide-out */}
+      <Sheet open={detailPanelOpen} onOpenChange={setDetailPanelOpen}>
+        <SheetContent>
+          <SheetHeader>
+            <SheetTitle>Container Details</SheetTitle>
+          </SheetHeader>
+          {selectedContainer && (
+            <div className="mt-6 space-y-4">
+              <div>
+                <div className="text-sm text-muted-foreground">Product</div>
+                <div className="font-semibold">{selectedContainer.product}</div>
               </div>
-            </ScrollArea>
-          </DialogContent>
-        </Dialog>
-      )}
+              <div>
+                <div className="text-sm text-muted-foreground">Batch Number</div>
+                <div className="font-mono">{selectedContainer.batchNumber}</div>
+              </div>
+              <div>
+                <div className="text-sm text-muted-foreground">Container ID</div>
+                <div className="font-mono">{selectedContainer.id}</div>
+              </div>
+              <div>
+                <div className="text-sm text-muted-foreground">Quantity</div>
+                <div>{selectedContainer.quantity} units</div>
+              </div>
+              <div>
+                <div className="text-sm text-muted-foreground">Status</div>
+                <Badge>{selectedContainer.status}</Badge>
+              </div>
+              <div>
+                <div className="text-sm text-muted-foreground">Stage</div>
+                <Badge variant="outline">{selectedContainer.stage}</Badge>
+              </div>
+              {selectedContainer.qrCode && (
+                <div>
+                  <div className="text-sm text-muted-foreground mb-2">QR Code</div>
+                  <div className="bg-muted p-4 rounded text-center">
+                    <QrCode className="h-24 w-24 mx-auto" />
+                    <div className="text-xs mt-2 font-mono">{selectedContainer.qrCode}</div>
+                  </div>
+                </div>
+              )}
+              <div className="pt-4 space-y-2">
+                <Button className="w-full" variant="outline">
+                  <Printer className="h-4 w-4 mr-2" />
+                  Print Label
+                </Button>
+                <Button className="w-full" variant="outline">
+                  <QrCode className="h-4 w-4 mr-2" />
+                  Generate QR Code
+                </Button>
+              </div>
+            </div>
+          )}
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }
