@@ -318,7 +318,7 @@ export default function CanvasLogistics() {
           content: (
             <div className="space-y-3">
               <div 
-                className="bg-orange-50 border border-orange-200 p-4 rounded cursor-pointer hover:bg-orange-100 transition-colors"
+                className="bg-orange-500/10 border border-orange-500/20 p-4 rounded cursor-pointer hover:bg-orange-500/20 transition-colors"
                 onClick={() => handleTruckClick(truck)}
               >
                 <div className="flex justify-between items-start mb-3">
@@ -335,7 +335,7 @@ export default function CanvasLogistics() {
                     <span>Capacity</span>
                     <span className="font-semibold">{capacity}%</span>
                   </div>
-                  <div className="w-full bg-gray-200 rounded-full h-2">
+                  <div className="w-full bg-muted rounded-full h-2">
                     <div
                       className="bg-orange-500 h-2 rounded-full transition-all"
                       style={{ width: `${capacity}%` }}
@@ -367,7 +367,7 @@ export default function CanvasLogistics() {
           title: 'Tax Determination',
           content: (
             <div className="space-y-3">
-              <div className="bg-purple-50 border border-purple-200 p-4 rounded">
+              <div className="bg-purple-500/10 border border-purple-500/20 p-4 rounded">
                 <h4 className="font-semibold mb-2">Bonded Storage</h4>
                 <div className="space-y-2">
                   <div className="flex justify-between">
@@ -398,7 +398,7 @@ export default function CanvasLogistics() {
                 return (
                   <div
                     key={location.id}
-                    className="bg-red-50 border border-red-200 p-4 rounded cursor-pointer hover:bg-red-100 transition-colors"
+                    className="bg-red-500/10 border border-red-500/20 p-4 rounded cursor-pointer hover:bg-red-500/20 transition-colors"
                     onClick={() => handleLocationClick(location)}
                   >
                     <div className="flex justify-between items-start">
@@ -423,7 +423,7 @@ export default function CanvasLogistics() {
           title: 'Keg Returns',
           content: (
             <div className="space-y-3">
-              <div className="bg-gray-50 border border-gray-200 p-4 rounded">
+              <div className="bg-gray-500/10 border border-gray-500/20 p-4 rounded">
                 <h4 className="font-semibold mb-2">Empty Containers</h4>
                 <div className="space-y-2">
                   <div className="flex justify-between">
@@ -606,7 +606,7 @@ export default function CanvasLogistics() {
                             {orderContainers.map((container) => (
                               <div
                                 key={container.id}
-                                className="text-sm flex items-center justify-between bg-white p-2 rounded cursor-pointer hover:bg-gray-50"
+                                className="text-sm flex items-center justify-between bg-card border border-border p-2 rounded cursor-pointer hover:bg-muted transition-colors"
                                 onClick={() => handleContainerClick(container)}
                               >
                                 <div className="flex items-center gap-2">
