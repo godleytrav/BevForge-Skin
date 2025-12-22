@@ -1,6 +1,12 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import {
   Bell,
@@ -162,6 +168,13 @@ export default function CanvasLogistics() {
     location?: Location;
   } | null>(null);
   const [selectedContainers, setSelectedContainers] = useState<string[]>([]);
+  const [showCreateOrderDialog, setShowCreateOrderDialog] = useState(false);
+  const [newOrderForm, setNewOrderForm] = useState({
+    customer: '',
+    product: '',
+    containerType: 'keg' as 'keg' | 'case' | 'bottle',
+    quantity: 1,
+  });
   const [selectionMode, setSelectionMode] = useState<'case' | 'pallet' | null>(null);
   const { addNotification } = useNotifications();
 
@@ -355,6 +368,159 @@ export default function CanvasLogistics() {
     });
   };
 
+  const handleCreateOrder = () => {
+    if (!newOrderForm.customer || !newOrderForm.product) {
+      addNotification({
+        type: 'error',
+        title: 'Missing Information',
+        message: 'Please select customer and product',
+      });
+      return;
+    }
+
+    // Generate containers for the order
+    const newContainers: Container[] = [];
+    for (let i = 0; i < newOrderForm.quantity; i++) {
+      const containerId = `${newOrderForm.containerType.toUpperCase()}-${String(containers.length + i + 1).padStart(4, '0')}`;
+      newContainers.push({
+        id: containerId,
+        type: newOrderForm.containerType,
+        product: newOrderForm.product,
+        status: 'pending',
+        location: 'production',
+        batchNumber: `BATCH-${Math.floor(Math.random() * 1000)}`,
+        weight: newOrderForm.containerType === 'keg' ? 160 : newOrderForm.containerType === 'case' ? 30 : 2,
+        volume: newOrderForm.containerType === 'keg' ? 15.5 : newOrderForm.containerType === 'case' ? 2.25 : 0.75,
+      });
+    }
+
+    // Create new order
+    const newOrder: Order = {
+      id: `ORD-${String(orders.length + 1).padStart(4, '0')}`,
+      customer: newOrderForm.customer,
+      status: 'pending',
+      items: newContainers.map((c) => ({
+        product: c.product,
+        quantity: 1,
+        containerId: c.id,
+      })),
+      totalValue: newOrderForm.quantity * 100,
+      createdAt: new Date().toISOString(),
+    };
+
+    setOrders([...orders, newOrder]);
+    setContainers([...containers, ...newContainers]);
+    setShowCreateOrderDialog(false);
+    setNewOrderForm({
+      customer: '',
+      product: '',
+      containerType: 'keg',
+      quantity: 1,
+    });
+
+    addNotification({
+      type: 'success',
+      title: 'Order Created',
+      message: `Order ${newOrder.id} created with ${newOrderForm.quantity} ${newOrderForm.containerType}(s)`,
+    });
+  };
+
+  const handleCompleteDelivery = (truckId: string) => {
+    const truck = trucks.find((t) => t.id === truckId);
+    if (!truck || truck.status !== 'in_transit') return;
+
+    // Move containers to customer location
+    const deliveredContainers = containers.map((c) =>
+      truck.loadedContainers.includes(c.id)
+        ? { ...c, location: truck.route || 'restaurant', status: 'delivered' as const }
+        : c
+    );
+
+    // Update truck status
+    const updatedTruck = { ...truck, status: 'available' as const, loadedContainers: [] };
+
+    // Update order status
+    const updatedOrders = orders.map((o) =>
+      o.status === 'in_transit' && o.items.some((item) => truck.loadedContainers.includes(item.containerId))
+        ? { ...o, status: 'delivered' as const }
+        : o
+    );
+
+    // Create location if it doesn't exist
+    if (!locations.find((l) => l.id === truck.route)) {
+      const newLocation: Location = {
+        id: truck.route || 'restaurant-1',
+        name: truck.route || 'Restaurant',
+        type: 'restaurant',
+        address: '123 Main St',
+        containers: truck.loadedContainers,
+      };
+      setLocations([...locations, newLocation]);
+    } else {
+      // Add containers to existing location
+      setLocations(
+        locations.map((l) =>
+          l.id === truck.route
+            ? { ...l, containers: [...l.containers, ...truck.loadedContainers] }
+            : l
+        )
+      );
+    }
+
+    setContainers(deliveredContainers);
+    setTrucks(trucks.map((t) => (t.id === truckId ? updatedTruck : t)));
+    setOrders(updatedOrders);
+
+    addNotification({
+      type: 'success',
+      title: 'Delivery Complete',
+      message: `${truck.loadedContainers.length} containers delivered to ${truck.route}`,
+    });
+  };
+
+  const handleMarkEmpty = (containerId: string) => {
+    const container = containers.find((c) => c.id === containerId);
+    if (!container) return;
+
+    // Move container to returns
+    const updatedContainer = { ...container, status: 'returned' as const, location: 'returns' };
+    setContainers(containers.map((c) => (c.id === containerId ? updatedContainer : c)));
+
+    // Remove from location
+    setLocations(
+      locations.map((l) => ({
+        ...l,
+        containers: l.containers.filter((id) => id !== containerId),
+      }))
+    );
+
+    addNotification({
+      type: 'info',
+      title: 'Container Returned',
+      message: `${containerId} marked as empty and moved to returns`,
+    });
+  };
+
+  const handleProcessReturn = (containerId: string) => {
+    const container = containers.find((c) => c.id === containerId);
+    if (!container) return;
+
+    // Move container back to production (ready for refill)
+    const updatedContainer = {
+      ...container,
+      status: 'pending' as const,
+      location: 'production',
+      batchNumber: undefined,
+    };
+    setContainers(containers.map((c) => (c.id === containerId ? updatedContainer : c)));
+
+    addNotification({
+      type: 'success',
+      title: 'Return Processed',
+      message: `${containerId} cleaned and ready for refill`,
+    });
+  };
+
   const getStageInfo = () => {
     if (!selectedStage) return null;
 
@@ -431,6 +597,7 @@ export default function CanvasLogistics() {
                       className="bg-orange-500 h-2 rounded-full transition-all"
                       style={{ width: `${capacity}%` }}
                     />
+      )}
                   </div>
                   <div className="flex justify-between text-sm">
                     <span>Loaded Items</span>
@@ -446,6 +613,18 @@ export default function CanvasLogistics() {
                     }}
                   >
                     Start Route
+                  </Button>
+                )}
+                {truck.status === 'in_transit' && (
+                  <Button
+                    className="w-full mt-3"
+                    variant="default"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleCompleteDelivery(truck.id);
+                    }}
+                  >
+                    Complete Delivery
                   </Button>
                 )}
               </div>
@@ -503,6 +682,25 @@ export default function CanvasLogistics() {
                       <span>Kegs On-Site</span>
                       <span className="font-semibold">{locationContainers.length}</span>
                     </div>
+                    {locationContainers.length > 0 && (
+                      <div className="mt-3 space-y-2">
+                        {locationContainers.slice(0, 3).map((container) => (
+                          <div key={container.id} className="flex justify-between items-center text-sm">
+                            <span>{container.id} - {container.product}</span>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleMarkEmpty(container.id);
+                              }}
+                            >
+                              Mark Empty
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 );
               })}
@@ -510,6 +708,7 @@ export default function CanvasLogistics() {
           ),
         };
       case 'returns':
+        const returnedContainers = containers.filter((c) => c.status === 'returned');
         return {
           title: 'Keg Returns',
           content: (
@@ -518,14 +717,29 @@ export default function CanvasLogistics() {
                 <h4 className="font-semibold mb-2">Empty Containers</h4>
                 <div className="space-y-2">
                   <div className="flex justify-between">
-                    <span>Awaiting Pickup</span>
-                    <span className="font-semibold">0</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>In Transit</span>
-                    <span className="font-semibold">0</span>
+                    <span>Awaiting Processing</span>
+                    <span className="font-semibold">{returnedContainers.length}</span>
                   </div>
                 </div>
+                {returnedContainers.length > 0 && (
+                  <div className="mt-3 space-y-2">
+                    {returnedContainers.slice(0, 5).map((container) => (
+                      <div key={container.id} className="flex justify-between items-center text-sm">
+                        <span>{container.id} - {container.product}</span>
+                        <Button
+                          size="sm"
+                          variant="default"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleProcessReturn(container.id);
+                          }}
+                        >
+                          Process Return
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
           ),
@@ -546,6 +760,10 @@ export default function CanvasLogistics() {
         <div className="flex items-center justify-between mb-4">
           <h1 className="text-2xl font-bold">Logistics Management</h1>
           <div className="flex gap-2">
+            <Button variant="default" size="sm" onClick={() => setShowCreateOrderDialog(true)}>
+              <Plus className="h-4 w-4 mr-2" />
+              Create Order
+            </Button>
             <Button variant="outline" size="sm">
               <Plus className="h-4 w-4 mr-2" />
               Add Container
@@ -804,6 +1022,81 @@ export default function CanvasLogistics() {
           }}
         />
       )}
+
+      {/* Create Order Dialog */}
+      <Dialog open={showCreateOrderDialog} onOpenChange={setShowCreateOrderDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Create New Order</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <label className="text-sm font-medium">Customer</label>
+              <select
+                className="w-full mt-1 p-2 border border-border rounded-md bg-background"
+                value={newOrderForm.customer}
+                onChange={(e) => setNewOrderForm({ ...newOrderForm, customer: e.target.value })}
+              >
+                <option value="">Select Customer</option>
+                <option value="Downtown Pub">Downtown Pub</option>
+                <option value="Riverside Bistro">Riverside Bistro</option>
+                <option value="The Craft House">The Craft House</option>
+                <option value="Main Street Bar">Main Street Bar</option>
+              </select>
+            </div>
+            <div>
+              <label className="text-sm font-medium">Product</label>
+              <select
+                className="w-full mt-1 p-2 border border-border rounded-md bg-background"
+                value={newOrderForm.product}
+                onChange={(e) => setNewOrderForm({ ...newOrderForm, product: e.target.value })}
+              >
+                <option value="">Select Product</option>
+                <option value="Pale Ale">Pale Ale</option>
+                <option value="IPA">IPA</option>
+                <option value="Stout">Stout</option>
+                <option value="Lager">Lager</option>
+              </select>
+            </div>
+            <div>
+              <label className="text-sm font-medium">Container Type</label>
+              <select
+                className="w-full mt-1 p-2 border border-border rounded-md bg-background"
+                value={newOrderForm.containerType}
+                onChange={(e) =>
+                  setNewOrderForm({
+                    ...newOrderForm,
+                    containerType: e.target.value as 'keg' | 'case' | 'bottle',
+                  })
+                }
+              >
+                <option value="keg">Keg (15.5 gal)</option>
+                <option value="case">Case (24 bottles)</option>
+                <option value="bottle">Bottle (750ml)</option>
+              </select>
+            </div>
+            <div>
+              <label className="text-sm font-medium">Quantity</label>
+              <input
+                type="number"
+                min="1"
+                max="100"
+                className="w-full mt-1 p-2 border border-border rounded-md bg-background"
+                value={newOrderForm.quantity}
+                onChange={(e) =>
+                  setNewOrderForm({ ...newOrderForm, quantity: parseInt(e.target.value) || 1 })
+                }
+              />
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setShowCreateOrderDialog(false)}>
+                Cancel
+              </Button>
+              <Button onClick={handleCreateOrder}>Create Order</Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
