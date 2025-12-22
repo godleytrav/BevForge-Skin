@@ -188,6 +188,7 @@ export default function CanvasLogistics() {
   ]);
   const [deliveryRoutes, setDeliveryRoutes] = useState<DeliveryRoute[]>([]);
   const [draggedStopIndex, setDraggedStopIndex] = useState<number | null>(null);
+  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
   const [selectedDetail, setSelectedDetail] = useState<{
     container?: Container;
     truck?: Truck;
