@@ -316,6 +316,8 @@ export default function CanvasLogistics() {
     };
     
     setDeliveryRoutes(prev => [...prev, route]);
+    console.log('Route created:', route);
+    console.log('Total routes:', deliveryRoutes.length + 1);
     
     const updatedTruck = startTruckRoute(truck);
     setTrucks([updatedTruck]);
@@ -697,7 +699,9 @@ export default function CanvasLogistics() {
       case 'delivery':
         const truck = trucks[0];
         const capacity = getTruckCapacityPercentage(truck);
+        console.log('Delivery stage - All routes:', deliveryRoutes);
         const activeRoute = deliveryRoutes.find((r) => r.truckId === truck.id && r.status === 'in-progress');
+        console.log('Active route for truck:', activeRoute);
         const currentStop = activeRoute ? activeRoute.stops[activeRoute.currentStopIndex] : null;
         const remainingStops = activeRoute ? activeRoute.stops.slice(activeRoute.currentStopIndex + 1) : [];
         
