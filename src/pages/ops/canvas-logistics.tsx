@@ -614,7 +614,7 @@ export default function CanvasLogistics() {
                     Start Route
                   </Button>
                 )}
-                {truck.status === 'in_transit' && (
+                {truck.status === 'on-road' && (
                   <Button
                     className="w-full mt-3"
                     variant="default"
