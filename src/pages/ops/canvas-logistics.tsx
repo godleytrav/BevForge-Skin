@@ -69,7 +69,7 @@ const initializeContainers = (): Container[] => {
         volume: '15.5 gal',
         weight: 160,
         orderId: 'ORD-001',
-        customerId: "Joe's Bar",
+        customerId: 'joes-bar',
         status: 'staging',
         location: 'Staging Area',
       })
@@ -82,7 +82,7 @@ const initializeContainers = (): Container[] => {
       quantity: 12,
       weight: 30,
       orderId: 'ORD-001',
-      customerId: "Joe's Bar",
+      customerId: 'joes-bar',
       status: 'staging',
       location: 'Staging Area',
     })
@@ -94,9 +94,9 @@ const initializeContainers = (): Container[] => {
       createContainer('keg', 'Lager', 'BATCH-2024-003', {
         volume: '15.5 gal',
         weight: 160,
-        orderId: 'ORD-002',
-        customerId: 'Main St Pub',
-        status: 'staging',
+      orderId: 'ORD-002',
+      customerId: 'main-st-pub',
+      status: 'staging',
         location: 'Staging Area',
       })
     );
@@ -108,9 +108,9 @@ const initializeContainers = (): Container[] => {
       createContainer('keg', 'Stout', 'BATCH-2024-004', {
         volume: '15.5 gal',
         weight: 160,
-        orderId: 'ORD-003',
-        customerId: 'Downtown Pub',
-        status: 'staging',
+      orderId: 'ORD-003',
+      customerId: 'downtown-pub',
+      status: 'staging',
         location: 'Staging Area',
       })
     );
