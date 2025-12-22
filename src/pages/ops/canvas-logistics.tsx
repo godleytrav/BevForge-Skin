@@ -138,6 +138,7 @@ const mockOrders = [
   {
     id: 'ORD-001',
     customer: "Joe's Bar",
+    customerId: 'joes-bar',
     items: [
       { type: 'Keg', product: 'IPA', quantity: 2 },
       { type: 'Case', product: 'Bottles, 12-pack', quantity: 1 },
@@ -147,12 +148,14 @@ const mockOrders = [
   {
     id: 'ORD-002',
     customer: 'Main St Pub',
+    customerId: 'main-st-pub',
     items: [{ type: 'Keg', product: 'Lager', quantity: 5 }],
     status: 'pending' as const,
   },
   {
     id: 'ORD-003',
     customer: 'Downtown Pub',
+    customerId: 'downtown-pub',
     items: [
       { type: 'Keg', product: 'Stout', quantity: 3 },
       { type: 'Case', product: 'Cans, 6-pack', quantity: 2 },
@@ -449,6 +452,10 @@ export default function CanvasLogistics() {
       return;
     }
 
+    // Create new order first to get the order ID
+    const orderId = `ORD-${String(orders.length + 1).padStart(4, '0')}`;
+    const customerId = newOrderForm.customer.toLowerCase().replace(/[^a-z0-9]/g, '-');
+
     // Generate containers for the order
     const newContainers: Container[] = [];
     for (let i = 0; i < newOrderForm.quantity; i++) {
@@ -462,13 +469,16 @@ export default function CanvasLogistics() {
         batchNumber: `BATCH-${Math.floor(Math.random() * 1000)}`,
         weight: newOrderForm.containerType === 'keg' ? 160 : newOrderForm.containerType === 'case' ? 30 : 2,
         volume: newOrderForm.containerType === 'keg' ? 15.5 : newOrderForm.containerType === 'case' ? 2.25 : 0.75,
+        orderId: orderId,
+        customerId: customerId,
       });
     }
 
     // Create new order
     const newOrder: Order = {
-      id: `ORD-${String(orders.length + 1).padStart(4, '0')}`,
+      id: orderId,
       customer: newOrderForm.customer,
+      customerId: customerId,
       status: 'pending',
       items: newContainers.map((c) => ({
         product: c.product,
