@@ -37,6 +37,27 @@ import {
   getTruckCapacityPercentage,
 } from '@/lib/container-tracking';
 
+// Delivery route interfaces
+interface DeliveryStop {
+  id: string;
+  customerId: string;
+  customerName: string;
+  orderIds: string[];
+  containerIds: string[];
+  status: 'pending' | 'completed';
+  completedAt?: Date;
+}
+
+interface DeliveryRoute {
+  id: string;
+  truckId: string;
+  stops: DeliveryStop[];
+  currentStopIndex: number;
+  status: 'in-progress' | 'completed';
+  startedAt: Date;
+  completedAt?: Date;
+}
+
 // Initialize sample data with tracking IDs
 const initializeContainers = (): Container[] => {
   const containers: Container[] = [];
@@ -162,6 +183,7 @@ export default function CanvasLogistics() {
     createLocation('Main St Pub', 'restaurant', '456 Oak Ave'),
     createLocation('Downtown Pub', 'restaurant', '789 Elm St'),
   ]);
+  const [deliveryRoutes, setDeliveryRoutes] = useState<DeliveryRoute[]>([]);
   const [selectedDetail, setSelectedDetail] = useState<{
     container?: Container;
     truck?: Truck;
@@ -248,6 +270,53 @@ export default function CanvasLogistics() {
       return;
     }
     
+    // Group containers by customer to create stops
+    const containersByCustomer = new Map<string, { customerId: string; customerName: string; orderIds: Set<string>; containerIds: string[] }>();
+    
+    truck.containers.forEach(containerId => {
+      const container = containers.find(c => c.id === containerId);
+      if (!container) return;
+      
+      const order = orders.find(o => o.id === container.orderId);
+      if (!order) return;
+      
+      const key = order.customerId;
+      if (!containersByCustomer.has(key)) {
+        containersByCustomer.set(key, {
+          customerId: order.customerId,
+          customerName: order.customer,
+          orderIds: new Set(),
+          containerIds: []
+        });
+      }
+      
+      const customerData = containersByCustomer.get(key)!;
+      customerData.orderIds.add(order.id);
+      customerData.containerIds.push(containerId);
+    });
+    
+    // Create delivery stops
+    const stops: DeliveryStop[] = Array.from(containersByCustomer.values()).map((data, index) => ({
+      id: `STOP-${Date.now()}-${index}`,
+      customerId: data.customerId,
+      customerName: data.customerName,
+      orderIds: Array.from(data.orderIds),
+      containerIds: data.containerIds,
+      status: 'pending' as const,
+    }));
+    
+    // Create delivery route
+    const route: DeliveryRoute = {
+      id: `ROUTE-${Date.now()}`,
+      truckId: truck.id,
+      stops,
+      currentStopIndex: 0,
+      status: 'in-progress',
+      startedAt: new Date(),
+    };
+    
+    setDeliveryRoutes(prev => [...prev, route]);
+    
     const updatedTruck = startTruckRoute(truck);
     setTrucks([updatedTruck]);
     
@@ -262,7 +331,7 @@ export default function CanvasLogistics() {
     
     addNotification({
       title: 'Route Started',
-      message: 'Tax determination triggered (TTB requirement)',
+      message: `Route created with ${stops.length} stop${stops.length > 1 ? 's' : ''}. Tax determination triggered (TTB requirement)`,
       type: 'success',
     });
   };
@@ -425,63 +494,114 @@ export default function CanvasLogistics() {
     });
   };
 
-  const handleCompleteDelivery = (truckId: string) => {
+  const handleCompleteStop = (truckId: string) => {
     const truck = trucks.find((t) => t.id === truckId);
-    if (!truck || truck.status !== 'on-road' || !truck.containers || truck.containers.length === 0) {
+    const route = deliveryRoutes.find((r) => r.truckId === truckId && r.status === 'in-progress');
+    
+    if (!truck || truck.status !== 'on-road') {
       addNotification({
         type: 'error',
-        title: 'Cannot Complete Delivery',
-        message: 'Truck not found, not on road, or has no loaded containers',
+        title: 'Cannot Complete Stop',
+        message: 'Truck not found or not on road',
       });
       return;
     }
-
-    // Move containers to customer location
+    
+    if (!route) {
+      addNotification({
+        type: 'error',
+        title: 'Cannot Complete Stop',
+        message: 'No active delivery route found',
+      });
+      return;
+    }
+    
+    const currentStop = route.stops[route.currentStopIndex];
+    if (!currentStop) {
+      addNotification({
+        type: 'error',
+        title: 'Cannot Complete Stop',
+        message: 'No current stop found',
+      });
+      return;
+    }
+    
+    // Move only this stop's containers to customer location
     const deliveredContainers = containers.map((c) =>
-      truck.containers.includes(c.id)
-        ? { ...c, location: truck.route || 'restaurant', status: 'delivered' as const }
+      currentStop.containerIds.includes(c.id)
+        ? { ...c, location: currentStop.customerId, status: 'delivered' as const }
         : c
     );
-
-    // Update truck status
-    const updatedTruck = { ...truck, status: 'available' as const, containers: [] };
-
-    // Update order status
+    
+    // Remove delivered containers from truck
+    const remainingContainers = truck.containers.filter(
+      (id) => !currentStop.containerIds.includes(id)
+    );
+    
+    // Update order status for this stop's orders
     const updatedOrders = orders.map((o) =>
-      o.status === 'loaded' && o.items.some((item) => truck.containers.includes(item.containerId))
+      currentStop.orderIds.includes(o.id)
         ? { ...o, status: 'delivered' as const }
         : o
     );
-
-    // Create location if it doesn't exist
-    if (!locations.find((l) => l.id === truck.route)) {
+    
+    // Create or update customer location
+    const existingLocation = locations.find((l) => l.id === currentStop.customerId);
+    if (!existingLocation) {
       const newLocation: Location = {
-        id: truck.route || 'restaurant-1',
-        name: truck.route || 'Restaurant',
+        id: currentStop.customerId,
+        name: currentStop.customerName,
         type: 'restaurant',
         address: '123 Main St',
-        containers: truck.containers,
+        containers: currentStop.containerIds,
       };
       setLocations([...locations, newLocation]);
     } else {
-      // Add containers to existing location
       setLocations(
         locations.map((l) =>
-          l.id === truck.route
-            ? { ...l, containers: [...l.containers, ...truck.containers] }
+          l.id === currentStop.customerId
+            ? { ...l, containers: [...l.containers, ...currentStop.containerIds] }
             : l
         )
       );
     }
-
+    
+    // Mark current stop as completed
+    const updatedStop = { ...currentStop, status: 'completed' as const, completedAt: new Date() };
+    const isLastStop = route.currentStopIndex === route.stops.length - 1;
+    
+    // Update route
+    const updatedRoute: DeliveryRoute = {
+      ...route,
+      stops: route.stops.map((s, i) => (i === route.currentStopIndex ? updatedStop : s)),
+      currentStopIndex: isLastStop ? route.currentStopIndex : route.currentStopIndex + 1,
+      status: isLastStop ? 'completed' : 'in-progress',
+      completedAt: isLastStop ? new Date() : undefined,
+    };
+    
+    setDeliveryRoutes(
+      deliveryRoutes.map((r) => (r.id === route.id ? updatedRoute : r))
+    );
+    
+    // Update truck
+    const updatedTruck = {
+      ...truck,
+      containers: remainingContainers,
+      status: isLastStop ? ('available' as const) : ('on-road' as const),
+    };
+    
     setContainers(deliveredContainers);
     setTrucks(trucks.map((t) => (t.id === truckId ? updatedTruck : t)));
     setOrders(updatedOrders);
-
+    
+    const nextStopMessage = isLastStop
+      ? 'Route complete! Truck returning to brewery.'
+      : `Next stop: ${route.stops[route.currentStopIndex + 1].customerName}`;
+    
     addNotification({
       type: 'success',
-      title: 'Delivery Complete',
-      message: `${truck.loadedContainers.length} containers delivered to ${truck.route}`,
+      title: `Stop ${route.currentStopIndex + 1} of ${route.stops.length} Complete`,
+      message: `${currentStop.containerIds.length} containers delivered to ${currentStop.customerName}. ${nextStopMessage}`,
     });
   };
 
@@ -577,6 +697,10 @@ export default function CanvasLogistics() {
       case 'delivery':
         const truck = trucks[0];
         const capacity = getTruckCapacityPercentage(truck);
+        const activeRoute = deliveryRoutes.find((r) => r.truckId === truck.id && r.status === 'in-progress');
+        const currentStop = activeRoute ? activeRoute.stops[activeRoute.currentStopIndex] : null;
+        const remainingStops = activeRoute ? activeRoute.stops.slice(activeRoute.currentStopIndex + 1) : [];
+        
         return {
           title: 'Delivery',
           content: (
@@ -591,6 +715,11 @@ export default function CanvasLogistics() {
                     <Badge variant="outline" className="mt-1">
                       {truck.status.toUpperCase().replace('-', ' ')}
                     </Badge>
+                    {activeRoute && (
+                      <div className="text-xs text-muted-foreground mt-1">
+                        Stop {activeRoute.currentStopIndex + 1} of {activeRoute.stops.length}
+                      </div>
+                    )}
                   </div>
                   <TruckIcon className="h-5 w-5 text-orange-600" />
                 </div>
@@ -610,6 +739,41 @@ export default function CanvasLogistics() {
                     <span className="font-semibold">{truck.containers.length}</span>
                   </div>
                 </div>
+                
+                {/* Current Stop Info */}
+                {currentStop && (
+                  <div className="mt-3 p-3 bg-background/50 rounded border border-border">
+                    <div className="text-sm font-semibold mb-2">Current Stop:</div>
+                    <div className="text-sm">
+                      <div className="font-medium">{currentStop.customerName}</div>
+                      <div className="text-muted-foreground">
+                        {currentStop.containerIds.length} container{currentStop.containerIds.length > 1 ? 's' : ''}
+                      </div>
+                      <div className="text-xs text-muted-foreground mt-1">
+                        Orders: {currentStop.orderIds.join(', ')}
+                      </div>
+                    </div>
+                  </div>
+                )}
+                
+                {/* Remaining Stops */}
+                {remainingStops.length > 0 && (
+                  <div className="mt-3">
+                    <div className="text-xs font-semibold mb-2 text-muted-foreground">Remaining Stops:</div>
+                    <div className="space-y-1">
+                      {remainingStops.map((stop, index) => (
+                        <div key={stop.id} className="text-xs text-muted-foreground flex items-center gap-2">
+                          <span className="w-4 h-4 rounded-full bg-muted flex items-center justify-center text-[10px]">
+                            {activeRoute.currentStopIndex + index + 2}
+                          </span>
+                          <span>{stop.customerName}</span>
+                          <span className="text-[10px]">({stop.containerIds.length})</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                
                 {truck.status === 'loading' && (
                   <Button
                     className="w-full mt-3"
@@ -621,16 +785,16 @@ export default function CanvasLogistics() {
                     Start Route
                   </Button>
                 )}
-                {truck.status === 'on-road' && (
+                {truck.status === 'on-road' && currentStop && (
                   <Button
                     className="w-full mt-3"
                     variant="default"
                     onClick={(e) => {
                       e.stopPropagation();
-                      handleCompleteDelivery(truck.id);
+                      handleCompleteStop(truck.id);
                     }}
                   >
-                    Complete Delivery
+                    Complete Stop {activeRoute.currentStopIndex + 1}
                   </Button>
                 )}
               </div>
