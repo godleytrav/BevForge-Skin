@@ -941,10 +941,24 @@ export default function CanvasLogistics() {
                                 handleReorderStops(truck.id, draggedStopIndex, actualIndex);
                               }
                             }}
-                            className={`h-1 rounded transition-all duration-200 ease-in-out ${
-                              dragOverIndex === actualIndex ? 'bg-primary/20 h-8' : ''
+                            className={`rounded transition-all duration-200 ease-in-out ${
+                              dragOverIndex === actualIndex 
+                                ? 'h-20 bg-primary/10 border-2 border-dashed border-primary flex items-center justify-center my-2' 
+                                : 'h-2'
                             }`}
-                          />
+                          >
+                            {dragOverIndex === actualIndex && (
+                              <div className="text-sm font-semibold text-primary flex items-center gap-2 animate-pulse">
+                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+                                </svg>
+                                Drop Here to Reorder
+                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+                                </svg>
+                              </div>
+                            )}
+                          </div>
                           
                           {/* Draggable stop tile */}
                           <div
@@ -1001,10 +1015,24 @@ export default function CanvasLogistics() {
                             handleReorderStops(truck.id, draggedStopIndex, lastIndex);
                           }
                         }}
-                        className={`h-1 rounded transition-all duration-200 ease-in-out ${
-                          dragOverIndex === remainingStops.length ? 'bg-primary/20 h-8' : ''
+                        className={`rounded transition-all duration-200 ease-in-out ${
+                          dragOverIndex === remainingStops.length 
+                            ? 'h-20 bg-primary/10 border-2 border-dashed border-primary flex items-center justify-center my-2' 
+                            : 'h-2'
                         }`}
-                      />
+                      >
+                        {dragOverIndex === remainingStops.length && (
+                          <div className="text-sm font-semibold text-primary flex items-center gap-2 animate-pulse">
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+                            </svg>
+                            Drop Here to Reorder
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+                            </svg>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
                 )}
