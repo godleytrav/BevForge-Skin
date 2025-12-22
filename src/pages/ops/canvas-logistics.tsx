@@ -123,7 +123,7 @@ const initializeContainers = (): Container[] => {
         quantity: 6,
         weight: 15,
         orderId: 'ORD-003',
-        customerId: 'Downtown Pub',
+        customerId: 'downtown-pub',
         status: 'staging',
         location: 'Staging Area',
       })
