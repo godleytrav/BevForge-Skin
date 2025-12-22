@@ -53,8 +53,8 @@ interface DeliveryRoute {
   truckId: string;
   stops: DeliveryStop[];
   currentStopIndex: number;
-  status: 'in-progress' | 'completed';
-  startedAt: Date;
+  status: 'planning' | 'in-progress' | 'completed';
+  startedAt?: Date;
   completedAt?: Date;
 }
 
@@ -261,68 +261,105 @@ export default function CanvasLogistics() {
       message: `${order.customer} order loaded to ${truck.name}`,
       type: 'success',
     });
+    
+    // Update route plan after loading
+    updateRoutePlan(updatedTruck.id);
+  };
+  
+  // Update route plan based on loaded containers
+  const updateRoutePlan = (truckId: string) => {
+    const truck = trucks.find((t) => t.id === truckId);
+    if (!truck || truck.containers.length === 0) {
+      // Remove route if truck is empty
+      setDeliveryRoutes((prev) => prev.filter((r) => r.truckId !== truckId));
+      return;
+    }
+    
+    // Group containers by customer
+    const containersByCustomer = new Map<string, typeof containers>();
+    truck.containers.forEach((containerId) => {
+      const container = containers.find((c) => c.id === containerId);
+      if (container && container.customerId) {
+        const existing = containersByCustomer.get(container.customerId) || [];
+        containersByCustomer.set(container.customerId, [...existing, container]);
+      }
+    });
+    
+    // Create stops for each customer
+    const stops: DeliveryStop[] = Array.from(containersByCustomer.entries()).map(
+      ([customerId, customerContainers], index) => {
+        const firstContainer = customerContainers[0];
+        const orderIds = [...new Set(customerContainers.map((c) => c.orderId).filter(Boolean))];
+        
+        return {
+          id: `stop-${truckId}-${customerId}-${Date.now()}`,
+          customerId,
+          customerName: firstContainer.customer || 'Unknown Customer',
+          orderIds: orderIds as string[],
+          containerIds: customerContainers.map((c) => c.id),
+          status: 'pending',
+        };
+      }
+    );
+    
+    // Check if route already exists
+    const existingRoute = deliveryRoutes.find((r) => r.truckId === truckId);
+    
+    if (existingRoute) {
+      // Update existing route with new stops
+      setDeliveryRoutes((prev) =>
+        prev.map((route) =>
+          route.truckId === truckId
+            ? { ...route, stops }
+            : route
+        )
+      );
+    } else {
+      // Create new route
+      const newRoute: DeliveryRoute = {
+        id: `route-${truckId}-${Date.now()}`,
+        truckId,
+        stops,
+        currentStopIndex: 0,
+        status: 'planning',
+      };
+      
+      setDeliveryRoutes((prev) => [...prev, newRoute]);
+    }
   };
 
   const handleStartRoute = () => {
     const truck = trucks[0];
-    if (truck.containers.length === 0) {
+    const route = deliveryRoutes.find((r) => r.truckId === truck.id && r.status === 'planning');
+    
+    if (!route) {
       addNotification({
         title: 'Cannot Start Route',
-        message: 'No containers loaded on truck',
+        message: 'No route planned for this truck',
         type: 'error',
       });
       return;
     }
     
-    // Group containers by customer to create stops
-    const containersByCustomer = new Map<string, { customerId: string; customerName: string; orderIds: Set<string>; containerIds: string[] }>();
+    if (route.stops.length === 0) {
+      addNotification({
+        title: 'Cannot Start Route',
+        message: 'Route has no stops',
+        type: 'error',
+      });
+      return;
+    }
     
-    truck.containers.forEach(containerId => {
-      const container = containers.find(c => c.id === containerId);
-      if (!container) return;
-      
-      const order = orders.find(o => o.id === container.orderId);
-      if (!order) return;
-      
-      const key = order.customerId;
-      if (!containersByCustomer.has(key)) {
-        containersByCustomer.set(key, {
-          customerId: order.customerId,
-          customerName: order.customer,
-          orderIds: new Set(),
-          containerIds: []
-        });
-      }
-      
-      const customerData = containersByCustomer.get(key)!;
-      customerData.orderIds.add(order.id);
-      customerData.containerIds.push(containerId);
-    });
+    // Update route status to in-progress
+    setDeliveryRoutes((prev) =>
+      prev.map((r) =>
+        r.id === route.id
+          ? { ...r, status: 'in-progress' as const, startedAt: new Date() }
+          : r
+      )
+    );
     
-    // Create delivery stops
-    const stops: DeliveryStop[] = Array.from(containersByCustomer.values()).map((data, index) => ({
-      id: `STOP-${Date.now()}-${index}`,
-      customerId: data.customerId,
-      customerName: data.customerName,
-      orderIds: Array.from(data.orderIds),
-      containerIds: data.containerIds,
-      status: 'pending' as const,
-    }));
-    
-    // Create delivery route
-    const route: DeliveryRoute = {
-      id: `ROUTE-${Date.now()}`,
-      truckId: truck.id,
-      stops,
-      currentStopIndex: 0,
-      status: 'in-progress',
-      startedAt: new Date(),
-    };
-    
-    setDeliveryRoutes(prev => [...prev, route]);
-    console.log('Route created:', route);
-    console.log('Total routes:', deliveryRoutes.length + 1);
-    
+    // Update truck status
     const updatedTruck = startTruckRoute(truck);
     setTrucks([updatedTruck]);
     
@@ -337,7 +374,7 @@ export default function CanvasLogistics() {
     
     addNotification({
       title: 'Route Started',
-      message: `Route created with ${stops.length} stop${stops.length > 1 ? 's' : ''}. Tax determination triggered (TTB requirement)`,
+      message: `Started route with ${route.stops.length} stop${route.stops.length > 1 ? 's' : ''}. Tax determination triggered (TTB requirement)`,
       type: 'success',
     });
   };
@@ -744,10 +781,11 @@ export default function CanvasLogistics() {
         const truck = trucks[0];
         const capacity = getTruckCapacityPercentage(truck);
         console.log('Delivery stage - All routes:', deliveryRoutes);
-        const activeRoute = deliveryRoutes.find((r) => r.truckId === truck.id && r.status === 'in-progress');
+        // Find either planning or in-progress route
+        const activeRoute = deliveryRoutes.find((r) => r.truckId === truck.id && (r.status === 'planning' || r.status === 'in-progress'));
         console.log('Active route for truck:', activeRoute);
-        const currentStop = activeRoute ? activeRoute.stops[activeRoute.currentStopIndex] : null;
-        const remainingStops = activeRoute ? activeRoute.stops.slice(activeRoute.currentStopIndex + 1) : [];
+        const currentStop = activeRoute && activeRoute.status === 'in-progress' ? activeRoute.stops[activeRoute.currentStopIndex] : null;
+        const remainingStops = activeRoute ? (activeRoute.status === 'planning' ? activeRoute.stops : activeRoute.stops.slice(activeRoute.currentStopIndex + 1)) : [];
         
         return {
           title: 'Delivery',
@@ -765,7 +803,10 @@ export default function CanvasLogistics() {
                     </Badge>
                     {activeRoute && (
                       <div className="text-xs text-muted-foreground mt-1">
-                        Stop {activeRoute.currentStopIndex + 1} of {activeRoute.stops.length}
+                        {activeRoute.status === 'planning' 
+                          ? `Planned Route: ${activeRoute.stops.length} stop${activeRoute.stops.length > 1 ? 's' : ''}`
+                          : `Stop ${activeRoute.currentStopIndex + 1} of ${activeRoute.stops.length}`
+                        }
                       </div>
                     )}
                   </div>
@@ -804,10 +845,12 @@ export default function CanvasLogistics() {
                   </div>
                 )}
                 
-                {/* Remaining Stops */}
+                {/* Remaining/Planned Stops */}
                 {remainingStops.length > 0 && (
                   <div className="mt-3">
-                    <div className="text-xs font-semibold mb-2 text-muted-foreground">Remaining Stops:</div>
+                    <div className="text-xs font-semibold mb-2 text-muted-foreground">
+                      {activeRoute?.status === 'planning' ? 'Planned Stops:' : 'Remaining Stops:'}
+                    </div>
                     <div className="space-y-2">
                       {remainingStops.map((stop, index) => (
                         <div key={stop.id}>
@@ -845,7 +888,7 @@ export default function CanvasLogistics() {
                             className="text-xs bg-card border border-border rounded-md p-2 flex items-center gap-2 cursor-move hover:border-primary transition-colors"
                           >
                             <span className="w-5 h-5 rounded-full bg-muted flex items-center justify-center text-[10px] font-semibold">
-                              {activeRoute.currentStopIndex + index + 2}
+                              {activeRoute.status === 'planning' ? index + 1 : activeRoute.currentStopIndex + index + 2}
                             </span>
                             <div className="flex-1">
                               <div className="font-medium text-foreground">{stop.customerName}</div>
