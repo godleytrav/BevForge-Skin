@@ -188,7 +188,7 @@ export default function OpsPage() {
           </Link>
 
           {/* Deliveries Tile - NEW */}
-          <Link to="/ops/canvas">
+          <Link to="/ops/sales">
             <Card 
               className={`cursor-pointer transition-all hover:shadow-lg ${deliveriesOverdue > 0 ? 'border-red-500/50' : 'border-border'}`}
               style={{
@@ -262,7 +262,7 @@ export default function OpsPage() {
           </Link>
 
           {/* Inventory At Risk Tile - ENHANCED */}
-          <Link to="/ops/canvas">
+          <Link to="/ops/inventory">
             <Card 
               className={`cursor-pointer transition-all hover:shadow-lg ${inventoryAtRisk > 0 ? 'border-red-500/50' : 'border-border'}`}
               style={{
@@ -517,7 +517,7 @@ export default function OpsPage() {
                 {deliveryStatus.map((delivery) => (
                   <Link 
                     key={delivery.id} 
-                    to="/ops/canvas"
+                    to="/ops/sales"
                     className="flex items-center justify-between p-2 rounded hover:bg-accent/10 transition-colors"
                   >
                     <div className="flex-1">
@@ -648,7 +648,7 @@ export default function OpsPage() {
                 {inventoryAlerts.slice(0, 4).map((item, idx) => (
                   <Link 
                     key={idx} 
-                    to="/ops/canvas"
+                    to="/ops/inventory"
                     className="flex items-center justify-between p-2 rounded hover:bg-accent/10 transition-colors"
                   >
                     <div className="flex-1">
