@@ -427,7 +427,14 @@ export default function CanvasLogistics() {
 
   const handleCompleteDelivery = (truckId: string) => {
     const truck = trucks.find((t) => t.id === truckId);
-    if (!truck || truck.status !== 'on-road') return;
+    if (!truck || truck.status !== 'on-road' || !truck.loadedContainers || truck.loadedContainers.length === 0) {
+      addNotification({
+        type: 'error',
+        title: 'Cannot Complete Delivery',
+        message: 'Truck not found, not on road, or has no loaded containers',
+      });
+      return;
+    }
 
     // Move containers to customer location
     const deliveredContainers = containers.map((c) =>
