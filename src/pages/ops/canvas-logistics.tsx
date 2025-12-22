@@ -444,11 +444,11 @@ export default function CanvasLogistics() {
     );
 
     // Update truck status
-    const updatedTruck = { ...truck, status: 'available' as const, loadedContainers: [] };
+    const updatedTruck = { ...truck, status: 'available' as const, containers: [] };
 
     // Update order status
     const updatedOrders = orders.map((o) =>
-      o.status === 'loaded' && o.items.some((item) => truck.loadedContainers.includes(item.containerId))
+      o.status === 'loaded' && o.items.some((item) => truck.containers.includes(item.containerId))
         ? { ...o, status: 'delivered' as const }
         : o
     );
@@ -460,7 +460,7 @@ export default function CanvasLogistics() {
         name: truck.route || 'Restaurant',
         type: 'restaurant',
         address: '123 Main St',
-        containers: truck.loadedContainers,
+        containers: truck.containers,
       };
       setLocations([...locations, newLocation]);
     } else {
@@ -468,7 +468,7 @@ export default function CanvasLogistics() {
       setLocations(
         locations.map((l) =>
           l.id === truck.route
-            ? { ...l, containers: [...l.containers, ...truck.loadedContainers] }
+            ? { ...l, containers: [...l.containers, ...truck.containers] }
             : l
         )
       );
