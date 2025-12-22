@@ -597,7 +597,6 @@ export default function CanvasLogistics() {
                       className="bg-orange-500 h-2 rounded-full transition-all"
                       style={{ width: `${capacity}%` }}
                     />
-      )}
                   </div>
                   <div className="flex justify-between text-sm">
                     <span>Loaded Items</span>
