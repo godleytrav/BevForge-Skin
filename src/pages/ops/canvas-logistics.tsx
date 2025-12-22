@@ -427,7 +427,7 @@ export default function CanvasLogistics() {
 
   const handleCompleteDelivery = (truckId: string) => {
     const truck = trucks.find((t) => t.id === truckId);
-    if (!truck || truck.status !== 'in_transit') return;
+    if (!truck || truck.status !== 'on-road') return;
 
     // Move containers to customer location
     const deliveredContainers = containers.map((c) =>
@@ -441,7 +441,7 @@ export default function CanvasLogistics() {
 
     // Update order status
     const updatedOrders = orders.map((o) =>
-      o.status === 'in_transit' && o.items.some((item) => truck.loadedContainers.includes(item.containerId))
+      o.status === 'loaded' && o.items.some((item) => truck.loadedContainers.includes(item.containerId))
         ? { ...o, status: 'delivered' as const }
         : o
     );
