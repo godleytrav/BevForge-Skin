@@ -927,21 +927,22 @@ export default function CanvasLogistics() {
                             onDragOver={(e) => {
                               e.preventDefault();
                               e.dataTransfer.dropEffect = 'move';
-                              e.currentTarget.classList.add('bg-primary/20', 'h-8');
+                              setDragOverIndex(actualIndex);
                             }}
-                            onDragLeave={(e) => {
-                              e.currentTarget.classList.remove('bg-primary/20', 'h-8');
+                            onDragLeave={() => {
+                              setDragOverIndex(null);
                             }}
                             onDrop={(e) => {
                               e.preventDefault();
-                              e.currentTarget.classList.remove('bg-primary/20', 'h-8');
+                              setDragOverIndex(null);
                               if (draggedStopIndex !== null && draggedStopIndex !== actualIndex) {
                                 console.log('🔄 Drop: moving stop from', draggedStopIndex, 'to', actualIndex);
                                 handleReorderStops(truck.id, draggedStopIndex, actualIndex);
                               }
-                              setDraggedStopIndex(null);
                             }}
-                            className="h-1 rounded transition-all duration-200 ease-in-out"
+                            className={`h-1 rounded transition-all duration-200 ease-in-out ${
+                              dragOverIndex === actualIndex ? 'bg-primary/20 h-8' : ''
+                            }`}
                           />
                           
                           {/* Draggable stop tile */}
@@ -983,14 +984,14 @@ export default function CanvasLogistics() {
                         onDragOver={(e) => {
                           e.preventDefault();
                           e.dataTransfer.dropEffect = 'move';
-                          e.currentTarget.classList.add('bg-primary/20', 'h-8');
+                          setDragOverIndex(remainingStops.length);
                         }}
-                        onDragLeave={(e) => {
-                          e.currentTarget.classList.remove('bg-primary/20', 'h-8');
+                        onDragLeave={() => {
+                          setDragOverIndex(null);
                         }}
                         onDrop={(e) => {
                           e.preventDefault();
-                          e.currentTarget.classList.remove('bg-primary/20', 'h-8');
+                          setDragOverIndex(null);
                           if (draggedStopIndex !== null) {
                             const lastIndex = activeRoute.status === 'planning' 
                               ? remainingStops.length - 1 
@@ -998,9 +999,10 @@ export default function CanvasLogistics() {
                             console.log('🔄 Drop at bottom: moving stop from', draggedStopIndex, 'to', lastIndex);
                             handleReorderStops(truck.id, draggedStopIndex, lastIndex);
                           }
-                          setDraggedStopIndex(null);
                         }}
-                        className="h-1 rounded transition-all duration-200 ease-in-out"
+                        className={`h-1 rounded transition-all duration-200 ease-in-out ${
+                          dragOverIndex === remainingStops.length ? 'bg-primary/20 h-8' : ''
+                        }`}
                       />
                     </div>
                   </div>
