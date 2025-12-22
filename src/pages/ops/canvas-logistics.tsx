@@ -291,38 +291,58 @@ export default function CanvasLogistics() {
         const firstContainer = customerContainers[0];
         const orderIds = [...new Set(customerContainers.map((c) => c.orderId).filter(Boolean))];
         
+        // Find the order to get the actual customer name
+        const order = orders.find((o) => o.id === firstContainer.orderId);
+        const customerName = order?.customer || customerId;
+        
         return {
           id: `stop-${truckId}-${customerId}-${Date.now()}`,
           customerId,
-          customerName: customerId, // Use customerId as the customer name
+          customerName, // Use actual customer name from order
           orderIds: orderIds as string[],
           containerIds: customerContainers.map((c) => c.id),
           status: 'pending',
         };
       }
     );
+    console.log('🛑 Created stops:', stops.length, stops.map(s => ({ id: s.id, customer: s.customerName, containers: s.containerIds.length })));
     
     // Check if route already exists
     const existingRoute = deliveryRoutes.find((r) => r.truckId === truckId);
+    console.log('🔍 Existing route:', existingRoute ? `Found with ${existingRoute.stops.length} stops` : 'Not found');
     
     if (existingRoute) {
-      // Merge new stops with existing ones, preserving order and completed stops
-      const mergedStops = stops.map((newStop) => {
-        // Find if this customer already has a stop
-        const existingStop = existingRoute.stops.find(
-          (s) => s.customerId === newStop.customerId
-        );
-        
-        if (existingStop) {
-          // Preserve existing stop ID and status, update containers
-          return {
+      // Build a map of existing stops by customerId
+      const existingStopsMap = new Map(existingRoute.stops.map(s => [s.customerId, s]));
+      
+      // Merge: preserve existing stops, add new ones
+      const mergedStops: DeliveryStop[] = [];
+      
+      // First, add all existing stops (in their current order)
+      existingRoute.stops.forEach((existingStop) => {
+        const newStop = stops.find(s => s.customerId === existingStop.customerId);
+        if (newStop) {
+          // Update existing stop with new container data
+          mergedStops.push({
             ...existingStop,
             containerIds: newStop.containerIds,
             orderIds: newStop.orderIds,
-          };
+            customerName: newStop.customerName, // Update name in case it changed
+          });
+        } else {
+          // Keep existing stop even if no containers (might be completed)
+          mergedStops.push(existingStop);
         }
-        return newStop;
       });
+      
+      // Then, add any new stops that weren't in the existing route
+      stops.forEach((newStop) => {
+        if (!existingStopsMap.has(newStop.customerId)) {
+          mergedStops.push(newStop);
+        }
+      });
+      
+      console.log('✅ Merged stops:', mergedStops.length, mergedStops.map(s => s.customerName));
       
       setDeliveryRoutes((prev) =>
         prev.map((route) =>
@@ -340,6 +360,7 @@ export default function CanvasLogistics() {
         currentStopIndex: 0,
         status: 'planning',
       };
+      console.log('✨ Created new route with', stops.length, 'stops');
       
       setDeliveryRoutes((prev) => [...prev, newRoute]);
     }
@@ -673,14 +694,21 @@ export default function CanvasLogistics() {
   };
 
   const handleReorderStops = (truckId: string, fromIndex: number, toIndex: number) => {
+    console.log('🔄 handleReorderStops called:', { truckId, fromIndex, toIndex });
     const route = deliveryRoutes.find((r) => r.truckId === truckId);
-    if (!route) return;
+    if (!route) {
+      console.log('❌ Route not found for truck:', truckId);
+      return;
+    }
+    console.log('📍 Route status:', route.status, 'Stops:', route.stops.map(s => s.customerName));
 
     // In planning mode, reorder all stops
     if (route.status === 'planning') {
+      console.log('✅ Planning mode - reordering stops');
       const newStops = [...route.stops];
       const [movedStop] = newStops.splice(fromIndex, 1);
       newStops.splice(toIndex, 0, movedStop);
+      console.log('📋 New order:', newStops.map(s => s.customerName));
 
       const updatedRoute = { ...route, stops: newStops };
       setDeliveryRoutes(deliveryRoutes.map((r) => (r.id === route.id ? updatedRoute : r)));
@@ -886,7 +914,13 @@ export default function CanvasLogistics() {
                       {activeRoute?.status === 'planning' ? 'Planned Stops:' : 'Remaining Stops:'}
                     </div>
                     <div className="space-y-2">
-                      {remainingStops.map((stop, index) => (
+                      {remainingStops.map((stop, displayIndex) => {
+                        // Calculate actual index in the full route
+                        const actualIndex = activeRoute.status === 'planning' 
+                          ? displayIndex 
+                          : activeRoute.currentStopIndex + 1 + displayIndex;
+                        
+                        return (
                         <div key={stop.id}>
                           {/* Drop zone above */}
                           <div
@@ -900,8 +934,9 @@ export default function CanvasLogistics() {
                             onDrop={(e) => {
                               e.preventDefault();
                               e.currentTarget.classList.remove('bg-primary/10');
-                              if (draggedStopIndex !== null && draggedStopIndex !== index) {
-                                handleReorderStops(truck.id, draggedStopIndex, index);
+                              if (draggedStopIndex !== null && draggedStopIndex !== actualIndex) {
+                                console.log('🔄 Drop: moving stop from', draggedStopIndex, 'to', actualIndex);
+                                handleReorderStops(truck.id, draggedStopIndex, actualIndex);
                               }
                               setDraggedStopIndex(null);
                             }}
@@ -912,7 +947,8 @@ export default function CanvasLogistics() {
                           <div
                             draggable
                             onDragStart={(e) => {
-                              setDraggedStopIndex(index);
+                              console.log('🎯 Drag start: stop', actualIndex, stop.customerName);
+                              setDraggedStopIndex(actualIndex);
                               e.currentTarget.classList.add('opacity-50');
                             }}
                             onDragEnd={(e) => {
@@ -922,7 +958,7 @@ export default function CanvasLogistics() {
                             className="text-xs bg-card border border-border rounded-md p-2 flex items-center gap-2 cursor-move hover:border-primary transition-colors"
                           >
                             <span className="w-5 h-5 rounded-full bg-muted flex items-center justify-center text-[10px] font-semibold">
-                              {activeRoute.status === 'planning' ? index + 1 : activeRoute.currentStopIndex + index + 2}
+                              {actualIndex + 1}
                             </span>
                             <div className="flex-1">
                               <div className="font-medium text-foreground">{stop.customerName}</div>
@@ -937,7 +973,7 @@ export default function CanvasLogistics() {
                             </div>
                           </div>
                         </div>
-                      ))}
+                      )})}
                       
                       {/* Drop zone at bottom */}
                       <div
@@ -952,7 +988,11 @@ export default function CanvasLogistics() {
                           e.preventDefault();
                           e.currentTarget.classList.remove('bg-primary/10');
                           if (draggedStopIndex !== null) {
-                            handleReorderStops(truck.id, draggedStopIndex, remainingStops.length - 1);
+                            const lastIndex = activeRoute.status === 'planning' 
+                              ? remainingStops.length - 1 
+                              : activeRoute.currentStopIndex + remainingStops.length;
+                            console.log('🔄 Drop at bottom: moving stop from', draggedStopIndex, 'to', lastIndex);
+                            handleReorderStops(truck.id, draggedStopIndex, lastIndex);
                           }
                           setDraggedStopIndex(null);
                         }}
