@@ -58,6 +58,41 @@ interface DeliveryRoute {
   completedAt?: Date;
 }
 
+// Packing workspace interfaces
+interface PackingItem {
+  id: string;
+  type: 'bottle' | 'six-pack' | 'keg';
+  product: string;
+  batchId: string;
+  orderId: string;
+  customerId: string;
+  weight: number;
+}
+
+interface Case {
+  id: string;
+  items: PackingItem[];
+  type: 'bottle-case' | 'six-pack-case';
+  product: string;
+  weight: number;
+  createdAt: Date;
+}
+
+interface PalletSlot {
+  x: number;
+  y: number;
+  item: Case | PackingItem | null;
+}
+
+interface Pallet {
+  id: string;
+  slots: PalletSlot[];
+  capacity: number;
+  currentWeight: number;
+  status: 'building' | 'complete';
+  createdAt: Date;
+}
+
 // Initialize sample data with tracking IDs
 const initializeContainers = (): Container[] => {
   const containers: Container[] = [];
@@ -168,6 +203,7 @@ const mockOrders = [
 const stages = [
   { id: 'production', name: 'Production', icon: Factory, color: 'bg-blue-500' },
   { id: 'packaging', name: 'Packaging', icon: Package, color: 'bg-green-500' },
+  { id: 'packing', name: 'Packing', icon: Package, color: 'bg-teal-500' },
   { id: 'delivery', name: 'Delivery', icon: TruckIcon, color: 'bg-orange-500' },
   { id: 'tax', name: 'Tax Determination', icon: Shield, color: 'bg-purple-500' },
   { id: 'restaurant', name: 'Restaurant', icon: Home, color: 'bg-red-500' },
@@ -189,6 +225,13 @@ export default function CanvasLogistics() {
   const [deliveryRoutes, setDeliveryRoutes] = useState<DeliveryRoute[]>([]);
   const [draggedStopIndex, setDraggedStopIndex] = useState<number | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
+  
+  // Packing workspace state
+  const [availableItems, setAvailableItems] = useState<PackingItem[]>([]);
+  const [caseBuilder, setCaseBuilder] = useState<PackingItem[]>([]);
+  const [activePallet, setActivePallet] = useState<Pallet | null>(null);
+  const [completedPallets, setCompletedPallets] = useState<Pallet[]>([]);
+  const [draggedPackingItem, setDraggedPackingItem] = useState<PackingItem | Case | null>(null);
   const [selectedDetail, setSelectedDetail] = useState<{
     container?: Container;
     truck?: Truck;
@@ -226,6 +269,51 @@ export default function CanvasLogistics() {
       message: `Order ${orderId} has been approved for loading`,
       type: 'success',
     });
+    
+    // Generate packing items from approved order
+    generatePackingItems(orderId);
+  };
+  
+  // Generate packing items from approved orders
+  const generatePackingItems = (orderId: string) => {
+    const order = orders.find(o => o.id === orderId);
+    if (!order) return;
+    
+    const newItems: PackingItem[] = [];
+    
+    order.items.forEach((item) => {
+      if (item.type === 'Keg') {
+        // Create individual kegs
+        for (let i = 0; i < item.quantity; i++) {
+          newItems.push({
+            id: `item-${Date.now()}-${i}`,
+            type: 'keg',
+            product: item.product,
+            batchId: `BATCH-${Date.now()}`,
+            orderId: order.id,
+            customerId: order.customerId,
+            weight: 160,
+          });
+        }
+      } else if (item.type === 'Case') {
+        // Break cases into six-packs for packing
+        const sixPacksPerCase = 2;
+        for (let i = 0; i < item.quantity * sixPacksPerCase; i++) {
+          newItems.push({
+            id: `item-${Date.now()}-${i}`,
+            type: 'six-pack',
+            product: item.product,
+            batchId: `BATCH-${Date.now()}`,
+            orderId: order.id,
+            customerId: order.customerId,
+            weight: 15,
+          });
+        }
+      }
+    });
+    
+    setAvailableItems(prev => [...prev, ...newItems]);
+    console.log('📦 Generated packing items:', newItems.length, 'items for order', orderId);
   };
 
   const handleLoadToTruck = (order: typeof mockOrders[0]) => {
@@ -835,6 +923,132 @@ export default function CanvasLogistics() {
                     <span>Cases Packed</span>
                     <span className="font-semibold">48</span>
                   </div>
+                </div>
+              </div>
+            </div>
+          ),
+        };
+      case 'packing':
+        return {
+          title: 'Interactive Packing Workspace',
+          content: (
+            <div className="space-y-4">
+              {/* Available Items Pool */}
+              <div className="bg-teal-500/10 border border-teal-500/20 p-4 rounded">
+                <h4 className="font-semibold mb-3 flex items-center gap-2">
+                  <Package className="h-4 w-4" />
+                  Available Items ({availableItems.length})
+                </h4>
+                <div className="flex flex-wrap gap-2">
+                  {availableItems.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">No items available. Approve orders to generate packing items.</p>
+                  ) : (
+                    availableItems.map((item) => (
+                      <div
+                        key={item.id}
+                        draggable
+                        onDragStart={(e) => {
+                          setDraggedPackingItem(item);
+                          e.dataTransfer.effectAllowed = 'move';
+                          console.log('🎯 Drag start:', item.type, item.product);
+                        }}
+                        onDragEnd={() => {
+                          setDraggedPackingItem(null);
+                          console.log('🏁 Drag end');
+                        }}
+                        className="bg-card border border-border p-3 rounded cursor-move hover:border-primary hover:shadow-md transition-all"
+                      >
+                        <div className="text-sm font-medium">
+                          {item.type === 'keg' ? '🛢️' : item.type === 'six-pack' ? '📦' : '🍺'} {item.product}
+                        </div>
+                        <div className="text-xs text-muted-foreground mt-1">
+                          {item.type} • {item.weight}lbs
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+
+              {/* Case Builder */}
+              <div className="bg-amber-500/10 border border-amber-500/20 p-4 rounded">
+                <h4 className="font-semibold mb-3">Case Builder (2 items → 1 case)</h4>
+                <div
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    e.dataTransfer.dropEffect = 'move';
+                  }}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    if (draggedPackingItem && 'type' in draggedPackingItem && draggedPackingItem.type !== 'keg') {
+                      setCaseBuilder(prev => {
+                        const newBuilder = [...prev, draggedPackingItem];
+                        
+                        // Remove from available items
+                        setAvailableItems(current => current.filter(i => i.id !== draggedPackingItem.id));
+                        
+                        // If we have 2 items, create a case
+                        if (newBuilder.length === 2) {
+                          const newCase: Case = {
+                            id: `case-${Date.now()}`,
+                            items: newBuilder,
+                            type: newBuilder[0].type === 'bottle' ? 'bottle-case' : 'six-pack-case',
+                            product: newBuilder[0].product,
+                            weight: newBuilder.reduce((sum, item) => sum + item.weight, 0),
+                            createdAt: new Date(),
+                          };
+                          
+                          console.log('📦 Created case:', newCase);
+                          addNotification({
+                            title: 'Case Created',
+                            message: `Combined 2 ${newBuilder[0].type}s into a case`,
+                            type: 'success',
+                          });
+                          
+                          // Clear builder and add case to available items for pallet
+                          setTimeout(() => {
+                            setCaseBuilder([]);
+                            // Add case back as draggable item (we'll handle this differently)
+                          }, 500);
+                          
+                          return [];
+                        }
+                        
+                        return newBuilder;
+                      });
+                    }
+                    setDraggedPackingItem(null);
+                  }}
+                  className={`min-h-[120px] border-2 border-dashed rounded-lg flex items-center justify-center gap-4 transition-all ${
+                    draggedPackingItem && 'type' in draggedPackingItem && draggedPackingItem.type !== 'keg'
+                      ? 'border-amber-500 bg-amber-500/10'
+                      : 'border-border'
+                  }`}
+                >
+                  {caseBuilder.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">Drop 2 bottles or 2 six-packs here to create a case</p>
+                  ) : (
+                    <>
+                      {caseBuilder.map((item) => (
+                        <div key={item.id} className="bg-card border border-border p-2 rounded">
+                          <div className="text-sm font-medium">
+                            {item.type === 'six-pack' ? '📦' : '🍺'} {item.product}
+                          </div>
+                        </div>
+                      ))}
+                      {caseBuilder.length === 1 && (
+                        <div className="text-sm text-muted-foreground">+ Drop 1 more to create case</div>
+                      )}
+                    </>
+                  )}
+                </div>
+              </div>
+
+              {/* Pallet Builder - Coming Soon */}
+              <div className="bg-purple-500/10 border border-purple-500/20 p-4 rounded">
+                <h4 className="font-semibold mb-3">Pallet Builder (3x3 Grid)</h4>
+                <div className="text-sm text-muted-foreground">
+                  🚧 Pallet grid coming in next step...
                 </div>
               </div>
             </div>
