@@ -427,7 +427,7 @@ export default function CanvasLogistics() {
 
   const handleCompleteDelivery = (truckId: string) => {
     const truck = trucks.find((t) => t.id === truckId);
-    if (!truck || truck.status !== 'on-road' || !truck.loadedContainers || truck.loadedContainers.length === 0) {
+    if (!truck || truck.status !== 'on-road' || !truck.containers || truck.containers.length === 0) {
       addNotification({
         type: 'error',
         title: 'Cannot Complete Delivery',
@@ -438,7 +438,7 @@ export default function CanvasLogistics() {
 
     // Move containers to customer location
     const deliveredContainers = containers.map((c) =>
-      truck.loadedContainers.includes(c.id)
+      truck.containers.includes(c.id)
         ? { ...c, location: truck.route || 'restaurant', status: 'delivered' as const }
         : c
     );
