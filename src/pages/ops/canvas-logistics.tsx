@@ -262,13 +262,13 @@ export default function CanvasLogistics() {
       type: 'success',
     });
     
-    // Update route plan after loading
-    updateRoutePlan(updatedTruck.id);
+    // Update route plan after loading (pass updated truck to avoid stale state)
+    updateRoutePlan(updatedTruck.id, updatedTruck);
   };
   
   // Update route plan based on loaded containers
-  const updateRoutePlan = (truckId: string) => {
-    const truck = trucks.find((t) => t.id === truckId);
+  const updateRoutePlan = (truckId: string, updatedTruck?: typeof trucks[0]) => {
+    const truck = updatedTruck || trucks.find((t) => t.id === truckId);
     if (!truck || truck.containers.length === 0) {
       // Remove route if truck is empty
       setDeliveryRoutes((prev) => prev.filter((r) => r.truckId !== truckId));
