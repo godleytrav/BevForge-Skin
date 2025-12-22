@@ -294,7 +294,7 @@ export default function CanvasLogistics() {
         return {
           id: `stop-${truckId}-${customerId}-${Date.now()}`,
           customerId,
-          customerName: firstContainer.customer || 'Unknown Customer',
+          customerName: customerId, // Use customerId as the customer name
           orderIds: orderIds as string[],
           containerIds: customerContainers.map((c) => c.id),
           status: 'pending',
@@ -306,11 +306,28 @@ export default function CanvasLogistics() {
     const existingRoute = deliveryRoutes.find((r) => r.truckId === truckId);
     
     if (existingRoute) {
-      // Update existing route with new stops
+      // Merge new stops with existing ones, preserving order and completed stops
+      const mergedStops = stops.map((newStop) => {
+        // Find if this customer already has a stop
+        const existingStop = existingRoute.stops.find(
+          (s) => s.customerId === newStop.customerId
+        );
+        
+        if (existingStop) {
+          // Preserve existing stop ID and status, update containers
+          return {
+            ...existingStop,
+            containerIds: newStop.containerIds,
+            orderIds: newStop.orderIds,
+          };
+        }
+        return newStop;
+      });
+      
       setDeliveryRoutes((prev) =>
         prev.map((route) =>
           route.truckId === truckId
-            ? { ...route, stops }
+            ? { ...route, stops: mergedStops }
             : route
         )
       );
@@ -656,10 +673,27 @@ export default function CanvasLogistics() {
   };
 
   const handleReorderStops = (truckId: string, fromIndex: number, toIndex: number) => {
-    const route = deliveryRoutes.find((r) => r.truckId === truckId && r.status === 'in-progress');
+    const route = deliveryRoutes.find((r) => r.truckId === truckId);
     if (!route) return;
 
-    // Can't reorder the current stop (it's already in progress)
+    // In planning mode, reorder all stops
+    if (route.status === 'planning') {
+      const newStops = [...route.stops];
+      const [movedStop] = newStops.splice(fromIndex, 1);
+      newStops.splice(toIndex, 0, movedStop);
+
+      const updatedRoute = { ...route, stops: newStops };
+      setDeliveryRoutes(deliveryRoutes.map((r) => (r.id === route.id ? updatedRoute : r)));
+
+      addNotification({
+        type: 'success',
+        title: 'Stops Reordered',
+        message: `Moved ${movedStop.customerName} to position ${toIndex + 1}`,
+      });
+      return;
+    }
+
+    // In progress mode, can't reorder the current stop (it's already in progress)
     const adjustedFromIndex = fromIndex + route.currentStopIndex + 1;
     const adjustedToIndex = toIndex + route.currentStopIndex + 1;
 
