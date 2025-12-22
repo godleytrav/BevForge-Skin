@@ -187,6 +187,7 @@ export default function CanvasLogistics() {
     createLocation('Downtown Pub', 'restaurant', '789 Elm St'),
   ]);
   const [deliveryRoutes, setDeliveryRoutes] = useState<DeliveryRoute[]>([]);
+  const [draggedStopIndex, setDraggedStopIndex] = useState<number | null>(null);
   const [selectedDetail, setSelectedDetail] = useState<{
     container?: Container;
     truck?: Truck;
@@ -617,6 +618,39 @@ export default function CanvasLogistics() {
     });
   };
 
+  const handleReorderStops = (truckId: string, fromIndex: number, toIndex: number) => {
+    const route = deliveryRoutes.find((r) => r.truckId === truckId && r.status === 'in-progress');
+    if (!route) return;
+
+    // Can't reorder the current stop (it's already in progress)
+    const adjustedFromIndex = fromIndex + route.currentStopIndex + 1;
+    const adjustedToIndex = toIndex + route.currentStopIndex + 1;
+
+    if (adjustedFromIndex < route.currentStopIndex + 1 || adjustedToIndex < route.currentStopIndex + 1) {
+      addNotification({
+        type: 'error',
+        title: 'Cannot Reorder',
+        message: 'Cannot reorder current or completed stops',
+      });
+      return;
+    }
+
+    // Reorder the stops array
+    const newStops = [...route.stops];
+    const [movedStop] = newStops.splice(adjustedFromIndex, 1);
+    newStops.splice(adjustedToIndex, 0, movedStop);
+
+    // Update route
+    const updatedRoute = { ...route, stops: newStops };
+    setDeliveryRoutes(deliveryRoutes.map((r) => (r.id === route.id ? updatedRoute : r)));
+
+    addNotification({
+      type: 'success',
+      title: 'Stops Reordered',
+      message: `Moved ${movedStop.customerName} to position ${toIndex + 1}`,
+    });
+  };
+
   const handleMarkEmpty = (containerId: string) => {
     const container = containers.find((c) => c.id === containerId);
     if (!container) return;
@@ -774,16 +808,79 @@ export default function CanvasLogistics() {
                 {remainingStops.length > 0 && (
                   <div className="mt-3">
                     <div className="text-xs font-semibold mb-2 text-muted-foreground">Remaining Stops:</div>
-                    <div className="space-y-1">
+                    <div className="space-y-2">
                       {remainingStops.map((stop, index) => (
-                        <div key={stop.id} className="text-xs text-muted-foreground flex items-center gap-2">
-                          <span className="w-4 h-4 rounded-full bg-muted flex items-center justify-center text-[10px]">
-                            {activeRoute.currentStopIndex + index + 2}
-                          </span>
-                          <span>{stop.customerName}</span>
-                          <span className="text-[10px]">({stop.containerIds.length})</span>
+                        <div key={stop.id}>
+                          {/* Drop zone above */}
+                          <div
+                            onDragOver={(e) => {
+                              e.preventDefault();
+                              e.currentTarget.classList.add('bg-primary/10');
+                            }}
+                            onDragLeave={(e) => {
+                              e.currentTarget.classList.remove('bg-primary/10');
+                            }}
+                            onDrop={(e) => {
+                              e.preventDefault();
+                              e.currentTarget.classList.remove('bg-primary/10');
+                              if (draggedStopIndex !== null && draggedStopIndex !== index) {
+                                handleReorderStops(truck.id, draggedStopIndex, index);
+                              }
+                              setDraggedStopIndex(null);
+                            }}
+                            className="h-1 rounded transition-colors"
+                          />
+                          
+                          {/* Draggable stop tile */}
+                          <div
+                            draggable
+                            onDragStart={(e) => {
+                              setDraggedStopIndex(index);
+                              e.currentTarget.classList.add('opacity-50');
+                            }}
+                            onDragEnd={(e) => {
+                              setDraggedStopIndex(null);
+                              e.currentTarget.classList.remove('opacity-50');
+                            }}
+                            className="text-xs bg-card border border-border rounded-md p-2 flex items-center gap-2 cursor-move hover:border-primary transition-colors"
+                          >
+                            <span className="w-5 h-5 rounded-full bg-muted flex items-center justify-center text-[10px] font-semibold">
+                              {activeRoute.currentStopIndex + index + 2}
+                            </span>
+                            <div className="flex-1">
+                              <div className="font-medium text-foreground">{stop.customerName}</div>
+                              <div className="text-[10px] text-muted-foreground">
+                                {stop.containerIds.length} container{stop.containerIds.length > 1 ? 's' : ''}
+                              </div>
+                            </div>
+                            <div className="text-muted-foreground">
+                              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8h16M4 16h16" />
+                              </svg>
+                            </div>
+                          </div>
                         </div>
                       ))}
+                      
+                      {/* Drop zone at bottom */}
+                      <div
+                        onDragOver={(e) => {
+                          e.preventDefault();
+                          e.currentTarget.classList.add('bg-primary/10');
+                        }}
+                        onDragLeave={(e) => {
+                          e.currentTarget.classList.remove('bg-primary/10');
+                        }}
+                        onDrop={(e) => {
+                          e.preventDefault();
+                          e.currentTarget.classList.remove('bg-primary/10');
+                          if (draggedStopIndex !== null) {
+                            handleReorderStops(truck.id, draggedStopIndex, remainingStops.length - 1);
+                          }
+                          setDraggedStopIndex(null);
+                        }}
+                        className="h-1 rounded transition-colors"
+                      />
                     </div>
                   </div>
                 )}
