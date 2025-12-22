@@ -926,21 +926,22 @@ export default function CanvasLogistics() {
                           <div
                             onDragOver={(e) => {
                               e.preventDefault();
-                              e.currentTarget.classList.add('bg-primary/10');
+                              e.dataTransfer.dropEffect = 'move';
+                              e.currentTarget.classList.add('bg-primary/20', 'h-8');
                             }}
                             onDragLeave={(e) => {
-                              e.currentTarget.classList.remove('bg-primary/10');
+                              e.currentTarget.classList.remove('bg-primary/20', 'h-8');
                             }}
                             onDrop={(e) => {
                               e.preventDefault();
-                              e.currentTarget.classList.remove('bg-primary/10');
+                              e.currentTarget.classList.remove('bg-primary/20', 'h-8');
                               if (draggedStopIndex !== null && draggedStopIndex !== actualIndex) {
                                 console.log('🔄 Drop: moving stop from', draggedStopIndex, 'to', actualIndex);
                                 handleReorderStops(truck.id, draggedStopIndex, actualIndex);
                               }
                               setDraggedStopIndex(null);
                             }}
-                            className="h-1 rounded transition-colors"
+                            className="h-1 rounded transition-all duration-200 ease-in-out"
                           />
                           
                           {/* Draggable stop tile */}
@@ -948,14 +949,16 @@ export default function CanvasLogistics() {
                             draggable
                             onDragStart={(e) => {
                               console.log('🎯 Drag start: stop', actualIndex, stop.customerName);
+                              e.dataTransfer.effectAllowed = 'move';
                               setDraggedStopIndex(actualIndex);
-                              e.currentTarget.classList.add('opacity-50');
                             }}
                             onDragEnd={(e) => {
+                              console.log('🏁 Drag end: resetting state');
                               setDraggedStopIndex(null);
-                              e.currentTarget.classList.remove('opacity-50');
                             }}
-                            className="text-xs bg-card border border-border rounded-md p-2 flex items-center gap-2 cursor-move hover:border-primary transition-colors"
+                            className={`text-xs bg-card border border-border rounded-md p-2 flex items-center gap-2 cursor-move hover:border-primary transition-all duration-200 ${
+                              draggedStopIndex === actualIndex ? 'opacity-40 scale-95 shadow-lg' : 'hover:shadow-md'
+                            }`}
                           >
                             <span className="w-5 h-5 rounded-full bg-muted flex items-center justify-center text-[10px] font-semibold">
                               {actualIndex + 1}
@@ -979,14 +982,15 @@ export default function CanvasLogistics() {
                       <div
                         onDragOver={(e) => {
                           e.preventDefault();
-                          e.currentTarget.classList.add('bg-primary/10');
+                          e.dataTransfer.dropEffect = 'move';
+                          e.currentTarget.classList.add('bg-primary/20', 'h-8');
                         }}
                         onDragLeave={(e) => {
-                          e.currentTarget.classList.remove('bg-primary/10');
+                          e.currentTarget.classList.remove('bg-primary/20', 'h-8');
                         }}
                         onDrop={(e) => {
                           e.preventDefault();
-                          e.currentTarget.classList.remove('bg-primary/10');
+                          e.currentTarget.classList.remove('bg-primary/20', 'h-8');
                           if (draggedStopIndex !== null) {
                             const lastIndex = activeRoute.status === 'planning' 
                               ? remainingStops.length - 1 
@@ -996,7 +1000,7 @@ export default function CanvasLogistics() {
                           }
                           setDraggedStopIndex(null);
                         }}
-                        className="h-1 rounded transition-colors"
+                        className="h-1 rounded transition-all duration-200 ease-in-out"
                       />
                     </div>
                   </div>
