@@ -234,11 +234,11 @@ export default function CanvasLogistics() {
       // Transform API data to match canvas format
       const transformedOrders = data.map(order => ({
         id: order.id,
-        customer: order.customerName,
-        customerId: order.customerId,
+        customer: order.customer_name,
+        customerId: order.customer_id,
         items: order.lineItems.map((item: any) => ({
-          type: item.containerType.includes('Keg') ? 'Keg' : 'Case',
-          product: item.productName,
+          type: item.container_type?.includes('Keg') ? 'Keg' : 'Case',
+          product: item.product_name,
           quantity: item.quantity,
         })),
         status: 'approved' as const,
