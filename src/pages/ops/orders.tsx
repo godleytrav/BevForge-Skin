@@ -19,20 +19,36 @@ import { cn } from '@/lib/utils';
 type OrderStatus = 'draft' | 'confirmed' | 'approved' | 'in-packing' | 'packed' | 'loaded' | 'in-delivery' | 'delivered' | 'cancelled';
 
 interface LineItem {
-  id?: number;
-  item_name: string;
-  qty: number;
-  price: number;
+  id?: string;
+  productId?: string;
+  productName?: string;
+  containerTypeId?: string;
+  containerType?: string;
+  quantity: number;
+  unitPrice: number;
+  depositPerUnit?: number;
+  totalPrice: number;
+  totalDeposit?: number;
+  // Legacy fields for form compatibility
+  item_name?: string;
+  qty?: number;
+  price?: number;
 }
 
 interface Order {
-  id: number;
+  id: string;
+  orderNumber?: string;
+  customerId?: string;
   customer_name: string;
   order_date: string;
+  delivery_date?: string;
   status: OrderStatus;
-  total: number;
-  line_items: LineItem[];
-  created_at: string;
+  total_amount: number;
+  deposit_amount?: number;
+  lineItems: LineItem[];
+  notes?: string;
+  createdAt: string;
+  updatedAt?: string;
 }
 
 const statusColors: Record<OrderStatus, string> = {
@@ -194,7 +210,7 @@ export default function Orders() {
       order_date: order.order_date,
       status: order.status,
     });
-    setLineItems(order.line_items.length > 0 ? [...order.line_items] : [{ item_name: '', qty: 1, price: 0 }]);
+    setLineItems(order.lineItems.length > 0 ? [...order.lineItems] : [{ item_name: '', qty: 1, price: 0 }]);
   };
 
   const resetForm = () => {
@@ -255,11 +271,11 @@ export default function Orders() {
   const stats = useMemo(() => {
     return {
       total: orders.length,
-      pending: orders.filter(o => o.status === 'pending').length,
-      processing: orders.filter(o => o.status === 'processing').length,
-      fulfilled: orders.filter(o => o.status === 'fulfilled').length,
+      pending: orders.filter(o => ['draft', 'confirmed'].includes(o.status)).length,
+      processing: orders.filter(o => ['approved', 'in-packing', 'packed', 'loaded', 'in-delivery'].includes(o.status)).length,
+      fulfilled: orders.filter(o => o.status === 'delivered').length,
       cancelled: orders.filter(o => o.status === 'cancelled').length,
-      totalRevenue: orders.reduce((sum, o) => sum + o.total, 0),
+      totalRevenue: orders.reduce((sum, o) => sum + (o.total_amount || 0), 0),
     };
   }, [orders]);
 
@@ -771,12 +787,12 @@ function OrderCard({ order, onEdit, onDelete, onApprove }: OrderCardProps) {
           <div className="border-t pt-3">
             <p className="text-sm font-medium mb-2">Line Items:</p>
             <div className="space-y-1">
-              {order.line_items.map((item, idx) => (
+              {order.lineItems.map((item, idx) => (
                 <div key={idx} className="flex justify-between text-sm">
                   <span className="text-muted-foreground">
-                    {item.qty}x {item.item_name}
+                    {item.quantity || item.qty || 0}x {item.productName || item.item_name || 'Unknown'}
                   </span>
-                  <span className="font-medium">${(item.qty * item.price).toFixed(2)}</span>
+                  <span className="font-medium">${(item.totalPrice || ((item.quantity || item.qty || 0) * (item.unitPrice || item.price || 0))).toFixed(2)}</span>
                 </div>
               ))}
             </div>
@@ -784,7 +800,7 @@ function OrderCard({ order, onEdit, onDelete, onApprove }: OrderCardProps) {
 
           <div className="flex justify-between text-base font-semibold border-t pt-3">
             <span>Total:</span>
-            <span>${order.total.toFixed(2)}</span>
+            <span>${order.total_amount.toFixed(2)}</span>
           </div>
         </div>
       </CardContent>
