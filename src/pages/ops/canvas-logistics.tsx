@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
@@ -23,6 +23,7 @@ import {
   Wine,
 } from 'lucide-react';
 import { useNotifications } from '@/contexts/NotificationContext';
+import { apiGet, apiPatch } from '@/lib/api';
 import { ContainerDetailModal } from '@/components/canvas/ContainerDetailModal';
 import {
   type Container,
@@ -168,36 +169,7 @@ const initializeContainers = (): Container[] => {
   return containers;
 };
 
-// Mock orders data
-const mockOrders = [
-  {
-    id: 'ORD-001',
-    customer: "Joe's Bar",
-    customerId: 'joes-bar',
-    items: [
-      { type: 'Keg', product: 'IPA', quantity: 2 },
-      { type: 'Case', product: 'Bottles, 12-pack', quantity: 1 },
-    ],
-    status: 'pending' as const,
-  },
-  {
-    id: 'ORD-002',
-    customer: 'Main St Pub',
-    customerId: 'main-st-pub',
-    items: [{ type: 'Keg', product: 'Lager', quantity: 5 }],
-    status: 'pending' as const,
-  },
-  {
-    id: 'ORD-003',
-    customer: 'Downtown Pub',
-    customerId: 'downtown-pub',
-    items: [
-      { type: 'Keg', product: 'Stout', quantity: 3 },
-      { type: 'Case', product: 'Cans, 6-pack', quantity: 2 },
-    ],
-    status: 'pending' as const,
-  },
-];
+// Orders are now fetched from OPS API via /api/orders?status=approved
 
 // Workflow stages
 const stages = [
@@ -211,7 +183,8 @@ const stages = [
 ];
 
 export default function CanvasLogistics() {
-  const [orders, setOrders] = useState(mockOrders);
+  const [orders, setOrders] = useState<any[]>([]);
+  const [loadingOrders, setLoadingOrders] = useState(true);
   const [selectedStage, setSelectedStage] = useState<string | null>('delivery');
   const [containers, setContainers] = useState<Container[]>(initializeContainers());
   const [trucks, setTrucks] = useState<Truck[]>([
@@ -248,31 +221,56 @@ export default function CanvasLogistics() {
   const [selectionMode, setSelectionMode] = useState<'case' | 'pallet' | null>(null);
   const { addNotification } = useNotifications();
 
-  const handleApprove = (orderId: string) => {
-    setOrders((prev) =>
-      prev.map((order) =>
-        order.id === orderId ? { ...order, status: 'approved' as const } : order
-      )
-    );
-    
-    // Update container statuses
-    setContainers((prev) =>
-      prev.map((container) =>
-        container.orderId === orderId
-          ? updateContainerStatus(container, 'staging', 'Staging Area', 'Order approved')
-          : container
-      )
-    );
-    
-    addNotification({
-      title: 'Order Approved',
-      message: `Order ${orderId} has been approved for loading`,
-      type: 'success',
-    });
-    
-    // Generate packing items from approved order
-    generatePackingItems(orderId);
+  // Fetch approved orders from OPS
+  useEffect(() => {
+    fetchApprovedOrders();
+  }, []);
+
+  const fetchApprovedOrders = async () => {
+    try {
+      setLoadingOrders(true);
+      const data = await apiGet<any[]>('/api/orders?status=approved');
+      
+      // Transform API data to match canvas format
+      const transformedOrders = data.map(order => ({
+        id: order.id,
+        customer: order.customerName,
+        customerId: order.customerId,
+        items: order.lineItems.map((item: any) => ({
+          type: item.containerType.includes('Keg') ? 'Keg' : 'Case',
+          product: item.productName,
+          quantity: item.quantity,
+        })),
+        status: 'approved' as const,
+      }));
+      
+      setOrders(transformedOrders);
+      
+      // Generate packing items for all approved orders
+      transformedOrders.forEach(order => {
+        generatePackingItems(order.id);
+      });
+    } catch (error) {
+      console.error('Failed to fetch approved orders:', error);
+      addNotification({
+        title: 'Error',
+        message: 'Failed to load approved orders',
+        type: 'error',
+      });
+    } finally {
+      setLoadingOrders(false);
+    }
   };
+
+  const updateOrderStatus = async (orderId: string, status: string) => {
+    try {
+      await apiPatch(`/api/orders/${orderId}`, { status });
+    } catch (error) {
+      console.error('Failed to update order status:', error);
+    }
+  };
+
+  // Orders come pre-approved from OPS, no need for handleApprove
   
   // Generate packing items from approved orders
   const generatePackingItems = (orderId: string) => {
@@ -316,7 +314,7 @@ export default function CanvasLogistics() {
     console.log('📦 Generated packing items:', newItems.length, 'items for order', orderId);
   };
 
-  const handleLoadToTruck = (order: typeof mockOrders[0]) => {
+  const handleLoadToTruck = (order: any) => {
     if (order.status !== 'approved') {
       addNotification({
         title: 'Cannot Load',
@@ -344,6 +342,9 @@ export default function CanvasLogistics() {
     setOrders((prev) =>
       prev.map((o) => (o.id === order.id ? { ...o, status: 'loaded' as const } : o))
     );
+    
+    // Update order status in OPS
+    updateOrderStatus(order.id, 'loaded');
     
     addNotification({
       title: 'Loaded to Truck',
