@@ -31,13 +31,8 @@ type CalendarEvent = {
   payload?: Record<string, any>; // JSON data for automation
 };
 
-const mockEvents: CalendarEvent[] = [
-  { id: '1', title: 'Batch #2847 - IPA Brewing', time: '09:00', duration: '4h', type: 'PRODUCTION', status: 'CONFIRMED', priority: 'high', date: new Date(), entity_type: 'batch', entity_id: '2847' },
-  { id: '2', title: 'Team Meeting - Production Review', time: '14:00', duration: '1h', type: 'NOTE', status: 'PLANNED', priority: 'medium', date: new Date() },
-  { id: '3', title: 'Order #1923 - Delivery Scheduled', time: '16:00', duration: '2h', type: 'DELIVERY', status: 'CONFIRMED', priority: 'high', date: new Date(), entity_type: 'order', entity_id: '1923' },
-  { id: '4', title: 'Equipment Maintenance - Tank 3', time: '10:00', duration: '3h', type: 'MAINTENANCE', status: 'PLANNED', priority: 'medium', date: addDays(new Date(), 1) },
-  { id: '5', title: 'Compliance Audit - Health Inspection', time: '11:00', duration: '2h', type: 'COMPLIANCE', status: 'CONFIRMED', priority: 'high', date: addDays(new Date(), 2) },
-];
+// Start with empty events - will be populated by real orders and deliveries
+const mockEvents: CalendarEvent[] = [];
 
 const eventTypeColors = {
   ORDER: 'bg-green-500',

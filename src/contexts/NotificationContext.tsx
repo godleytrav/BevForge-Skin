@@ -21,80 +21,8 @@ interface NotificationContextType {
 
 const NotificationContext = createContext<NotificationContextType | undefined>(undefined);
 
-const initialNotifications: Notification[] = [
-  {
-    id: '1',
-    title: 'Order #1245 Requires Approval',
-    description: 'Downtown Taproom order for $2,340 needs manager approval',
-    time: '5 minutes ago',
-    type: 'sales',
-    read: false,
-    icon: 'alert-circle',
-  },
-  {
-    id: '2',
-    title: 'Batch #234 Quality Review',
-    description: 'IPA batch quality report flagged for review - gravity reading outside range',
-    time: '15 minutes ago',
-    type: 'production',
-    read: false,
-    icon: 'beaker',
-  },
-  {
-    id: '3',
-    title: 'Delivery Scheduled',
-    description: 'Order #1243 delivery confirmed for tomorrow 10:00 AM',
-    time: '30 minutes ago',
-    type: 'sales',
-    read: false,
-    icon: 'shopping-cart',
-  },
-  {
-    id: '4',
-    title: 'TTB Monthly Report Due',
-    description: 'Federal excise tax report due in 2 days - submit by Dec 21',
-    time: '1 hour ago',
-    type: 'compliance',
-    read: false,
-    icon: 'alert-circle',
-  },
-  {
-    id: '5',
-    title: 'Low Inventory Alert',
-    description: 'Cascade hops below minimum threshold (5 lbs remaining)',
-    time: '2 hours ago',
-    type: 'inventory',
-    read: false,
-    icon: 'package',
-  },
-  {
-    id: '6',
-    title: 'Vendor Payment Approved',
-    description: 'Payment to Hop Suppliers Inc. ($1,250) has been approved',
-    time: '3 hours ago',
-    type: 'sales',
-    read: true,
-    icon: 'dollar-sign',
-  },
-  {
-    id: '7',
-    title: 'Inventory Discrepancy Detected',
-    description: 'Mismatch in Batch #232 - expected 500 units, found 485 units',
-    time: '4 hours ago',
-    type: 'inventory',
-    read: true,
-    icon: 'alert-circle',
-  },
-  {
-    id: '8',
-    title: 'New Order Received',
-    description: 'Order #1246 from Westside Pub - 15 cases Pale Ale, 10 cases IPA',
-    time: '5 hours ago',
-    type: 'sales',
-    read: true,
-    icon: 'shopping-cart',
-  },
-];
+// Start with empty notifications - will be populated by real events
+const initialNotifications: Notification[] = [];
 
 export function NotificationProvider({ children }: { children: ReactNode }) {
   const [notifications, setNotifications] = useState<Notification[]>(initialNotifications);
