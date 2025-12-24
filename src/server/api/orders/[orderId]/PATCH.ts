@@ -2,25 +2,56 @@ import type { Request, Response } from 'express';
 
 /**
  * PATCH /api/orders/:orderId
- * Update an existing order
+ * Update order details or status
+ * 
+ * Body can include:
+ *   - status: Update order status
+ *   - notes: Update order notes
+ *   - deliveryDate: Update delivery date
  */
 export default async function handler(req: Request, res: Response) {
   try {
     const { orderId } = req.params;
-    const { customer_name, order_date, status, line_items, total } = req.body;
+    const updates = req.body;
 
-    // Mock update - replace with actual database update
+    if (!orderId) {
+      return res.status(400).json({ error: 'Order ID is required' });
+    }
+
+    // Validate status if provided
+    const validStatuses = [
+      'draft',
+      'confirmed',
+      'approved',
+      'in-packing',
+      'packed',
+      'loaded',
+      'in-delivery',
+      'delivered',
+      'cancelled'
+    ];
+
+    if (updates.status && !validStatuses.includes(updates.status)) {
+      return res.status(400).json({ 
+        error: 'Invalid status',
+        validStatuses 
+      });
+    }
+
+    // Mock update - in production, this would update the database
     const updatedOrder = {
-      id: parseInt(orderId),
-      customer_name,
-      order_date,
-      status,
-      total,
-      line_items,
-      created_at: new Date().toISOString(),
+      id: orderId,
+      ...updates,
+      updatedAt: new Date().toISOString(),
     };
 
-    res.json(updatedOrder);
+    console.log(`Order ${orderId} updated:`, updates);
+
+    res.json({
+      success: true,
+      order: updatedOrder,
+      message: `Order ${orderId} updated successfully`
+    });
   } catch (error) {
     console.error('Error updating order:', error);
     res.status(500).json({ 

@@ -185,8 +185,11 @@ export const orders = mysqlTable('orders', {
   status: mysqlEnum('status', [
     'draft',
     'confirmed',
-    'allocated',
-    'in_transit',
+    'approved',
+    'in-packing',
+    'packed',
+    'loaded',
+    'in-delivery',
     'delivered',
     'cancelled'
   ]).default('draft'),

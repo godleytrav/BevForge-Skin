@@ -3,50 +3,175 @@ import type { Request, Response } from 'express';
 /**
  * GET /api/orders
  * Fetch all orders with line items
+ * Query params:
+ *   - status: Filter by order status (draft, confirmed, approved, in-packing, packed, loaded, in-delivery, delivered, cancelled)
  */
-export default async function handler(_req: Request, res: Response) {
+export default async function handler(req: Request, res: Response) {
   try {
-    // Mock data for now - replace with actual database queries
-    const orders = [
+    const { status } = req.query;
+
+    // Mock data for testing - matches logistics workflow
+    const allOrders = [
       {
-        id: 1,
-        customer_name: 'Craft Beer Co.',
-        order_date: '2025-12-15',
-        status: 'pending',
-        total: 2500.00,
-        line_items: [
-          { id: 1, item_name: 'IPA Keg (1/2 BBL)', qty: 10, price: 150.00 },
-          { id: 2, item_name: 'Lager Keg (1/2 BBL)', qty: 10, price: 100.00 },
+        id: 'ORD-001',
+        orderNumber: 'ORD-001',
+        customerId: 'CUST-001',
+        customerName: "Joe's Bar",
+        status: 'approved',
+        orderDate: '2025-12-20T10:00:00Z',
+        deliveryDate: '2025-12-24T14:00:00Z',
+        totalAmount: 450.00,
+        depositAmount: 150.00,
+        lineItems: [
+          { 
+            id: 'LINE-001', 
+            productId: 'PROD-IPA',
+            productName: 'IPA', 
+            containerTypeId: 'KEG-HALF',
+            containerType: 'Keg (1/2 BBL)',
+            quantity: 3,
+            unitPrice: 150.00,
+            depositPerUnit: 50.00,
+            totalPrice: 450.00,
+            totalDeposit: 150.00
+          },
         ],
-        created_at: '2025-12-15T10:00:00Z',
+        notes: 'Regular weekly delivery',
+        createdAt: '2025-12-20T10:00:00Z',
+        updatedAt: '2025-12-20T10:00:00Z',
       },
       {
-        id: 2,
-        customer_name: 'Downtown Pub',
-        order_date: '2025-12-16',
-        status: 'processing',
-        total: 1800.00,
-        line_items: [
-          { id: 3, item_name: 'Pale Ale Keg (1/2 BBL)', qty: 12, price: 150.00 },
+        id: 'ORD-002',
+        orderNumber: 'ORD-002',
+        customerId: 'CUST-002',
+        customerName: 'Main St Pub',
+        status: 'approved',
+        orderDate: '2025-12-20T11:00:00Z',
+        deliveryDate: '2025-12-24T15:00:00Z',
+        totalAmount: 750.00,
+        depositAmount: 250.00,
+        lineItems: [
+          { 
+            id: 'LINE-002', 
+            productId: 'PROD-LAGER',
+            productName: 'Lager', 
+            containerTypeId: 'KEG-HALF',
+            containerType: 'Keg (1/2 BBL)',
+            quantity: 5,
+            unitPrice: 150.00,
+            depositPerUnit: 50.00,
+            totalPrice: 750.00,
+            totalDeposit: 250.00
+          },
         ],
-        created_at: '2025-12-16T09:30:00Z',
+        notes: 'Urgent - event this weekend',
+        createdAt: '2025-12-20T11:00:00Z',
+        updatedAt: '2025-12-20T11:00:00Z',
       },
       {
-        id: 3,
-        customer_name: 'Sports Bar & Grill',
-        order_date: '2025-12-17',
-        status: 'fulfilled',
-        total: 3200.00,
-        line_items: [
-          { id: 4, item_name: 'IPA Keg (1/2 BBL)', qty: 8, price: 150.00 },
-          { id: 5, item_name: 'Stout Keg (1/2 BBL)', qty: 8, price: 200.00 },
-          { id: 6, item_name: 'Lager Keg (1/2 BBL)', qty: 8, price: 100.00 },
+        id: 'ORD-003',
+        orderNumber: 'ORD-003',
+        customerId: 'CUST-003',
+        customerName: 'Downtown Pub',
+        status: 'approved',
+        orderDate: '2025-12-20T12:00:00Z',
+        deliveryDate: '2025-12-24T16:00:00Z',
+        totalAmount: 650.00,
+        depositAmount: 150.00,
+        lineItems: [
+          { 
+            id: 'LINE-003', 
+            productId: 'PROD-IPA',
+            productName: 'IPA', 
+            containerTypeId: 'KEG-HALF',
+            containerType: 'Keg (1/2 BBL)',
+            quantity: 3,
+            unitPrice: 150.00,
+            depositPerUnit: 50.00,
+            totalPrice: 450.00,
+            totalDeposit: 150.00
+          },
+          { 
+            id: 'LINE-004', 
+            productId: 'PROD-IPA',
+            productName: 'IPA Cans', 
+            containerTypeId: 'CASE-24',
+            containerType: 'Case (24 cans)',
+            quantity: 2,
+            unitPrice: 100.00,
+            depositPerUnit: 0.00,
+            totalPrice: 200.00,
+            totalDeposit: 0.00
+          },
         ],
-        created_at: '2025-12-17T11:00:00Z',
+        notes: 'Mix of kegs and cases',
+        createdAt: '2025-12-20T12:00:00Z',
+        updatedAt: '2025-12-20T12:00:00Z',
+      },
+      {
+        id: 'ORD-004',
+        orderNumber: 'ORD-004',
+        customerId: 'CUST-004',
+        customerName: 'Sports Bar',
+        status: 'draft',
+        orderDate: '2025-12-23T09:00:00Z',
+        deliveryDate: '2025-12-26T14:00:00Z',
+        totalAmount: 900.00,
+        depositAmount: 300.00,
+        lineItems: [
+          { 
+            id: 'LINE-005', 
+            productId: 'PROD-LAGER',
+            productName: 'Lager', 
+            containerTypeId: 'KEG-HALF',
+            containerType: 'Keg (1/2 BBL)',
+            quantity: 6,
+            unitPrice: 150.00,
+            depositPerUnit: 50.00,
+            totalPrice: 900.00,
+            totalDeposit: 300.00
+          },
+        ],
+        notes: 'Pending approval',
+        createdAt: '2025-12-23T09:00:00Z',
+        updatedAt: '2025-12-23T09:00:00Z',
+      },
+      {
+        id: 'ORD-005',
+        orderNumber: 'ORD-005',
+        customerId: 'CUST-001',
+        customerName: "Joe's Bar",
+        status: 'delivered',
+        orderDate: '2025-12-15T10:00:00Z',
+        deliveryDate: '2025-12-18T14:00:00Z',
+        totalAmount: 450.00,
+        depositAmount: 150.00,
+        lineItems: [
+          { 
+            id: 'LINE-006', 
+            productId: 'PROD-IPA',
+            productName: 'IPA', 
+            containerTypeId: 'KEG-HALF',
+            containerType: 'Keg (1/2 BBL)',
+            quantity: 3,
+            unitPrice: 150.00,
+            depositPerUnit: 50.00,
+            totalPrice: 450.00,
+            totalDeposit: 150.00
+          },
+        ],
+        notes: 'Completed last week',
+        createdAt: '2025-12-15T10:00:00Z',
+        updatedAt: '2025-12-18T16:00:00Z',
       },
     ];
 
-    res.json(orders);
+    // Filter by status if provided
+    const filteredOrders = status 
+      ? allOrders.filter(order => order.status === status)
+      : allOrders;
+
+    res.json(filteredOrders);
   } catch (error) {
     console.error('Error fetching orders:', error);
     res.status(500).json({ 

@@ -16,7 +16,7 @@ import { apiGet, apiPost, apiPatch, apiDelete } from '@/lib/api';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 
-type OrderStatus = 'pending' | 'processing' | 'fulfilled' | 'cancelled';
+type OrderStatus = 'draft' | 'confirmed' | 'approved' | 'in-packing' | 'packed' | 'loaded' | 'in-delivery' | 'delivered' | 'cancelled';
 
 interface LineItem {
   id?: number;
@@ -36,9 +36,14 @@ interface Order {
 }
 
 const statusColors: Record<OrderStatus, string> = {
-  pending: 'bg-yellow-500/10 text-yellow-500 border-yellow-500/20',
-  processing: 'bg-blue-500/10 text-blue-500 border-blue-500/20',
-  fulfilled: 'bg-green-500/10 text-green-500 border-green-500/20',
+  draft: 'bg-gray-500/10 text-gray-500 border-gray-500/20',
+  confirmed: 'bg-blue-500/10 text-blue-500 border-blue-500/20',
+  approved: 'bg-purple-500/10 text-purple-500 border-purple-500/20',
+  'in-packing': 'bg-yellow-500/10 text-yellow-500 border-yellow-500/20',
+  packed: 'bg-orange-500/10 text-orange-500 border-orange-500/20',
+  loaded: 'bg-indigo-500/10 text-indigo-500 border-indigo-500/20',
+  'in-delivery': 'bg-cyan-500/10 text-cyan-500 border-cyan-500/20',
+  delivered: 'bg-green-500/10 text-green-500 border-green-500/20',
   cancelled: 'bg-red-500/10 text-red-500 border-red-500/20',
 };
 
@@ -60,7 +65,7 @@ export default function Orders() {
   const [formData, setFormData] = useState({
     customer_name: '',
     order_date: new Date().toISOString().split('T')[0],
-    status: 'pending' as OrderStatus,
+    status: 'draft' as OrderStatus,
   });
   const [lineItems, setLineItems] = useState<LineItem[]>([
     { item_name: '', qty: 1, price: 0 },
@@ -165,6 +170,20 @@ export default function Orders() {
       await fetchOrders();
     } catch (err) {
       alert(err instanceof Error ? err.message : 'Failed to delete order');
+    }
+  };
+
+  const handleApproveOrder = async (orderId: number) => {
+    if (!confirm('Approve this order for logistics processing?')) return;
+
+    try {
+      await apiPatch(`/api/orders/${orderId}`, {
+        status: 'approved',
+      });
+      await fetchOrders();
+      alert('Order approved! It will now appear in the Logistics Canvas.');
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Failed to approve order');
     }
   };
 
@@ -546,7 +565,7 @@ export default function Orders() {
           ) : (
             <div className="grid gap-4">
               {filteredOrders.map((order) => (
-                <OrderCard key={order.id} order={order} onEdit={openEditModal} onDelete={handleDeleteOrder} />
+                <OrderCard key={order.id} order={order} onEdit={openEditModal} onDelete={handleDeleteOrder} onApprove={handleApproveOrder} />
               ))}
             </div>
           )}
@@ -554,24 +573,24 @@ export default function Orders() {
 
         <TabsContent value="pending" className="space-y-4">
           <div className="grid gap-4">
-            {filteredOrders.filter(o => o.status === 'pending').map((order) => (
-              <OrderCard key={order.id} order={order} onEdit={openEditModal} onDelete={handleDeleteOrder} />
+            {filteredOrders.filter(o => o.status === 'draft' || o.status === 'confirmed').map((order) => (
+              <OrderCard key={order.id} order={order} onEdit={openEditModal} onDelete={handleDeleteOrder} onApprove={handleApproveOrder} />
             ))}
           </div>
         </TabsContent>
 
         <TabsContent value="processing" className="space-y-4">
           <div className="grid gap-4">
-            {filteredOrders.filter(o => o.status === 'processing').map((order) => (
-              <OrderCard key={order.id} order={order} onEdit={openEditModal} onDelete={handleDeleteOrder} />
+            {filteredOrders.filter(o => o.status === 'in-packing' || o.status === 'packed' || o.status === 'loaded').map((order) => (
+              <OrderCard key={order.id} order={order} onEdit={openEditModal} onDelete={handleDeleteOrder} onApprove={handleApproveOrder} />
             ))}
           </div>
         </TabsContent>
 
         <TabsContent value="fulfilled" className="space-y-4">
           <div className="grid gap-4">
-            {filteredOrders.filter(o => o.status === 'fulfilled').map((order) => (
-              <OrderCard key={order.id} order={order} onEdit={openEditModal} onDelete={handleDeleteOrder} />
+            {filteredOrders.filter(o => o.status === 'delivered').map((order) => (
+              <OrderCard key={order.id} order={order} onEdit={openEditModal} onDelete={handleDeleteOrder} onApprove={handleApproveOrder} />
             ))}
           </div>
         </TabsContent>
@@ -698,9 +717,10 @@ interface OrderCardProps {
   order: Order;
   onEdit: (order: Order) => void;
   onDelete: (orderId: number) => void;
+  onApprove: (orderId: number) => void;
 }
 
-function OrderCard({ order, onEdit, onDelete }: OrderCardProps) {
+function OrderCard({ order, onEdit, onDelete, onApprove }: OrderCardProps) {
   return (
     <Card className="bg-card/50 backdrop-blur hover:border-primary/50 transition-colors">
       <CardHeader>
@@ -721,6 +741,17 @@ function OrderCard({ order, onEdit, onDelete }: OrderCardProps) {
           </div>
           <div className="flex items-center gap-2">
             <Badge className={statusColors[order.status]}>{order.status}</Badge>
+            {(order.status === 'draft' || order.status === 'confirmed') && (
+              <Button 
+                variant="default" 
+                size="sm" 
+                onClick={() => onApprove(order.id)}
+                className="bg-purple-600 hover:bg-purple-700"
+              >
+                <CheckCircle2 className="h-4 w-4 mr-1" />
+                Approve
+              </Button>
+            )}
             <Button variant="ghost" size="icon" onClick={() => onEdit(order)}>
               <Edit className="h-4 w-4" />
             </Button>
