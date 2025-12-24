@@ -500,6 +500,15 @@ export default function CanvasLogistics() {
       )
     );
     
+    // Update order status to in-delivery for all orders on this route
+    const orderIds = new Set<string>();
+    route.stops.forEach(stop => {
+      stop.orderIds.forEach(orderId => orderIds.add(orderId));
+    });
+    orderIds.forEach(orderId => {
+      updateOrderStatus(orderId, 'in-delivery');
+    });
+    
     addNotification({
       title: 'Route Started',
       message: `Started route with ${route.stops.length} stop${route.stops.length > 1 ? 's' : ''}. Tax determination triggered (TTB requirement)`,
@@ -722,6 +731,11 @@ export default function CanvasLogistics() {
         ? { ...o, status: 'delivered' as const }
         : o
     );
+    
+    // Update order status in OPS for delivered orders
+    currentStop.orderIds.forEach(orderId => {
+      updateOrderStatus(orderId, 'delivered');
+    });
     
     // Create or update customer location
     const existingLocation = locations.find((l) => l.id === currentStop.customerId);
