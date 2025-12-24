@@ -26,52 +26,52 @@ async function seedControlDataset() {
     // Step 1: Create 3 Customer Locations (Pre-existing)
     console.log('👥 Creating customer locations...');
     
-    const [customer1] = await db.insert(locations).values({
-      id: 'CUST-001',
-      name: 'Downtown Pub',
-      type: 'customer',
-      address: '123 Main Street',
-      city: 'Portland',
-      state: 'OR',
-      zipCode: '97201',
-      contactName: 'Mike Johnson',
-      contactPhone: '(555) 123-4567',
-      contactEmail: 'mike@downtownpub.com',
-      notes: 'Regular customer, weekly orders',
-    }).returning();
-
-    const [customer2] = await db.insert(locations).values({
-      id: 'CUST-002',
-      name: 'Riverside Restaurant',
-      type: 'customer',
-      address: '456 River Road',
-      city: 'Portland',
-      state: 'OR',
-      zipCode: '97202',
-      contactName: 'Sarah Chen',
-      contactPhone: '(555) 234-5678',
-      contactEmail: 'sarah@riverside.com',
-      notes: 'Prefers phone orders, delivery on Thursdays',
-    }).returning();
-
-    const [customer3] = await db.insert(locations).values({
-      id: 'CUST-003',
-      name: 'City Bar & Grill',
-      type: 'customer',
-      address: '789 Downtown Ave',
-      city: 'Portland',
-      state: 'OR',
-      zipCode: '97203',
-      contactName: 'Tom Martinez',
-      contactPhone: '(555) 345-6789',
-      contactEmail: 'tom@citybargrill.com',
-      notes: 'Email orders only, requires 24hr notice',
-    }).returning();
+    await db.insert(locations).values([
+      {
+        id: 'CUST-001',
+        name: 'Downtown Pub',
+        type: 'customer',
+        address: '123 Main Street',
+        city: 'Portland',
+        state: 'OR',
+        zipCode: '97201',
+        contactName: 'Mike Johnson',
+        contactPhone: '(555) 123-4567',
+        contactEmail: 'mike@downtownpub.com',
+        notes: 'Regular customer, weekly orders',
+      },
+      {
+        id: 'CUST-002',
+        name: 'Riverside Restaurant',
+        type: 'customer',
+        address: '456 River Road',
+        city: 'Portland',
+        state: 'OR',
+        zipCode: '97202',
+        contactName: 'Sarah Chen',
+        contactPhone: '(555) 234-5678',
+        contactEmail: 'sarah@riverside.com',
+        notes: 'Prefers phone orders, delivery on Thursdays',
+      },
+      {
+        id: 'CUST-003',
+        name: 'City Bar & Grill',
+        type: 'customer',
+        address: '789 Downtown Ave',
+        city: 'Portland',
+        state: 'OR',
+        zipCode: '97203',
+        contactName: 'Tom Martinez',
+        contactPhone: '(555) 345-6789',
+        contactEmail: 'tom@citybargrill.com',
+        notes: 'Email orders only, requires 24hr notice',
+      },
+    ]);
 
     console.log(`✅ Created 3 customer locations`);
-    console.log(`   - ${customer1.name} (ID: ${customer1.id})`);
-    console.log(`   - ${customer2.name} (ID: ${customer2.id})`);
-    console.log(`   - ${customer3.name} (ID: ${customer3.id})\\n`);
+    console.log(`   - Downtown Pub (ID: CUST-001)`);
+    console.log(`   - Riverside Restaurant (ID: CUST-002)`);
+    console.log(`   - City Bar & Grill (ID: CUST-003)\\n`);
 
     // Step 2: Create 3 Container Types
     console.log('📦 Creating container types...');
@@ -111,54 +111,54 @@ async function seedControlDataset() {
     // Step 3: Create 3 Products (Can, Bottle, Keg)
     console.log('🍺 Creating products...');
 
-    const [product1] = await db.insert(products).values({
-      id: 'PROD-001',
-      sku: 'IPA-CAN-355',
-      name: 'Hoppy Trail IPA',
-      description: 'West Coast IPA with citrus and pine notes',
-      category: 'beer',
-      type: 'IPA',
-      abv: '6.5',
-      ibu: 65,
-      status: 'active',
-    }).returning();
-
-    const [product2] = await db.insert(products).values({
-      id: 'PROD-002',
-      sku: 'LAGER-BTL-330',
-      name: 'Golden Lager',
-      description: 'Crisp, refreshing German-style lager',
-      category: 'beer',
-      type: 'Lager',
-      abv: '4.8',
-      ibu: 22,
-      status: 'active',
-    }).returning();
-
-    const [product3] = await db.insert(products).values({
-      id: 'PROD-003',
-      sku: 'STOUT-KEG-50L',
-      name: 'Dark Night Stout',
-      description: 'Rich, creamy stout with coffee and chocolate notes',
-      category: 'beer',
-      type: 'Stout',
-      abv: '5.2',
-      ibu: 35,
-      status: 'active',
-    }).returning();
+    await db.insert(products).values([
+      {
+        id: 'PROD-001',
+        sku: 'IPA-CAN-355',
+        name: 'Hoppy Trail IPA',
+        description: 'West Coast IPA with citrus and pine notes',
+        category: 'beer',
+        type: 'IPA',
+        abv: '6.5',
+        ibu: 65,
+        status: 'active',
+      },
+      {
+        id: 'PROD-002',
+        sku: 'LAGER-BTL-330',
+        name: 'Golden Lager',
+        description: 'Crisp, refreshing German-style lager',
+        category: 'beer',
+        type: 'Lager',
+        abv: '4.8',
+        ibu: 22,
+        status: 'active',
+      },
+      {
+        id: 'PROD-003',
+        sku: 'STOUT-KEG-50L',
+        name: 'Dark Night Stout',
+        description: 'Rich, creamy stout with coffee and chocolate notes',
+        category: 'beer',
+        type: 'Stout',
+        abv: '5.2',
+        ibu: 35,
+        status: 'active',
+      },
+    ]);
 
     console.log(`✅ Created 3 products`);
-    console.log(`   - ${product1.name} (can, ID: ${product1.id})`);
-    console.log(`   - ${product2.name} (bottle, ID: ${product2.id})`);
-    console.log(`   - ${product3.name} (keg, ID: ${product3.id})\\n`);
+    console.log(`   - Hoppy Trail IPA (can, ID: PROD-001)`);
+    console.log(`   - Golden Lager (bottle, ID: PROD-002)`);
+    console.log(`   - Dark Night Stout (keg, ID: PROD-003)\\n`);
 
     // Step 4: Create Order #1 - WEB ORDER (System Generated)
     console.log('🌐 Creating WEB order (system-generated)...');
 
-    const [order1] = await db.insert(orders).values({
+    await db.insert(orders).values({
       id: 'ORD-WEB-001',
       orderNumber: 'WEB-2025-001',
-      customerId: customer1.id,
+      customerId: 'CUST-001',
       status: 'draft', // Needs approval
       orderSource: 'website',
       orderDate: new Date('2024-12-24T09:15:00'),
@@ -174,13 +174,13 @@ async function seedControlDataset() {
       deliveryMethod: 'delivery',
       notes: 'Customer requested morning delivery. Order auto-generated from website.',
       internalNotes: 'System-generated web order - needs approval before fulfillment',
-    }).returning();
+    });
 
     await db.insert(orderLineItems).values([
       {
         id: 'LINE-WEB-001',
-        orderId: order1.id,
-        productId: product1.id,
+        orderId: 'ORD-WEB-001',
+        productId: 'PROD-001',
         containerTypeId: 'CAN-355',
         quantity: 2, // 2 cases
         unitPrice: '48.00',
@@ -191,20 +191,20 @@ async function seedControlDataset() {
       },
     ]);
 
-    console.log(`✅ Created order: ${order1.orderNumber}`);
-    console.log(`   - Customer: ${customer1.name}`);
+    console.log(`✅ Created order: WEB-2025-001`);
+    console.log(`   - Customer: Downtown Pub`);
     console.log(`   - Source: Website (system-generated)`);
     console.log(`   - Status: draft (needs approval)`);
-    console.log(`   - Total: $${order1.total}`);
+    console.log(`   - Total: $119.64`);
     console.log(`   - Items: 2 cases Hoppy Trail IPA (cans)\\n`);
 
     // Step 5: Create Order #2 - PHONE ORDER (Manual Entry)
     console.log('📞 Creating PHONE order (manual entry)...');
 
-    const [order2] = await db.insert(orders).values({
+    await db.insert(orders).values({
       id: 'ORD-PHONE-001',
       orderNumber: 'PHONE-2025-001',
-      customerId: customer2.id,
+      customerId: 'CUST-002',
       status: 'draft', // Needs approval
       orderSource: 'phone',
       orderDate: new Date('2024-12-24T11:30:00'),
@@ -220,13 +220,13 @@ async function seedControlDataset() {
       deliveryMethod: 'delivery',
       notes: 'Customer called in order. Prefers Thursday afternoon delivery.',
       internalNotes: 'Phone order taken by staff - customer requested NET30 payment terms',
-    }).returning();
+    });
 
     await db.insert(orderLineItems).values([
       {
         id: 'LINE-PHONE-001',
-        orderId: order2.id,
-        productId: product2.id,
+        orderId: 'ORD-PHONE-001',
+        productId: 'PROD-002',
         containerTypeId: 'BTL-330',
         quantity: 5, // 5 cases
         unitPrice: '52.00',
@@ -237,20 +237,20 @@ async function seedControlDataset() {
       },
     ]);
 
-    console.log(`✅ Created order: ${order2.orderNumber}`);
-    console.log(`   - Customer: ${customer2.name}`);
+    console.log(`✅ Created order: PHONE-2025-001`);
+    console.log(`   - Customer: Riverside Restaurant`);
     console.log(`   - Source: Phone (manual entry)`);
     console.log(`   - Status: draft (needs approval)`);
-    console.log(`   - Total: $${order2.total}`);
+    console.log(`   - Total: $303.40`);
     console.log(`   - Items: 5 cases Golden Lager (bottles)\\n`);
 
     // Step 6: Create Order #3 - EMAIL ORDER (Manual Entry)
     console.log('📧 Creating EMAIL order (manual entry)...');
 
-    const [order3] = await db.insert(orders).values({
+    await db.insert(orders).values({
       id: 'ORD-EMAIL-001',
       orderNumber: 'EMAIL-2025-001',
-      customerId: customer3.id,
+      customerId: 'CUST-003',
       status: 'draft', // Needs approval
       orderSource: 'email',
       orderDate: new Date('2024-12-24T13:45:00'),
@@ -266,13 +266,13 @@ async function seedControlDataset() {
       deliveryMethod: 'delivery',
       notes: 'Customer emailed order. Rush delivery requested for Christmas event.',
       internalNotes: 'Email order - customer needs keg for holiday event, priority delivery',
-    }).returning();
+    });
 
     await db.insert(orderLineItems).values([
       {
         id: 'LINE-EMAIL-001',
-        orderId: order3.id,
-        productId: product3.id,
+        orderId: 'ORD-EMAIL-001',
+        productId: 'PROD-003',
         containerTypeId: 'KEG-50L',
         quantity: 1, // 1 keg
         unitPrice: '180.00',
@@ -283,8 +283,8 @@ async function seedControlDataset() {
       },
       {
         id: 'LINE-EMAIL-002',
-        orderId: order3.id,
-        productId: product2.id,
+        orderId: 'ORD-EMAIL-001',
+        productId: 'PROD-002',
         containerTypeId: 'BTL-330',
         quantity: 2, // 2 cases
         unitPrice: '52.00',
@@ -295,11 +295,11 @@ async function seedControlDataset() {
       },
     ]);
 
-    console.log(`✅ Created order: ${order3.orderNumber}`);
-    console.log(`   - Customer: ${customer3.name}`);
+    console.log(`✅ Created order: EMAIL-2025-001`);
+    console.log(`   - Customer: City Bar & Grill`);
     console.log(`   - Source: Email (manual entry)`);
     console.log(`   - Status: draft (needs approval)`);
-    console.log(`   - Total: $${order3.total} (includes $${order3.depositAmount} keg deposit)`);
+    console.log(`   - Total: $334.56 (includes $50.00 keg deposit)`);
     console.log(`   - Items: 1 keg Dark Night Stout + 2 cases Golden Lager (bottles)\\n`);
 
     // Summary
