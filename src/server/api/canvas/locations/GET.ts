@@ -16,7 +16,7 @@ export default async function handler(_req: Request, res: Response) {
         productName: products.name,
         productType: products.type,
         containerCount: sql<number>`count(${containers.id})`,
-        totalVolume: sql<number>`sum(${containers.volume})`,
+        totalVolume: sql<number>`COALESCE(sum(${containers.volume}), 0)`,
       })
       .from(locations)
       .leftJoin(containers, eq(containers.locationId, locations.id))
