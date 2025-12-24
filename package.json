@@ -18,7 +18,8 @@
     "clean": "rm -rf dist node_modules/.vite",
     "reset": "pnpm run clean && pnpm install",
     "db:generate": "drizzle-kit generate",
-    "db:push": "drizzle-kit push"
+    "db:push": "drizzle-kit push",
+    "db:seed": "tsx src/server/db/seed-control-dataset.ts"
   },
   "dependencies": {
     "@babel/core": "^7.26.4",

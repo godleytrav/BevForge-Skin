@@ -1,146 +1,95 @@
 import type { Request, Response } from 'express';
+import { db } from '../../db/client';
+import { orders, orderLineItems, customers, products } from '../../db/schema';
+import { eq } from 'drizzle-orm';
 
-/**
- * GET /api/orders
- * Fetch all orders with line items
- * Query params:
- *   - status: Filter by order status (draft, confirmed, approved, in-packing, packed, loaded, in-delivery, delivered, cancelled)
- * 
- * NOTE: This endpoint returns CONTROL DATASET for testing.
- * In production, this would query the database.
- */
 export default async function handler(req: Request, res: Response) {
   try {
     const { status } = req.query;
 
-    // CONTROL DATASET - 3 test orders simulating web, phone, and email sources
-    const allOrders = [
-      // Order #1: Web Order (System Generated) - DRAFT
-      {
-        id: 'ORD-WEB-001',
-        orderNumber: 'WEB-2025-001',
-        customerId: 'CUST-001',
-        customer_name: 'Downtown Pub',
-        customer_contact: 'Mike Johnson',
-        customer_phone: '(555) 123-4567',
-        customer_email: 'mike@downtownpub.com',
-        status: 'draft',
-        order_date: '2025-12-24T08:00:00Z',
-        delivery_date: '2025-12-26T10:00:00Z',
-        total_amount: 360.00,
-        deposit_amount: 100.00,
-        source: 'web',
-        lineItems: [
-          {
-            id: 'LINE-WEB-001',
-            productId: 'PROD-001',
-            product_name: 'Hoppy Trail IPA',
-            containerTypeId: 'KEG-50L',
-            container_type: '50L Keg',
-            quantity: 2,
-            unitPrice: 180.00,
-            depositPerUnit: 50.00,
-            totalPrice: 360.00,
-            totalDeposit: 100.00,
-          },
-        ],
-        notes: 'Automated web order - requires approval',
-        createdAt: '2025-12-24T08:00:00Z',
-        updatedAt: '2025-12-24T08:00:00Z',
-      },
-      
-      // Order #2: Phone Order (Manual Entry) - CONFIRMED
-      {
-        id: 'ORD-PHONE-001',
-        orderNumber: 'PHONE-2025-001',
-        customerId: 'CUST-002',
-        customer_name: 'Riverside Restaurant',
-        customer_contact: 'Sarah Chen',
-        customer_phone: '(555) 234-5678',
-        customer_email: 'sarah@riverside.com',
-        status: 'confirmed',
-        order_date: '2025-12-24T09:30:00Z',
-        delivery_date: '2025-12-27T14:00:00Z',
-        total_amount: 240.00,
-        deposit_amount: 0.00,
-        source: 'phone',
-        lineItems: [
-          {
-            id: 'LINE-PHONE-001',
-            productId: 'PROD-002',
-            product_name: 'Golden Lager',
-            containerTypeId: 'CASE-24',
-            container_type: 'Case (24x330ml)',
-            quantity: 5,
-            unitPrice: 48.00,
-            depositPerUnit: 0.00,
-            totalPrice: 240.00,
-            totalDeposit: 0.00,
-          },
-        ],
-        notes: 'Phone order from manager - confirmed delivery time',
-        createdAt: '2025-12-24T09:30:00Z',
-        updatedAt: '2025-12-24T09:30:00Z',
-      },
-      
-      // Order #3: Email Order (Manual Entry) - APPROVED
-      {
-        id: 'ORD-EMAIL-001',
-        orderNumber: 'EMAIL-2025-001',
-        customerId: 'CUST-003',
-        customer_name: 'City Bar & Grill',
-        customer_contact: 'Tom Martinez',
-        customer_phone: '(555) 345-6789',
-        customer_email: 'tom@citybargrill.com',
-        status: 'approved',
-        order_date: '2025-12-24T10:15:00Z',
-        delivery_date: '2025-12-25T16:00:00Z',
-        total_amount: 216.00,
-        deposit_amount: 50.00,
-        source: 'email',
-        lineItems: [
-          {
-            id: 'LINE-EMAIL-001',
-            productId: 'PROD-003',
-            product_name: 'Dark Night Stout',
-            containerTypeId: 'KEG-30L',
-            container_type: '30L Keg',
-            quantity: 1,
-            unitPrice: 120.00,
-            depositPerUnit: 50.00,
-            totalPrice: 120.00,
-            totalDeposit: 50.00,
-          },
-          {
-            id: 'LINE-EMAIL-002',
-            productId: 'PROD-002',
-            product_name: 'Golden Lager',
-            containerTypeId: 'CASE-24',
-            container_type: 'Case (24x330ml)',
-            quantity: 2,
-            unitPrice: 48.00,
-            depositPerUnit: 0.00,
-            totalPrice: 96.00,
-            totalDeposit: 0.00,
-          },
-        ],
-        notes: 'Email order - urgent delivery for Christmas event',
-        createdAt: '2025-12-24T10:15:00Z',
-        updatedAt: '2025-12-24T10:15:00Z',
-      },
-    ];
+    // Fetch all orders with customer and line items
+    const allOrders = await db.select().from(orders);
+
+    // For each order, fetch customer and line items
+    const ordersWithDetails = await Promise.all(
+      allOrders.map(async (order) => {
+        // Fetch customer
+        const [customer] = await db
+          .select()
+          .from(customers)
+          .where(eq(customers.id, order.customerId));
+
+        // Fetch line items with product details
+        const lineItems = await db
+          .select()
+          .from(orderLineItems)
+          .where(eq(orderLineItems.orderId, order.id));
+
+        const lineItemsWithProducts = await Promise.all(
+          lineItems.map(async (item) => {
+            const [product] = await db
+              .select()
+              .from(products)
+              .where(eq(products.id, item.productId));
+
+            return {
+              id: item.id,
+              product_id: item.productId,
+              product_name: product?.name || 'Unknown Product',
+              product_sku: product?.sku || '',
+              container_type: product?.containerType || '',
+              container_size: product?.containerSize || '',
+              quantity: item.quantity,
+              unit_price: parseFloat(item.unitPrice?.toString() || '0'),
+              subtotal: parseFloat(item.subtotal?.toString() || '0'),
+              tax: parseFloat(item.tax?.toString() || '0'),
+              total: parseFloat(item.total?.toString() || '0'),
+              notes: item.notes || '',
+            };
+          })
+        );
+
+        return {
+          id: order.id,
+          orderNumber: order.orderNumber,
+          customer_id: order.customerId,
+          customer_name: customer?.name || 'Unknown Customer',
+          customer_email: customer?.email || '',
+          customer_phone: customer?.phone || '',
+          order_date: order.orderDate,
+          status: order.status,
+          order_source: order.orderSource,
+          subtotal: parseFloat(order.subtotal?.toString() || '0'),
+          tax: parseFloat(order.tax?.toString() || '0'),
+          shipping: parseFloat(order.shipping?.toString() || '0'),
+          total: parseFloat(order.total?.toString() || '0'),
+          deposit_amount: parseFloat(order.depositAmount?.toString() || '0'),
+          deposit_paid: order.depositPaid,
+          payment_status: order.paymentStatus,
+          payment_method: order.paymentMethod,
+          delivery_date: order.deliveryDate,
+          delivery_method: order.deliveryMethod,
+          delivery_address: order.deliveryAddress,
+          delivery_city: order.deliveryCity,
+          delivery_state: order.deliveryState,
+          delivery_zip_code: order.deliveryZipCode,
+          notes: order.notes || '',
+          internal_notes: order.internalNotes || '',
+          lineItems: lineItemsWithProducts,
+          created_at: order.createdAt,
+          updated_at: order.updatedAt,
+        };
+      })
+    );
 
     // Filter by status if provided
-    const filteredOrders = status 
-      ? allOrders.filter(order => order.status === status)
-      : allOrders;
+    const filteredOrders = status
+      ? ordersWithDetails.filter((order) => order.status === status)
+      : ordersWithDetails;
 
     res.json(filteredOrders);
   } catch (error) {
     console.error('Error fetching orders:', error);
-    res.status(500).json({ 
-      error: 'Failed to fetch orders',
-      message: error instanceof Error ? error.message : 'Unknown error'
-    });
+    res.status(500).json({ error: 'Failed to fetch orders' });
   }
 }
