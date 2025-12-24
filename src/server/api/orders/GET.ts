@@ -1,25 +1,25 @@
 import type { Request, Response } from 'express';
 import { db } from '../../db/client';
-import { orders, orderLineItems, customers, products } from '../../db/schema';
+import { orders, orderLineItems, locations, products, containerTypes } from '../../db/schema';
 import { eq } from 'drizzle-orm';
 
 export default async function handler(req: Request, res: Response) {
   try {
     const { status } = req.query;
 
-    // Fetch all orders with customer and line items
+    // Fetch all orders
     const allOrders = await db.select().from(orders);
 
-    // For each order, fetch customer and line items
+    // For each order, fetch customer location and line items
     const ordersWithDetails = await Promise.all(
       allOrders.map(async (order) => {
-        // Fetch customer
+        // Fetch customer location
         const [customer] = await db
           .select()
-          .from(customers)
-          .where(eq(customers.id, order.customerId));
+          .from(locations)
+          .where(eq(locations.id, order.customerId));
 
-        // Fetch line items with product details
+        // Fetch line items with product and container details
         const lineItems = await db
           .select()
           .from(orderLineItems)
@@ -32,13 +32,19 @@ export default async function handler(req: Request, res: Response) {
               .from(products)
               .where(eq(products.id, item.productId));
 
+            const [containerType] = await db
+              .select()
+              .from(containerTypes)
+              .where(eq(containerTypes.id, item.containerTypeId || ''));
+
             return {
               id: item.id,
               product_id: item.productId,
               product_name: product?.name || 'Unknown Product',
               product_sku: product?.sku || '',
-              container_type: product?.containerType || '',
-              container_size: product?.containerSize || '',
+              container_type_id: item.containerTypeId,
+              container_type: containerType?.name || '',
+              container_size: containerType?.size || '',
               quantity: item.quantity,
               unit_price: parseFloat(item.unitPrice?.toString() || '0'),
               subtotal: parseFloat(item.subtotal?.toString() || '0'),
@@ -54,8 +60,12 @@ export default async function handler(req: Request, res: Response) {
           orderNumber: order.orderNumber,
           customer_id: order.customerId,
           customer_name: customer?.name || 'Unknown Customer',
-          customer_email: customer?.email || '',
-          customer_phone: customer?.phone || '',
+          customer_email: customer?.contactEmail || '',
+          customer_phone: customer?.contactPhone || '',
+          customer_address: customer?.address || '',
+          customer_city: customer?.city || '',
+          customer_state: customer?.state || '',
+          customer_zip_code: customer?.zipCode || '',
           order_date: order.orderDate,
           status: order.status,
           order_source: order.orderSource,
@@ -69,10 +79,6 @@ export default async function handler(req: Request, res: Response) {
           payment_method: order.paymentMethod,
           delivery_date: order.deliveryDate,
           delivery_method: order.deliveryMethod,
-          delivery_address: order.deliveryAddress,
-          delivery_city: order.deliveryCity,
-          delivery_state: order.deliveryState,
-          delivery_zip_code: order.deliveryZipCode,
           notes: order.notes || '',
           internal_notes: order.internalNotes || '',
           lineItems: lineItemsWithProducts,
