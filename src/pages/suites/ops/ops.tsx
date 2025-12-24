@@ -178,7 +178,7 @@ export default function OpsPage() {
     .map(o => ({
       id: o.orderNumber,
       customer: o.customer_name,
-      amount: `$${o.total_amount.toFixed(2)}`,
+      amount: `${parseFloat(String(o.total_amount)).toFixed(2)}`,
       status: o.status === 'delivered' ? 'Delivered' : 
               o.status === 'approved' ? 'Processing' : 
               o.status === 'draft' ? 'Draft' : 
@@ -451,7 +451,7 @@ export default function OpsPage() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">
-                  ${salesTotal.toFixed(2)}
+                  ${parseFloat(String(salesTotal)).toFixed(2)}
                 </div>
                 <p className="text-xs text-muted-foreground mt-1">
                   {ordersDelivered > 0 ? `From ${ordersDelivered} delivered order${ordersDelivered > 1 ? 's' : ''}` : 'No sales yet'}
@@ -704,7 +704,7 @@ export default function OpsPage() {
                         <p className="text-sm font-medium">{channel.channel}</p>
                         <p className="text-xs text-muted-foreground">{channel.percent}% of total</p>
                       </div>
-                      <p className="text-sm font-bold">${channel.amount.toFixed(2)}</p>
+                      <p className="text-sm font-bold">${parseFloat(String(channel.amount)).toFixed(2)}</p>
                     </div>
                   ))}
                 </div>

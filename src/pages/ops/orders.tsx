@@ -43,8 +43,8 @@ interface Order {
   order_date: string;
   delivery_date?: string;
   status: OrderStatus;
-  total_amount: number;
-  deposit_amount?: number;
+  total_amount: number | string;
+  deposit_amount?: number | string;
   lineItems: LineItem[];
   notes?: string;
   createdAt: string;
@@ -248,7 +248,7 @@ export default function Orders() {
       processing: orders.filter(o => ['approved', 'in-packing', 'packed', 'loaded', 'in-delivery'].includes(o.status)).length,
       fulfilled: orders.filter(o => o.status === 'delivered').length,
       cancelled: orders.filter(o => o.status === 'cancelled').length,
-      totalRevenue: orders.reduce((sum, o) => sum + (o.total_amount || 0), 0),
+      totalRevenue: orders.reduce((sum, o) => sum + (parseFloat(String(o.total_amount)) || 0), 0),
     };
   }, [orders]);
 
@@ -800,7 +800,7 @@ function OrderCard({ order, onEdit, onDelete, onApprove }: OrderCardProps) {
 
           <div className="flex justify-between text-base font-semibold border-t pt-3">
             <span>Total:</span>
-            <span>${order.total_amount.toFixed(2)}</span>
+            <span>${parseFloat(String(order.total_amount)).toFixed(2)}</span>
           </div>
         </div>
       </CardContent>
