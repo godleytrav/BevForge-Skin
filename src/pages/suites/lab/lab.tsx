@@ -1,3 +1,4 @@
+// LAB Suite - Recipe Management & R&D
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Beaker, FileText, TrendingUp, Archive } from 'lucide-react';
 import { useState } from 'react';
