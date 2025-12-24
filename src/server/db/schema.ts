@@ -19,26 +19,83 @@ export const locations = mysqlTable('locations', {
   updatedAt: datetime('updated_at').notNull(),
 });
 
-// Products
+// Products (Master Data)
 export const products = mysqlTable('products', {
   id: varchar('id', { length: 50 }).primaryKey(),
+  sku: varchar('sku', { length: 100 }).notNull().unique(),
   name: varchar('name', { length: 255 }).notNull(),
-  type: mysqlEnum('type', ['cider', 'beer', 'wine', 'spirits', 'other']).notNull(),
+  productType: mysqlEnum('product_type', ['beer', 'cider', 'seltzer', 'non_alcoholic', 'wine', 'spirits', 'other']).notNull(),
+  style: varchar('style', { length: 100 }), // IPA, Lager, Stout, etc.
+  abv: decimal('abv', { precision: 4, scale: 2 }), // Alcohol by Volume %
+  ibu: int('ibu'), // International Bitterness Units
+  srm: int('srm'), // Color (Standard Reference Method)
   description: text('description'),
+  tastingNotes: text('tasting_notes'),
+  ingredients: text('ingredients'),
+  recipeId: varchar('recipe_id', { length: 50 }),
+  status: mysqlEnum('status', ['active', 'discontinued', 'seasonal', 'draft']).default('active'),
+  imageUrl: varchar('image_url', { length: 500 }),
   isActive: boolean('is_active').default(true),
   createdAt: datetime('created_at').notNull(),
   updatedAt: datetime('updated_at').notNull(),
 });
 
-// Batches
+// Product Variants (Package Types)
+export const productVariants = mysqlTable('product_variants', {
+  id: varchar('id', { length: 50 }).primaryKey(),
+  productId: varchar('product_id', { length: 50 }).notNull(),
+  containerTypeId: varchar('container_type_id', { length: 50 }).notNull(),
+  variantSku: varchar('variant_sku', { length: 100 }).notNull().unique(),
+  barcode: varchar('barcode', { length: 100 }),
+  size: varchar('size', { length: 50 }).notNull(), // "50L", "330ml", "12oz", etc.
+  unitOfMeasure: mysqlEnum('unit_of_measure', ['liters', 'gallons', 'milliliters', 'ounces']).notNull(),
+  packSize: varchar('pack_size', { length: 50 }), // "Single", "6-pack", "12-pack", "Case", etc.
+  unitsPerCase: int('units_per_case'), // 24 bottles, 12 cans, etc.
+  wholesalePrice: decimal('wholesale_price', { precision: 10, scale: 2 }),
+  retailPrice: decimal('retail_price', { precision: 10, scale: 2 }),
+  taproomPrice: decimal('taproom_price', { precision: 10, scale: 2 }),
+  productionCost: decimal('production_cost', { precision: 10, scale: 2 }),
+  depositAmount: decimal('deposit_amount', { precision: 10, scale: 2 }),
+  weight: decimal('weight', { precision: 10, scale: 2 }), // For shipping
+  isActive: boolean('is_active').default(true),
+  createdAt: datetime('created_at').notNull(),
+  updatedAt: datetime('updated_at').notNull(),
+});
+
+// Inventory (Stock Levels)
+export const inventory = mysqlTable('inventory', {
+  id: varchar('id', { length: 50 }).primaryKey(),
+  variantId: varchar('variant_id', { length: 50 }).notNull(),
+  locationId: varchar('location_id', { length: 50 }).notNull(),
+  quantityOnHand: int('quantity_on_hand').default(0),
+  quantityAllocated: int('quantity_allocated').default(0), // Reserved for orders
+  quantityAvailable: int('quantity_available').default(0), // On hand - allocated
+  quantityInProduction: int('quantity_in_production').default(0),
+  minStockLevel: int('min_stock_level').default(0), // Reorder point
+  maxStockLevel: int('max_stock_level').default(0), // Storage capacity
+  reorderQuantity: int('reorder_quantity').default(0),
+  lastCountedAt: datetime('last_counted_at'),
+  createdAt: datetime('created_at').notNull(),
+  updatedAt: datetime('updated_at').notNull(),
+});
+
+// Batches (Production Tracking)
 export const batches = mysqlTable('batches', {
   id: varchar('id', { length: 50 }).primaryKey(),
   productId: varchar('product_id', { length: 50 }).notNull(),
-  batchNumber: varchar('batch_number', { length: 100 }).notNull(),
-  volumeGallons: decimal('volume_gallons', { precision: 10, scale: 2 }),
-  productionDate: datetime('production_date'),
+  batchNumber: varchar('batch_number', { length: 100 }).notNull().unique(),
+  brewDate: datetime('brew_date'),
+  packageDate: datetime('package_date'),
+  bestByDate: datetime('best_by_date'),
   expirationDate: datetime('expiration_date'),
+  batchSizeGallons: decimal('batch_size_gallons', { precision: 10, scale: 2 }),
+  yieldExpected: decimal('yield_expected', { precision: 10, scale: 2 }),
+  yieldActual: decimal('yield_actual', { precision: 10, scale: 2 }),
+  brewerName: varchar('brewer_name', { length: 255 }),
+  tankNumber: varchar('tank_number', { length: 50 }),
+  qualityStatus: mysqlEnum('quality_status', ['pending', 'passed', 'failed', 'quarantine']).default('pending'),
   status: mysqlEnum('status', ['active', 'depleted', 'quarantine', 'archived']).default('active'),
+  notes: text('notes'),
   createdAt: datetime('created_at').notNull(),
   updatedAt: datetime('updated_at').notNull(),
 });
