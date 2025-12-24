@@ -1,4 +1,7 @@
 import type { Request, Response } from 'express';
+import { db } from '../../../db/client.js';
+import { appSchema } from '../../../db/schema.js';
+import { eq } from 'drizzle-orm';
 
 /**
  * PATCH /api/orders/:orderId
@@ -7,7 +10,7 @@ import type { Request, Response } from 'express';
  * Body can include:
  *   - status: Update order status
  *   - notes: Update order notes
- *   - deliveryDate: Update delivery date
+ *   - delivery_date: Update delivery date
  */
 export default async function handler(req: Request, res: Response) {
   try {
@@ -38,18 +41,45 @@ export default async function handler(req: Request, res: Response) {
       });
     }
 
-    // Mock update - in production, this would update the database
-    const updatedOrder = {
-      id: orderId,
-      ...updates,
-      updatedAt: new Date().toISOString(),
+    // Build update object
+    const updateData: any = {
+      updated_at: new Date(),
     };
+
+    if (updates.status) {
+      updateData.status = updates.status;
+    }
+
+    if (updates.notes !== undefined) {
+      updateData.notes = updates.notes;
+    }
+
+    if (updates.delivery_date) {
+      updateData.delivery_date = new Date(updates.delivery_date);
+    }
+
+    // Update order in database
+    await db
+      .update(appSchema.orders)
+      .set(updateData)
+      .where(eq(appSchema.orders.id, orderId));
+
+    // Fetch updated order
+    const updatedOrders = await db
+      .select()
+      .from(appSchema.orders)
+      .where(eq(appSchema.orders.id, orderId))
+      .limit(1);
+
+    if (updatedOrders.length === 0) {
+      return res.status(404).json({ error: 'Order not found' });
+    }
 
     console.log(`Order ${orderId} updated:`, updates);
 
     res.json({
       success: true,
-      order: updatedOrder,
+      order: updatedOrders[0],
       message: `Order ${orderId} updated successfully`
     });
   } catch (error) {
