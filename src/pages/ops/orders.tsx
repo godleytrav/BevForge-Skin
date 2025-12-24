@@ -240,6 +240,18 @@ export default function Orders() {
     return lineItems.reduce((sum, item) => sum + (item.qty || 0) * (item.price || 0), 0);
   };
 
+  // Stats calculations - MUST be before any conditional returns to avoid hooks violation
+  const stats = useMemo(() => {
+    return {
+      total: orders.length,
+      pending: orders.filter(o => ['draft', 'confirmed'].includes(o.status)).length,
+      processing: orders.filter(o => ['approved', 'in-packing', 'packed', 'loaded', 'in-delivery'].includes(o.status)).length,
+      fulfilled: orders.filter(o => o.status === 'delivered').length,
+      cancelled: orders.filter(o => o.status === 'cancelled').length,
+      totalRevenue: orders.reduce((sum, o) => sum + (o.total_amount || 0), 0),
+    };
+  }, [orders]);
+
   // Filtered orders
   const filteredOrders = useMemo(() => {
     return orders.filter((order) => {
@@ -266,18 +278,6 @@ export default function Orders() {
       </div>
     );
   }
-
-  // Stats calculations
-  const stats = useMemo(() => {
-    return {
-      total: orders.length,
-      pending: orders.filter(o => ['draft', 'confirmed'].includes(o.status)).length,
-      processing: orders.filter(o => ['approved', 'in-packing', 'packed', 'loaded', 'in-delivery'].includes(o.status)).length,
-      fulfilled: orders.filter(o => o.status === 'delivered').length,
-      cancelled: orders.filter(o => o.status === 'cancelled').length,
-      totalRevenue: orders.reduce((sum, o) => sum + (o.total_amount || 0), 0),
-    };
-  }, [orders]);
 
   return (
     <AppShell currentSuite="ops">
