@@ -15,10 +15,10 @@ interface MetricCardProps {
 }
 
 const statusStyles = {
-  operational: 'border-secondary text-secondary',
-  warning: 'border-primary text-primary',
+  operational: 'border-green-500 text-green-600',
+  warning: 'border-yellow-500 text-yellow-600',
   error: 'border-destructive text-destructive',
-  info: 'border-accent text-accent',
+  info: 'border-blue-500 text-blue-600',
 };
 
 export default function MetricCard({

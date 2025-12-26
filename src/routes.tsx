@@ -12,12 +12,52 @@ export const routes: RouteObject[] = [
     element: <HomePage />,
   },
   {
+    path: '/os',
+    element: <HomePage />,
+  },
+  {
+    path: '/os/inventory',
+    element: <NotFoundPage />, // Placeholder - will be implemented
+  },
+  {
+    path: '/os/batches',
+    element: <NotFoundPage />, // Placeholder - will be implemented
+  },
+  {
+    path: '/os/materials',
+    element: <NotFoundPage />, // Placeholder - will be implemented
+  },
+  {
+    path: '/os/locations',
+    element: <NotFoundPage />, // Placeholder - will be implemented
+  },
+  {
+    path: '/os/movements',
+    element: <NotFoundPage />, // Placeholder - will be implemented
+  },
+  {
+    path: '/ops',
+    element: <NotFoundPage />, // Placeholder for OPS suite
+  },
+  {
+    path: '/lab',
+    element: <NotFoundPage />, // Placeholder for Lab suite
+  },
+  {
+    path: '/connect',
+    element: <NotFoundPage />, // Placeholder for Connect suite
+  },
+  {
+    path: '/flow',
+    element: <NotFoundPage />, // Placeholder for Flow suite
+  },
+  {
     path: '*',
     element: <NotFoundPage />,
   },
 ];
 
 // Types for type-safe navigation
-export type Path = '/';
+export type Path = '/' | '/os' | '/os/inventory' | '/os/batches' | '/os/materials' | '/os/locations' | '/os/movements' | '/ops' | '/lab' | '/connect' | '/flow';
 
 export type Params = Record<string, string | undefined>;

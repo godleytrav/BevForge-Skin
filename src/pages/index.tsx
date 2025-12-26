@@ -1,20 +1,31 @@
 import { useState } from 'react';
-import Dashboard from '@/layouts/Dashboard';
+import AppShell, { NavigationItem } from '@/components/AppShell';
+import { Card, CardContent } from '@/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import MetricCard from '@/components/MetricCard';
 import DeviceCanvas, { Device } from '@/components/DeviceCanvas';
 import InventoryTable, { InventoryItem } from '@/components/InventoryTable';
-import MetricCard from '@/components/MetricCard';
 import {
-  Activity,
+  Home,
   Package,
+  Beaker,
+  Box,
+  MapPin,
+  Truck,
+  Activity,
   AlertTriangle,
   TrendingUp,
-  Settings,
-  Database,
-  Cpu,
-  Network,
-  BarChart3,
 } from 'lucide-react';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+
+// OS Navigation
+const osNavigation: NavigationItem[] = [
+  { name: 'Dashboard', href: '/os', icon: Home },
+  { name: 'Inventory', href: '/os/inventory', icon: Package },
+  { name: 'Batches', href: '/os/batches', icon: Beaker },
+  { name: 'Materials', href: '/os/materials', icon: Box },
+  { name: 'Locations', href: '/os/locations', icon: MapPin },
+  { name: 'Movements', href: '/os/movements', icon: Truck },
+];
 
 // Mock data for demonstration
 const initialDevices: Device[] = [
@@ -132,100 +143,47 @@ export default function HomePage() {
     console.log('Inventory item clicked:', item);
   };
 
-  const dashboardConfig = {
-    sidebar: {
-      logo: {
-        text: 'BevForge OS',
-        href: '/',
-      },
-      navigation: {
-        main: [
-          {
-            title: 'Dashboard',
-            href: '/',
-            icon: Activity,
-            active: true,
-          },
-          {
-            title: 'Devices',
-            href: '/devices',
-            icon: Cpu,
-          },
-          {
-            title: 'Inventory',
-            href: '/inventory',
-            icon: Package,
-          },
-          {
-            title: 'Analytics',
-            href: '/analytics',
-            icon: BarChart3,
-          },
-          {
-            title: 'Network',
-            href: '/network',
-            icon: Network,
-          },
-        ],
-        secondary: [
-          {
-            title: 'Settings',
-            href: '/settings',
-            icon: Settings,
-          },
-          {
-            title: 'Database',
-            href: '/database',
-            icon: Database,
-          },
-        ],
-      },
-    },
-    header: {
-      search: {
-        enabled: true,
-        placeholder: 'Search devices, inventory...',
-      },
-      notifications: {
-        enabled: true,
-        count: 3,
-      },
-      user: {
-        name: 'System Admin',
-        email: 'admin@bevforge.local',
-        initials: 'SA',
-      },
-    },
-    main: {
-      maxWidth: 'full' as const,
-      padding: true,
-    },
-  };
-
   return (
-    <Dashboard config={dashboardConfig}>
+    <AppShell
+      currentSuite="os"
+      navigation={osNavigation}
+      userName="Travis Godley"
+      userEmail="travis@bevforge.com"
+    >
       <div className="space-y-6">
-        {/* System Status Bar */}
-        <div className="bg-card border border-border rounded-lg p-3 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2">
-              <div className="w-2 h-2 rounded-full bg-secondary animate-pulse" />
-              <span className="text-sm font-medium">System Operational</span>
-            </div>
-            <div className="h-4 w-px bg-border" />
-            <span className="text-xs text-muted-foreground font-mono">
-              Uptime: 47d 12h 34m
-            </span>
-            <div className="h-4 w-px bg-border" />
-            <span className="text-xs text-muted-foreground font-mono">
-              Last Sync: 2 minutes ago
-            </span>
-          </div>
-          <div className="flex items-center gap-2">
-            <AlertTriangle className="h-4 w-4 text-primary" />
-            <span className="text-xs text-muted-foreground">3 warnings require attention</span>
-          </div>
+        {/* Page Header */}
+        <div>
+          <h1 className="text-3xl font-bold text-foreground">OS Dashboard</h1>
+          <p className="text-muted-foreground">
+            Operating System - Inventory, Batches & Production Tracking
+          </p>
         </div>
+
+        {/* System Status Bar */}
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+                  <span className="text-sm font-medium">System Operational</span>
+                </div>
+                <div className="h-4 w-px bg-border" />
+                <span className="text-xs text-muted-foreground font-mono">
+                  Uptime: 47d 12h 34m
+                </span>
+                <div className="h-4 w-px bg-border" />
+                <span className="text-xs text-muted-foreground font-mono">
+                  Last Sync: 2 minutes ago
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <AlertTriangle className="h-4 w-4 text-yellow-500" />
+                <span className="text-xs text-muted-foreground">3 warnings require attention</span>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Metrics Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -233,7 +191,7 @@ export default function HomePage() {
             title="Active Devices"
             value={devices.length}
             unit="devices"
-            icon={Cpu}
+            icon={Activity}
             status="operational"
             change={{ value: 5, label: 'from last week' }}
           />
@@ -283,6 +241,6 @@ export default function HomePage() {
           </TabsContent>
         </Tabs>
       </div>
-    </Dashboard>
+    </AppShell>
   );
 }

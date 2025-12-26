@@ -21,10 +21,10 @@ interface DeviceCanvasProps {
 }
 
 const statusColors = {
-  operational: 'bg-secondary border-secondary',
-  warning: 'bg-primary border-primary',
-  error: 'bg-destructive border-destructive',
-  offline: 'bg-muted border-muted-foreground',
+  operational: 'bg-green-100 border-green-500',
+  warning: 'bg-yellow-100 border-yellow-500',
+  error: 'bg-red-100 border-destructive',
+  offline: 'bg-gray-100 border-gray-400',
 };
 
 export default function DeviceCanvas({
@@ -88,7 +88,7 @@ export default function DeviceCanvas({
         y1={fromY}
         x2={toX}
         y2={toY}
-        stroke="hsl(var(--primary))"
+        stroke="hsl(var(--foreground))"
         strokeWidth="2"
         strokeDasharray="5,5"
         opacity="0.6"
@@ -199,12 +199,12 @@ export default function DeviceCanvas({
                 <div
                   className={`w-2 h-2 rounded-full ${
                     device.status === 'operational'
-                      ? 'bg-secondary'
+                      ? 'bg-green-500'
                       : device.status === 'warning'
-                      ? 'bg-primary'
+                      ? 'bg-yellow-500'
                       : device.status === 'error'
                       ? 'bg-destructive'
-                      : 'bg-muted-foreground'
+                      : 'bg-gray-400'
                   } animate-pulse`}
                 />
               </div>
@@ -221,11 +221,11 @@ export default function DeviceCanvas({
         </div>
         <div className="flex gap-3">
           <div className="flex items-center gap-1">
-            <div className="w-2 h-2 rounded-full bg-secondary" />
+            <div className="w-2 h-2 rounded-full bg-green-500" />
             <span className="text-muted-foreground">Operational</span>
           </div>
           <div className="flex items-center gap-1">
-            <div className="w-2 h-2 rounded-full bg-primary" />
+            <div className="w-2 h-2 rounded-full bg-yellow-500" />
             <span className="text-muted-foreground">Warning</span>
           </div>
           <div className="flex items-center gap-1">
