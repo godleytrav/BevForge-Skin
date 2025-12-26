@@ -48,6 +48,12 @@
     /* Typography */
     --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
     --font-mono: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace;
+
+    /* Glow Shadows - BevForge OS Theme */
+    --shadow-glow-sm: 0 0 10px rgba(79, 209, 255, 0.15), 0 2px 4px rgba(0, 0, 0, 0.1);
+    --shadow-glow-md: 0 0 15px rgba(79, 209, 255, 0.2), 0 4px 6px rgba(0, 0, 0, 0.15);
+    --shadow-glow-lg: 0 0 25px rgba(79, 209, 255, 0.25), 0 8px 12px rgba(0, 0, 0, 0.2);
+    --shadow-glow-xl: 0 0 35px rgba(79, 209, 255, 0.3), 0 12px 20px rgba(0, 0, 0, 0.25);
   }
 
   .dark {

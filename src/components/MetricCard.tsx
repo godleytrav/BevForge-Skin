@@ -31,7 +31,7 @@ export default function MetricCard({
   className = '',
 }: MetricCardProps) {
   return (
-    <Card className={`${className} border-l-4 ${statusStyles[status]}`}>
+    <Card className={`${className} border-l-4 ${statusStyles[status]} transition-shadow hover:shadow-glow-lg`}>
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
         <CardTitle className="text-sm font-medium text-muted-foreground">{title}</CardTitle>
         {Icon && <Icon className={`h-4 w-4 ${statusStyles[status]}`} />}

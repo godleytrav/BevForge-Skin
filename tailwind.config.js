@@ -12,8 +12,14 @@ export default {
   			'2xl': '1400px'
   		}
   	},
-  	extend: {
-  		colors: {
+		extend: {
+			boxShadow: {
+				'glow-sm': 'var(--shadow-glow-sm)',
+				'glow-md': 'var(--shadow-glow-md)',
+				'glow-lg': 'var(--shadow-glow-lg)',
+				'glow-xl': 'var(--shadow-glow-xl)',
+			},
+			colors: {
   			border: 'hsl(var(--border))',
   			input: 'hsl(var(--input))',
   			ring: 'hsl(var(--ring))',
