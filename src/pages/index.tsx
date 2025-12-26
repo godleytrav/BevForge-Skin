@@ -1,31 +1,16 @@
 import { useState } from 'react';
-import AppShell, { NavigationItem } from '@/components/AppShell';
+import { AppShell } from '@/components/AppShell';
 import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import MetricCard from '@/components/MetricCard';
 import DeviceCanvas, { Device } from '@/components/DeviceCanvas';
 import InventoryTable, { InventoryItem } from '@/components/InventoryTable';
 import {
-  Home,
-  Package,
-  Beaker,
-  Box,
-  MapPin,
-  Truck,
   Activity,
   AlertTriangle,
   TrendingUp,
+  Package,
 } from 'lucide-react';
-
-// OS Navigation
-const osNavigation: NavigationItem[] = [
-  { name: 'Dashboard', href: '/os', icon: Home },
-  { name: 'Inventory', href: '/os/inventory', icon: Package },
-  { name: 'Batches', href: '/os/batches', icon: Beaker },
-  { name: 'Materials', href: '/os/materials', icon: Box },
-  { name: 'Locations', href: '/os/locations', icon: MapPin },
-  { name: 'Movements', href: '/os/movements', icon: Truck },
-];
 
 // Mock data for demonstration
 const initialDevices: Device[] = [
@@ -144,12 +129,7 @@ export default function HomePage() {
   };
 
   return (
-    <AppShell
-      currentSuite="os"
-      navigation={osNavigation}
-      userName="Travis Godley"
-      userEmail="travis@bevforge.com"
-    >
+    <AppShell currentSuite="os" pageTitle="OS Dashboard">
       <div className="space-y-6">
         {/* Page Header */}
         <div>
