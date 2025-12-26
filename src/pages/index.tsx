@@ -1,15 +1,18 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { AppShell } from '@/components/AppShell';
 import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Button } from '@/components/ui/button';
 import MetricCard from '@/components/MetricCard';
 import DeviceCanvas, { Device } from '@/components/DeviceCanvas';
-import InventoryTable, { InventoryItem } from '@/components/InventoryTable';
+import InventoryTable from '@/components/InventoryTable';
 import {
   Activity,
   AlertTriangle,
   TrendingUp,
   Package,
+  Monitor,
 } from 'lucide-react';
 
 // Mock data for demonstration
@@ -58,60 +61,61 @@ const initialDevices: Device[] = [
   },
 ];
 
-const inventoryItems: InventoryItem[] = [
+const inventoryItems = [
   {
-    id: 'inv-1',
-    name: 'Malt Extract',
-    category: 'Raw Materials',
-    quantity: 450,
-    unit: 'kg',
-    reorderPoint: 200,
-    lastUpdated: '2 hours ago',
-    trend: 'down',
+    id: 1,
+    name: 'SafAle US-05',
+    category: 'yeast',
+    quantity: 45,
+    unit: 'packs',
+    reorderPoint: 10,
+    trend: 'stable' as const,
+    cost: 4.99,
   },
   {
-    id: 'inv-2',
-    name: 'Hops - Cascade',
-    category: 'Raw Materials',
+    id: 2,
+    name: 'Cascade Hops',
+    category: 'hops',
     quantity: 85,
     unit: 'kg',
     reorderPoint: 50,
-    lastUpdated: '5 hours ago',
-    trend: 'stable',
+    trend: 'stable' as const,
+    cost: 18.50,
   },
   {
-    id: 'inv-3',
-    name: 'Yeast - Ale',
-    category: 'Raw Materials',
-    quantity: 25,
+    id: 3,
+    name: 'Pilsner Malt',
+    category: 'malt',
+    quantity: 450,
     unit: 'kg',
-    reorderPoint: 30,
-    lastUpdated: '1 day ago',
-    trend: 'down',
+    reorderPoint: 200,
+    trend: 'down' as const,
+    cost: 1.25,
   },
   {
-    id: 'inv-4',
+    id: 4,
     name: 'Bottles - 500ml',
-    category: 'Packaging',
+    category: 'packaging',
     quantity: 12500,
     unit: 'units',
     reorderPoint: 5000,
-    lastUpdated: '3 hours ago',
-    trend: 'up',
+    trend: 'up' as const,
+    cost: 0.35,
   },
   {
-    id: 'inv-5',
-    name: 'Labels',
-    category: 'Packaging',
-    quantity: 0,
+    id: 5,
+    name: 'Crown Caps',
+    category: 'packaging',
+    quantity: 8,
     unit: 'units',
     reorderPoint: 2000,
-    lastUpdated: '6 hours ago',
-    trend: 'down',
+    trend: 'down' as const,
+    cost: 0.05,
   },
 ];
 
 export default function HomePage() {
+  const navigate = useNavigate();
   const [devices, setDevices] = useState<Device[]>(initialDevices);
 
   const handleDeviceMove = (deviceId: string, x: number, y: number) => {
@@ -122,10 +126,6 @@ export default function HomePage() {
 
   const handleDeviceClick = (device: Device) => {
     console.log('Device clicked:', device);
-  };
-
-  const handleInventoryClick = (item: InventoryItem) => {
-    console.log('Inventory item clicked:', item);
   };
 
   return (
@@ -217,7 +217,19 @@ export default function HomePage() {
           </TabsContent>
 
           <TabsContent value="inventory" className="space-y-4">
-            <InventoryTable items={inventoryItems} onItemClick={handleInventoryClick} />
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-semibold">Inventory Overview</h2>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => navigate('/os/control-panel')}
+                className="gap-2"
+              >
+                <Monitor className="h-4 w-4" />
+                Open Control Panel
+              </Button>
+            </div>
+            <InventoryTable items={inventoryItems} />
           </TabsContent>
         </Tabs>
       </div>

@@ -1,6 +1,8 @@
 import { RouteObject } from 'react-router-dom';
 import { lazy } from 'react';
 import HomePage from './pages/index';
+import ItemDetailsPage from './pages/os/ItemDetailsPage';
+import ControlPanelPage from './pages/os/ControlPanelPage';
 
 // Lazy load components for code splitting (except HomePage for instant loading)
 const isDevelopment = (import.meta.env as any).DEV;
@@ -18,6 +20,14 @@ export const routes: RouteObject[] = [
   {
     path: '/os/inventory',
     element: <NotFoundPage />, // Placeholder - will be implemented
+  },
+  {
+    path: '/os/inventory/:id',
+    element: <ItemDetailsPage />,
+  },
+  {
+    path: '/os/control-panel',
+    element: <ControlPanelPage />,
   },
   {
     path: '/os/batches',
@@ -58,6 +68,6 @@ export const routes: RouteObject[] = [
 ];
 
 // Types for type-safe navigation
-export type Path = '/' | '/os' | '/os/inventory' | '/os/batches' | '/os/materials' | '/os/locations' | '/os/movements' | '/ops' | '/lab' | '/connect' | '/flow';
+export type Path = '/' | '/os' | '/os/inventory' | '/os/inventory/:id' | '/os/control-panel' | '/os/batches' | '/os/materials' | '/os/locations' | '/os/movements' | '/ops' | '/lab' | '/connect' | '/flow';
 
 export type Params = Record<string, string | undefined>;
