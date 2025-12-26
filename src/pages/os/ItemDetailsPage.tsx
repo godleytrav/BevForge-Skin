@@ -1,4 +1,4 @@
-import { useParams, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Package, DollarSign, MapPin, TrendingUp, AlertTriangle } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -53,7 +53,7 @@ const mockItem = {
 };
 
 export default function ItemDetailsPage() {
-  const { id } = useParams();
+  // const { id } = useParams(); // TODO: Use this to fetch actual item data from API
   const navigate = useNavigate();
 
   // TODO: Fetch item from API using id

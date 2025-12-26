@@ -1,4 +1,4 @@
-import { useParams, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Package, TrendingUp, MapPin, Clock } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -72,7 +72,7 @@ const mockHistory = [
 ];
 
 export default function FruitDetailsPage() {
-  const { id } = useParams();
+  // const { id } = useParams(); // TODO: Use this to fetch actual item data from API
   const navigate = useNavigate();
   const item = mockFruitData; // In production: fetch by id
 

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AppShell } from '@/components/AppShell';
-import { InventoryTable } from '@/components/InventoryTable';
+import InventoryTable from '@/components/InventoryTable';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -19,7 +19,91 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Plus, Search, Filter, Download, Upload, Package, Beaker, Wheat, Hop, Apple, Wrench, Box, Beer } from 'lucide-react';
+import { Plus, Search, Filter, Download, Upload, Package, Beaker, Wheat, Hop, Apple, Wrench, Box, Beer, AlertTriangle } from 'lucide-react';
+
+// Mock inventory data
+const mockInventoryItems = [
+  {
+    id: 1,
+    name: 'SafAle US-05',
+    category: 'yeast',
+    quantity: 45,
+    unit: 'packs',
+    reorderPoint: 10,
+    trend: 'stable' as const,
+    cost: 4.99,
+  },
+  {
+    id: 2,
+    name: 'Cascade Hops',
+    category: 'hops',
+    quantity: 85,
+    unit: 'kg',
+    reorderPoint: 50,
+    trend: 'stable' as const,
+    cost: 18.50,
+  },
+  {
+    id: 3,
+    name: 'Pilsner Malt',
+    category: 'malt',
+    quantity: 450,
+    unit: 'kg',
+    reorderPoint: 200,
+    trend: 'down' as const,
+    cost: 1.25,
+  },
+  {
+    id: 4,
+    name: 'Bottles - 500ml',
+    category: 'packaging',
+    quantity: 12500,
+    unit: 'units',
+    reorderPoint: 5000,
+    trend: 'up' as const,
+    cost: 0.35,
+  },
+  {
+    id: 5,
+    name: 'Crown Caps',
+    category: 'packaging',
+    quantity: 8,
+    unit: 'units',
+    reorderPoint: 2000,
+    trend: 'down' as const,
+    cost: 0.05,
+  },
+  {
+    id: 6,
+    name: 'WLP001 California Ale',
+    category: 'yeast',
+    quantity: 22,
+    unit: 'vials',
+    reorderPoint: 15,
+    trend: 'stable' as const,
+    cost: 8.99,
+  },
+  {
+    id: 7,
+    name: 'Centennial Hops',
+    category: 'hops',
+    quantity: 42,
+    unit: 'kg',
+    reorderPoint: 50,
+    trend: 'down' as const,
+    cost: 19.75,
+  },
+  {
+    id: 8,
+    name: 'Munich Malt',
+    category: 'malt',
+    quantity: 380,
+    unit: 'kg',
+    reorderPoint: 150,
+    trend: 'stable' as const,
+    cost: 1.45,
+  },
+];
 
 export default function InventoryManagementPage() {
   const navigate = useNavigate();
@@ -52,6 +136,22 @@ export default function InventoryManagementPage() {
     console.log('Importing inventory...');
   };
 
+  // Filter items based on search and category
+  const filteredItems = mockInventoryItems.filter((item) => {
+    const matchesSearch = searchQuery === '' || 
+      item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      item.category.toLowerCase().includes(searchQuery.toLowerCase());
+    
+    const matchesCategory = categoryFilter === 'all' || item.category === categoryFilter;
+    
+    return matchesSearch && matchesCategory;
+  });
+
+  // Calculate stats
+  const totalItems = mockInventoryItems.length;
+  const lowStockItems = mockInventoryItems.filter(item => item.quantity <= item.reorderPoint).length;
+  const totalValue = mockInventoryItems.reduce((sum, item) => sum + (item.cost || 0) * item.quantity, 0);
+
   return (
     <AppShell currentSuite="os" pageTitle="Inventory Management">
       <div className="space-y-6">
@@ -67,6 +167,54 @@ export default function InventoryManagementPage() {
             <Plus className="h-4 w-4" />
             Add Item
           </Button>
+        </div>
+
+        {/* Stats Summary */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <Card>
+            <CardContent className="pt-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="text-2xl font-bold">{totalItems}</div>
+                  <p className="text-sm text-muted-foreground">Total Items</p>
+                </div>
+                <Package className="h-8 w-8 text-muted-foreground" />
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="pt-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="text-2xl font-bold text-yellow-500">{lowStockItems}</div>
+                  <p className="text-sm text-muted-foreground">Low Stock Alerts</p>
+                </div>
+                <AlertTriangle className="h-8 w-8 text-yellow-500" />
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="pt-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="text-2xl font-bold text-green-500">${totalValue.toFixed(0)}</div>
+                  <p className="text-sm text-muted-foreground">Total Value</p>
+                </div>
+                <Package className="h-8 w-8 text-green-500" />
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="pt-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="text-2xl font-bold">{filteredItems.length}</div>
+                  <p className="text-sm text-muted-foreground">Filtered Results</p>
+                </div>
+                <Filter className="h-8 w-8 text-muted-foreground" />
+              </div>
+            </CardContent>
+          </Card>
         </div>
 
         {/* Filters & Search */}
@@ -127,38 +275,16 @@ export default function InventoryManagementPage() {
 
         {/* Inventory Table */}
         <Card>
+          <CardHeader>
+            <CardTitle>Inventory Items</CardTitle>
+            <CardDescription>
+              {filteredItems.length} items {searchQuery || categoryFilter !== 'all' ? '(filtered)' : ''}
+            </CardDescription>
+          </CardHeader>
           <CardContent className="p-0">
-            <InventoryTable />
+            <InventoryTable items={filteredItems} />
           </CardContent>
         </Card>
-
-        {/* Stats Summary */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <Card>
-            <CardContent className="pt-6">
-              <div className="text-2xl font-bold">247</div>
-              <p className="text-sm text-muted-foreground">Total Items</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="pt-6">
-              <div className="text-2xl font-bold text-yellow-500">12</div>
-              <p className="text-sm text-muted-foreground">Low Stock Alerts</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="pt-6">
-              <div className="text-2xl font-bold text-green-500">$45,230</div>
-              <p className="text-sm text-muted-foreground">Total Value</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="pt-6">
-              <div className="text-2xl font-bold">89</div>
-              <p className="text-sm text-muted-foreground">Active Lots</p>
-            </CardContent>
-          </Card>
-        </div>
       </div>
 
       {/* Add Item Category Dialog */}
