@@ -3,6 +3,9 @@ import { AppShell } from '@/components/AppShell';
 import { ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import AddYeastForm from '@/components/forms/AddYeastForm';
+import AddMaltForm from '@/components/forms/AddMaltForm';
+import AddHopsForm from '@/components/forms/AddHopsForm';
+import AddFruitForm from '@/components/forms/AddFruitForm';
 import AddGenericItemForm from '@/components/forms/AddGenericItemForm';
 
 export default function AddInventoryItemPage() {
@@ -47,17 +50,13 @@ export default function AddInventoryItemPage() {
         return <AddYeastForm onSubmit={handleSubmit} onCancel={handleCancel} />;
       
       case 'malt':
+        return <AddMaltForm onSubmit={handleSubmit} onCancel={handleCancel} />;
+      
       case 'hops':
+        return <AddHopsForm onSubmit={handleSubmit} onCancel={handleCancel} />;
+      
       case 'fruit':
-        // TODO: Create dedicated forms for these ingredient types
-        return (
-          <div className="text-center py-12">
-            <p className="text-muted-foreground mb-4">
-              Form for {config.label} coming soon!
-            </p>
-            <Button onClick={handleCancel}>Back to Dashboard</Button>
-          </div>
-        );
+        return <AddFruitForm onSubmit={handleSubmit} onCancel={handleCancel} />;
       
       default:
         return (
