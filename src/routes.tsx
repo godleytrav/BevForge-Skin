@@ -1,7 +1,7 @@
 import { RouteObject } from 'react-router-dom';
 import { lazy } from 'react';
 import HomePage from './pages/index';
-import ItemDetailsPage from './pages/os/ItemDetailsPage';
+import ItemDetailsRouter from './pages/os/ItemDetailsRouter';
 import ControlPanelPage from './pages/os/ControlPanelPage';
 
 // Lazy load components for code splitting (except HomePage for instant loading)
@@ -23,7 +23,7 @@ export const routes: RouteObject[] = [
   },
   {
     path: '/os/inventory/:id',
-    element: <ItemDetailsPage />,
+    element: <ItemDetailsRouter />,
   },
   {
     path: '/os/control-panel',
