@@ -1,7 +1,6 @@
 import { createBrowserRouter, RouterProvider, Outlet } from 'react-router-dom';
 import { Suspense } from 'react';
 import AiroErrorBoundary from '../dev-tools/src/AiroErrorBoundary';
-import RootLayout from './layouts/RootLayout';
 import { routes } from './routes';
 import Spinner from './components/Spinner';
 
@@ -11,23 +10,20 @@ const SpinnerFallback = () => (
   </div>
 );
 
-// Create router with layout wrapper
+// BevForge OS uses Dashboard layout directly in pages
+// No RootLayout wrapper - each page controls its own layout
 const router = createBrowserRouter([
   {
     path: '/',
     element: import.meta.env.DEV ? (
       <AiroErrorBoundary>
         <Suspense fallback={<SpinnerFallback />}>
-          <RootLayout>
-            <Outlet />
-          </RootLayout>
+          <Outlet />
         </Suspense>
       </AiroErrorBoundary>
     ) : (
       <Suspense fallback={<SpinnerFallback />}>
-        <RootLayout>
-          <Outlet />
-        </RootLayout>
+        <Outlet />
       </Suspense>
     ),
     children: routes,
