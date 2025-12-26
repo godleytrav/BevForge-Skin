@@ -1,32 +1,88 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AppShell } from '@/components/AppShell';
-import { DeviceCanvas } from '@/components/DeviceCanvas';
+import DeviceCanvas, { Device } from '@/components/DeviceCanvas';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Gauge, Save, RotateCcw, ExternalLink } from 'lucide-react';
 
+// Mock initial devices
+const initialDevices: Device[] = [
+  {
+    id: 'dev-1',
+    type: 'TANK',
+    name: 'Tank-01',
+    x: 100,
+    y: 100,
+    status: 'operational',
+    connections: ['dev-2'],
+  },
+  {
+    id: 'dev-2',
+    type: 'PUMP',
+    name: 'Pump-A',
+    x: 300,
+    y: 100,
+    status: 'operational',
+    connections: ['dev-3'],
+  },
+  {
+    id: 'dev-3',
+    type: 'VALVE',
+    name: 'Valve-01',
+    x: 500,
+    y: 100,
+    status: 'warning',
+  },
+  {
+    id: 'dev-4',
+    type: 'SENSOR',
+    name: 'Temp-01',
+    x: 100,
+    y: 300,
+    status: 'operational',
+  },
+  {
+    id: 'dev-5',
+    type: 'TANK',
+    name: 'Tank-02',
+    x: 300,
+    y: 300,
+    status: 'error',
+  },
+];
+
 export default function DevicesPage() {
   const navigate = useNavigate();
   const [isEditMode, setIsEditMode] = useState(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [devices, setDevices] = useState<Device[]>(initialDevices);
+  const [savedDevices, setSavedDevices] = useState<Device[]>(initialDevices);
 
   const handleSave = () => {
     // TODO: Save device layout to backend
-    console.log('Saving device layout...');
+    console.log('Saving device layout...', devices);
+    setSavedDevices(devices);
     setHasUnsavedChanges(false);
   };
 
   const handleReset = () => {
-    // TODO: Reset to last saved layout
-    console.log('Resetting device layout...');
+    setDevices(savedDevices);
     setHasUnsavedChanges(false);
   };
 
-  const handleDeviceChange = () => {
+  const handleDeviceMove = (deviceId: string, x: number, y: number) => {
+    if (!isEditMode) return;
+    setDevices((prev) =>
+      prev.map((device) => (device.id === deviceId ? { ...device, x, y } : device))
+    );
     setHasUnsavedChanges(true);
+  };
+
+  const handleDeviceClick = (device: Device) => {
+    console.log('Device clicked:', device);
   };
 
   return (
@@ -68,12 +124,13 @@ export default function DevicesPage() {
                     onCheckedChange={setIsEditMode}
                   />
                   <Label htmlFor="edit-mode" className="cursor-pointer">
-                    Edit Mode
+                    Edit Mode {isEditMode ? '(Enabled)' : '(Disabled)'}
                   </Label>
                 </div>
                 {hasUnsavedChanges && (
-                  <span className="text-sm text-yellow-500">
-                    • Unsaved changes
+                  <span className="text-sm text-yellow-500 flex items-center gap-1">
+                    <span className="w-2 h-2 rounded-full bg-yellow-500 animate-pulse" />
+                    Unsaved changes
                   </span>
                 )}
               </div>
@@ -104,8 +161,10 @@ export default function DevicesPage() {
         <Card className="overflow-hidden">
           <CardContent className="p-0">
             <DeviceCanvas
-              isEditMode={isEditMode}
-              onChange={handleDeviceChange}
+              devices={devices}
+              onDeviceMove={handleDeviceMove}
+              onDeviceClick={handleDeviceClick}
+              className="h-[600px]"
             />
           </CardContent>
         </Card>
@@ -117,7 +176,7 @@ export default function DevicesPage() {
               <div>
                 <h4 className="font-semibold mb-2">Edit Mode</h4>
                 <p className="text-muted-foreground">
-                  Enable edit mode to drag devices, add new equipment, and configure connections between components.
+                  Enable edit mode to drag devices around the canvas. {isEditMode ? 'You can now drag devices!' : 'Currently in view-only mode.'}
                 </p>
               </div>
               <div>
