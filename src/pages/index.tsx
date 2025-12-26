@@ -4,6 +4,13 @@ import { AppShell } from '@/components/AppShell';
 import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import MetricCard from '@/components/MetricCard';
 import DeviceCanvas, { Device } from '@/components/DeviceCanvas';
 import InventoryTable from '@/components/InventoryTable';
@@ -13,6 +20,14 @@ import {
   TrendingUp,
   Package,
   Monitor,
+  Plus,
+  Beaker,
+  Wheat,
+  Flower2,
+  Apple,
+  Wrench,
+  Box,
+  Beer,
 } from 'lucide-react';
 
 // Mock data for demonstration
@@ -117,6 +132,7 @@ const inventoryItems = [
 export default function HomePage() {
   const navigate = useNavigate();
   const [devices, setDevices] = useState<Device[]>(initialDevices);
+  const [showAddItemDialog, setShowAddItemDialog] = useState(false);
 
   const handleDeviceMove = (deviceId: string, x: number, y: number) => {
     setDevices((prev) =>
@@ -128,15 +144,83 @@ export default function HomePage() {
     console.log('Device clicked:', device);
   };
 
+  const itemCategories = [
+    {
+      id: 'yeast',
+      name: 'Yeast',
+      icon: Beaker,
+      description: 'Fermentation yeast strains',
+      isIngredient: true,
+    },
+    {
+      id: 'malt',
+      name: 'Malt & Grains',
+      icon: Wheat,
+      description: 'Base malts, specialty grains',
+      isIngredient: true,
+    },
+    {
+      id: 'hops',
+      name: 'Hops',
+      icon: Flower2,
+      description: 'Bittering and aroma hops',
+      isIngredient: true,
+    },
+    {
+      id: 'fruit',
+      name: 'Fruit & Adjuncts',
+      icon: Apple,
+      description: 'Fruits, spices, adjuncts',
+      isIngredient: true,
+    },
+    {
+      id: 'equipment',
+      name: 'Equipment',
+      icon: Wrench,
+      description: 'Tools, parts, supplies',
+      isIngredient: false,
+    },
+    {
+      id: 'packaging',
+      name: 'Packaging',
+      icon: Box,
+      description: 'Bottles, cans, labels',
+      isIngredient: false,
+    },
+    {
+      id: 'kegs',
+      name: 'Kegs & Barrels',
+      icon: Beer,
+      description: 'Kegs, casks, barrels',
+      isIngredient: false,
+    },
+  ];
+
+  const handleCategorySelect = (categoryId: string) => {
+    setShowAddItemDialog(false);
+    // TODO: Navigate to appropriate form based on category
+    console.log('Selected category:', categoryId);
+  };
+
   return (
     <AppShell currentSuite="os" pageTitle="OS Dashboard">
       <div className="space-y-6">
         {/* Page Header */}
-        <div>
-          <h1 className="text-3xl font-bold text-foreground">OS Dashboard</h1>
-          <p className="text-muted-foreground">
-            Operating System - Inventory, Batches & Production Tracking
-          </p>
+        <div className="flex items-start justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-foreground">OS Dashboard</h1>
+            <p className="text-muted-foreground">
+              Operating System - Inventory, Batches & Production Tracking
+            </p>
+          </div>
+          <Button
+            onClick={() => navigate('/os/control-panel')}
+            className="gap-2"
+            size="lg"
+          >
+            <Monitor className="h-5 w-5" />
+            Open Control Panel
+          </Button>
         </div>
 
         {/* System Status Bar */}
@@ -220,18 +304,60 @@ export default function HomePage() {
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-xl font-semibold">Inventory Overview</h2>
               <Button
-                variant="outline"
-                size="sm"
-                onClick={() => navigate('/os/control-panel')}
+                onClick={() => setShowAddItemDialog(true)}
                 className="gap-2"
+                size="sm"
               >
-                <Monitor className="h-4 w-4" />
-                Open Control Panel
+                <Plus className="h-4 w-4" />
+                Add Inventory Item
               </Button>
             </div>
             <InventoryTable items={inventoryItems} />
           </TabsContent>
         </Tabs>
+
+        {/* Add Item Category Selection Dialog */}
+        <Dialog open={showAddItemDialog} onOpenChange={setShowAddItemDialog}>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>Add Inventory Item</DialogTitle>
+              <DialogDescription>
+                Select the type of item you want to add to inventory
+              </DialogDescription>
+            </DialogHeader>
+            <div className="grid grid-cols-2 gap-4 py-4">
+              {itemCategories.map((category) => {
+                const Icon = category.icon;
+                return (
+                  <button
+                    key={category.id}
+                    onClick={() => handleCategorySelect(category.id)}
+                    className="flex flex-col items-start gap-3 p-4 rounded-lg border border-border bg-card hover:bg-accent hover:shadow-glow-md transition-all text-left group"
+                  >
+                    <div className="flex items-center gap-3 w-full">
+                      <div className="p-2 rounded-md bg-primary/10 text-primary group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
+                        <Icon className="h-5 w-5" />
+                      </div>
+                      <div className="flex-1">
+                        <h3 className="font-semibold text-foreground">
+                          {category.name}
+                        </h3>
+                        {category.isIngredient && (
+                          <span className="text-xs text-muted-foreground">
+                            LAB-tracked ingredient
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <p className="text-sm text-muted-foreground">
+                      {category.description}
+                    </p>
+                  </button>
+                );
+              })}
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
     </AppShell>
   );
