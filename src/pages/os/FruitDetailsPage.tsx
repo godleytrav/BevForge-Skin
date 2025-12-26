@@ -21,9 +21,9 @@ interface FruitItem {
   sugars?: number; // g/L or g/kg
   brix?: number; // Degrees Brix
   pH?: number;
-  titratable Acidity?: number; // g/L as tartaric acid
-  malic Acid?: number; // g/L
-  citric Acid?: number; // g/L
+  titratableAcidity?: number; // g/L as tartaric acid
+  malicAcid?: number; // g/L
+  citricAcid?: number; // g/L
   tannins?: number; // mg/L
   yan?: number; // Yeast Assimilable Nitrogen, mg/L
   flavorProfile?: string[];
