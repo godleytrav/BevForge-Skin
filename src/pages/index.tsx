@@ -198,8 +198,7 @@ export default function HomePage() {
 
   const handleCategorySelect = (categoryId: string) => {
     setShowAddItemDialog(false);
-    // TODO: Navigate to appropriate form based on category
-    console.log('Selected category:', categoryId);
+    navigate(`/os/inventory/add?category=${categoryId}`);
   };
 
   return (

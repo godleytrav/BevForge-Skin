@@ -3,6 +3,7 @@ import { lazy } from 'react';
 import HomePage from './pages/index';
 import ItemDetailsRouter from './pages/os/ItemDetailsRouter';
 import ControlPanelPage from './pages/os/ControlPanelPage';
+import AddInventoryItemPage from './pages/os/AddInventoryItemPage';
 
 // Lazy load components for code splitting (except HomePage for instant loading)
 const isDevelopment = (import.meta.env as any).DEV;
@@ -20,6 +21,10 @@ export const routes: RouteObject[] = [
   {
     path: '/os/inventory',
     element: <NotFoundPage />, // Placeholder - will be implemented
+  },
+  {
+    path: '/os/inventory/add',
+    element: <AddInventoryItemPage />,
   },
   {
     path: '/os/inventory/:id',
