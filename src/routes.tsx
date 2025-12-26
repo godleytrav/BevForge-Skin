@@ -4,6 +4,8 @@ import HomePage from './pages/index';
 import ItemDetailsRouter from './pages/os/ItemDetailsRouter';
 import ControlPanelPage from './pages/os/ControlPanelPage';
 import AddInventoryItemPage from './pages/os/AddInventoryItemPage';
+import DevicesPage from './pages/os/DevicesPage';
+import InventoryManagementPage from './pages/os/InventoryManagementPage';
 
 // Lazy load components for code splitting (except HomePage for instant loading)
 const isDevelopment = (import.meta.env as any).DEV;
@@ -19,8 +21,12 @@ export const routes: RouteObject[] = [
     element: <HomePage />,
   },
   {
+    path: '/os/devices',
+    element: <DevicesPage />,
+  },
+  {
     path: '/os/inventory',
-    element: <NotFoundPage />, // Placeholder - will be implemented
+    element: <InventoryManagementPage />,
   },
   {
     path: '/os/inventory/add',
