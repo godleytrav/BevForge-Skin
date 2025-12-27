@@ -562,7 +562,7 @@ export default function ControlPanelPage() {
               onClick={() => !draggedDevice && handleDeviceClick(device)}
               onMouseDown={(e) => isEditMode ? handleMouseDown(e, device.id) : undefined}
             />
-          ))
+          ))}
         </div>
       </div>
 
