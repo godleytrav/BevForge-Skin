@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Power, Droplet, Thermometer, Gauge, Plus, Trash2, Settings, Edit, Save, X } from 'lucide-react';
 import { EquipmentRenderer } from '@/components/EquipmentRenderer';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -69,6 +69,13 @@ interface Device {
     capacity?: number;
     capacityUnit?: string;
   };
+  // API integration
+  endpointId?: number; // Primary control endpoint (for pumps, valves, etc.)
+  bindings?: Array<{
+    endpointId: number;
+    bindingRole: string;
+    direction: string;
+  }>;
 }
 
 // Driver options by connection type
@@ -197,7 +204,77 @@ const mockDevices: Device[] = [
 ];
 
 export default function ControlPanelPage() {
-  const [devices, setDevices] = useState<Device[]>(mockDevices);
+  const [devices, setDevices] = useState<Device[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+
+  // Fetch tiles from API on mount
+  useEffect(() => {
+    const fetchTiles = async () => {
+      try {
+        setIsLoading(true);
+        const response = await fetch('/api/os/tiles?limit=100');
+        if (!response.ok) {
+          throw new Error(`Failed to fetch tiles: ${response.statusText}`);
+        }
+        const result = await response.json();
+        
+        // Fetch detailed info (including bindings) for each tile
+        const detailedDevices = await Promise.all(
+          result.data.map(async (tile: any) => {
+            try {
+              const detailResponse = await fetch(`/api/os/tiles/${tile.id}?include=current`);
+              if (!detailResponse.ok) {
+                console.warn(`Failed to fetch details for tile ${tile.id}`);
+                return null;
+              }
+              const detail = await detailResponse.json();
+              
+              // Find primary control endpoint (output direction)
+              const controlBinding = detail.bindings?.find(
+                (b: any) => b.direction === 'output' && ['control', 'primary'].includes(b.bindingRole)
+              );
+              
+              return {
+                id: String(tile.id),
+                name: tile.name,
+                type: tile.tileType as TileType,
+                status: tile.status || 'online',
+                position: { x: tile.x || 300, y: tile.y || 300 },
+                config: tile.config || {},
+                endpointId: controlBinding?.endpointId,
+                bindings: detail.bindings || [],
+                // Legacy properties for backward compat
+                isOn: false,
+                temperature: tile.config?.currentTemp,
+                targetTemp: tile.config?.currentTemp,
+                level: tile.config?.currentLevel,
+                capacity: tile.config?.capacity,
+              };
+            } catch (err) {
+              console.error(`Error fetching tile ${tile.id} details:`, err);
+              return null;
+            }
+          })
+        );
+        
+        // Filter out failed fetches
+        const mappedDevices = detailedDevices.filter((d): d is Device => d !== null);
+        
+        setDevices(mappedDevices);
+        setLoadError(null);
+      } catch (error) {
+        console.error('Error fetching tiles:', error);
+        setLoadError(String(error));
+        // Fallback to mock devices on error
+        setDevices(mockDevices);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchTiles();
+  }, []);
   const [isEditMode, setIsEditMode] = useState(false);
   const [selectedDevice, setSelectedDevice] = useState<Device | null>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
@@ -231,12 +308,59 @@ export default function ControlPanelPage() {
     }
   };
 
-  const handleToggleDevice = (deviceId: string) => {
+  const handleToggleDevice = async (deviceId: string) => {
+    const device = devices.find((d) => d.id === deviceId);
+    if (!device || !device.endpointId) {
+      console.error('Device not found or no endpoint configured:', deviceId);
+      return;
+    }
+
+    const newValue = !device.isOn;
+
+    // Optimistic update
     setDevices((prev) =>
-      prev.map((device) =>
-        device.id === deviceId ? { ...device, isOn: !device.isOn } : device
+      prev.map((d) =>
+        d.id === deviceId ? { ...d, isOn: newValue } : d
       )
     );
+
+    try {
+      const response = await fetch('/api/os/command', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          endpointId: device.endpointId,
+          value: newValue,
+          commandType: 'write',
+          tileId: parseInt(device.id),
+          correlationId: `ui-toggle-${deviceId}-${Date.now()}`,
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        console.error('Command failed:', error);
+        // Revert optimistic update
+        setDevices((prev) =>
+          prev.map((d) =>
+            d.id === deviceId ? { ...d, isOn: !newValue } : d
+          )
+        );
+        alert(`Failed to toggle device: ${error.message || 'Unknown error'}`);
+      } else {
+        const result = await response.json();
+        console.log('Command succeeded:', result);
+      }
+    } catch (error) {
+      console.error('Error sending command:', error);
+      // Revert optimistic update
+      setDevices((prev) =>
+        prev.map((d) =>
+          d.id === deviceId ? { ...d, isOn: !newValue } : d
+        )
+      );
+      alert('Failed to send command. Check console for details.');
+    }
   };
 
   const handleSaveEdit = () => {
@@ -556,8 +680,27 @@ export default function ControlPanelPage() {
             </svg>
           )}
 
+          {/* Loading State */}
+          {isLoading && (
+            <div className="absolute inset-0 flex items-center justify-center bg-background/80 z-50">
+              <div className="text-center">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+                <p className="text-muted-foreground">Loading devices...</p>
+              </div>
+            </div>
+          )}
+
+          {/* Error State */}
+          {loadError && !isLoading && (
+            <div className="absolute top-4 left-1/2 -translate-x-1/2 z-50">
+              <div className="bg-destructive/10 border border-destructive text-destructive px-4 py-2 rounded-md">
+                <p className="text-sm">Failed to load devices. Using mock data.</p>
+              </div>
+            </div>
+          )}
+
           {/* Devices */}
-          {devices.map((device) => (
+          {!isLoading && devices.map((device) => (
             <EquipmentRenderer
               key={device.id}
               device={{
