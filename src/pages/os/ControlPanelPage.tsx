@@ -24,14 +24,35 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 
+type TileType = 
+  | 'vessel'
+  | 'temp_sensor'
+  | 'gravity_sensor'
+  | 'flow_meter'
+  | 'digital_input'
+  | 'analog_input'
+  | 'pump'
+  | 'valve'
+  | 'relay_ssr'
+  | 'virtual_output'
+  | 'status_tile';
+
+type ConnectionType = 'gpio' | 'i2c' | 'spi' | 'pwm' | 'bluetooth' | 'network' | 'analog' | 'none';
+
 interface Device {
   id: string;
   name: string;
-  type: 'tank' | 'pump' | 'valve' | 'sensor' | 'heater' | 'chiller';
+  type: TileType;
+  connectionType?: ConnectionType;
+  driver?: string;
+  channel?: string;
   status: 'online' | 'offline' | 'error' | 'warning';
   position: { x: number; y: number };
   // Control properties
   isOn?: boolean;
+  value?: number;
+  unit?: string;
+  // Legacy properties for backward compat
   temperature?: number;
   targetTemp?: number;
   pressure?: number;
@@ -40,105 +61,82 @@ interface Device {
   capacity?: number;
 }
 
+// Driver options by connection type
+const driverOptions: Record<ConnectionType, Record<string, string[]>> = {
+  gpio: {
+    temp_sensor: ['DS18B20 (1-Wire)'],
+    digital_input: ['Switch/Button', 'Float Switch'],
+    pump: ['Relay', 'SSR'],
+    valve: ['Solenoid Relay'],
+    relay_ssr: ['Mechanical Relay', 'SSR'],
+  },
+  i2c: {
+    temp_sensor: ['TMP102', 'BME280'],
+    digital_input: ['MCP23017', 'PCF8574'],
+    relay_ssr: ['I2C Relay Board'],
+  },
+  spi: {
+    temp_sensor: ['MAX31855 (Thermocouple)', 'MAX6675'],
+    analog_input: ['MCP3008', 'ADS1115'],
+  },
+  pwm: {
+    pump: ['DC Pump Speed Control'],
+    valve: ['Proportional Valve'],
+    relay_ssr: ['SSR Duty Cycle'],
+  },
+  bluetooth: {
+    gravity_sensor: ['Tilt Hydrometer'],
+    temp_sensor: ['BLE Sensor'],
+  },
+  network: {
+    temp_sensor: ['HTTP Sensor', 'MQTT Sensor'],
+    flow_meter: ['Modbus Meter'],
+    pump: ['Modbus VFD'],
+  },
+  analog: {
+    temp_sensor: ['PT100/PT1000 via ADC'],
+    analog_input: ['4-20mA Current Loop', 'Pressure Transducer'],
+  },
+  none: {},
+};
+
 const mockDevices: Device[] = [
   {
-    id: 'tank-1',
+    id: 'vessel-1',
     name: 'HLT',
-    type: 'tank',
+    type: 'vessel',
+    connectionType: 'none',
     status: 'online',
     position: { x: 100, y: 150 },
     temperature: 75.5,
     targetTemp: 168.0,
-    pressure: 0,
-    level: 750,
+    level: 80,
     capacity: 1000,
   },
   {
     id: 'pump-1',
     name: 'HLT Pump',
     type: 'pump',
+    connectionType: 'gpio',
+    driver: 'Relay',
+    channel: 'GPIO17',
     status: 'online',
-    position: { x: 100, y: 400 },
+    position: { x: 300, y: 150 },
     isOn: false,
     flowRate: 0,
-  },
-  {
-    id: 'valve-1',
-    name: 'HLT Outlet',
-    type: 'valve',
-    status: 'online',
-    position: { x: 200, y: 350 },
-    isOn: false,
   },
   {
     id: 'sensor-1',
     name: 'HLT Temp',
-    type: 'sensor',
+    type: 'temp_sensor',
+    connectionType: 'gpio',
+    driver: 'DS18B20 (1-Wire)',
+    channel: 'GPIO4',
     status: 'online',
-    position: { x: 150, y: 200 },
+    position: { x: 500, y: 150 },
     temperature: 75.5,
   },
-  {
-    id: 'heater-1',
-    name: 'HLT Heater',
-    type: 'heater',
-    status: 'online',
-    position: { x: 50, y: 300 },
-    isOn: false,
-    targetTemp: 168.0,
-  },
-  {
-    id: 'tank-2',
-    name: 'Mash Tun',
-    type: 'tank',
-    status: 'online',
-    position: { x: 400, y: 150 },
-    temperature: 152.0,
-    targetTemp: 152.0,
-    pressure: 0,
-    level: 500,
-    capacity: 800,
-  },
-  {
-    id: 'pump-2',
-    name: 'Mash Pump',
-    type: 'pump',
-    status: 'online',
-    position: { x: 400, y: 400 },
-    isOn: false,
-    flowRate: 0,
-  },
 ];
-
-const getDeviceIcon = (type: Device['type']) => {
-  switch (type) {
-    case 'tank':
-      return <Droplet className="h-5 w-5" />;
-    case 'pump':
-      return <Power className="h-5 w-5" />;
-    case 'valve':
-      return <Settings className="h-5 w-5" />;
-    case 'sensor':
-      return <Thermometer className="h-5 w-5" />;
-    case 'heater':
-      return <Thermometer className="h-5 w-5" />;
-    case 'chiller':
-      return <Gauge className="h-5 w-5" />;
-  }
-};
-
-const getStatusColor = (status: Device['status']) => {
-  switch (status) {
-    case 'online':
-      return 'bg-green-500';
-    case 'offline':
-      return 'bg-gray-500';
-    case 'error':
-      return 'bg-red-500';
-    case 'warning':
-      return 'bg-yellow-500';
-  }
-};
 
 export default function ControlPanelPage() {
   const [devices, setDevices] = useState<Device[]>(mockDevices);
@@ -149,7 +147,10 @@ export default function ControlPanelPage() {
   const [editingDevice, setEditingDevice] = useState<Partial<Device>>({});
   const [newDevice, setNewDevice] = useState<Partial<Device>>({
     name: '',
-    type: 'sensor',
+    type: 'temp_sensor',
+    connectionType: 'gpio',
+    driver: '',
+    channel: '',
     status: 'online',
     position: { x: 300, y: 300 },
   });
@@ -198,25 +199,31 @@ export default function ControlPanelPage() {
     }
 
     const device: Device = {
-      id: `${newDevice.type}-${Date.now()}`,
+      id: `device-${Date.now()}`,
       name: newDevice.name,
-      type: newDevice.type as Device['type'],
+      type: newDevice.type,
+      connectionType: newDevice.connectionType,
+      driver: newDevice.driver,
+      channel: newDevice.channel,
       status: 'online',
       position: newDevice.position || { x: 300, y: 300 },
       isOn: false,
-      temperature: newDevice.type === 'sensor' ? 20.0 : undefined,
-      targetTemp: newDevice.type === 'tank' || newDevice.type === 'heater' ? 20.0 : undefined,
-      pressure: newDevice.type === 'tank' ? 0 : undefined,
+      temperature: newDevice.type === 'temp_sensor' ? 20.0 : undefined,
+      targetTemp: newDevice.type === 'vessel' ? 20.0 : undefined,
+      pressure: newDevice.type === 'vessel' ? 0 : undefined,
       flowRate: newDevice.type === 'pump' ? 0 : undefined,
-      level: newDevice.type === 'tank' ? 0 : undefined,
-      capacity: newDevice.type === 'tank' ? 1000 : undefined,
+      level: newDevice.type === 'vessel' ? 0 : undefined,
+      capacity: newDevice.type === 'vessel' ? 1000 : undefined,
     };
 
     setDevices((prev) => [...prev, device]);
     setIsAddDialogOpen(false);
     setNewDevice({
       name: '',
-      type: 'sensor',
+      type: 'temp_sensor',
+      connectionType: 'gpio',
+      driver: '',
+      channel: '',
       status: 'online',
       position: { x: 300, y: 300 },
     });
@@ -227,19 +234,41 @@ export default function ControlPanelPage() {
     setIsEditDialogOpen(false);
   };
 
-  const handleQuickAdd = (type: Device['type']) => {
-    const typeNames: Record<Device['type'], string> = {
-      tank: 'New Tank',
+  const handleQuickAdd = (type: TileType) => {
+    const typeNames: Record<TileType, string> = {
+      vessel: 'New Vessel',
+      temp_sensor: 'New Temperature Sensor',
+      gravity_sensor: 'New Gravity Sensor',
+      flow_meter: 'New Flow Meter',
+      digital_input: 'New Digital Input',
+      analog_input: 'New Analog Input',
       pump: 'New Pump',
       valve: 'New Valve',
-      sensor: 'New Sensor',
-      heater: 'New Heater',
-      chiller: 'New Chiller',
+      relay_ssr: 'New Relay/SSR',
+      virtual_output: 'New Virtual Output',
+      status_tile: 'New Status Tile',
+    };
+
+    const defaultConnection: Record<TileType, ConnectionType> = {
+      vessel: 'none',
+      temp_sensor: 'gpio',
+      gravity_sensor: 'bluetooth',
+      flow_meter: 'gpio',
+      digital_input: 'gpio',
+      analog_input: 'analog',
+      pump: 'gpio',
+      valve: 'gpio',
+      relay_ssr: 'gpio',
+      virtual_output: 'none',
+      status_tile: 'none',
     };
 
     setNewDevice({
       name: typeNames[type],
       type,
+      connectionType: defaultConnection[type],
+      driver: '',
+      channel: '',
       status: 'online',
       position: { x: 300, y: 300 },
     });
@@ -291,6 +320,31 @@ export default function ControlPanelPage() {
     setDraggedDevice(null);
   };
 
+  // Get available drivers for current tile type and connection
+  const getAvailableDrivers = (): string[] => {
+    if (!newDevice.type || !newDevice.connectionType) return [];
+    return driverOptions[newDevice.connectionType]?.[newDevice.type] || [];
+  };
+
+  // Get available connection types for current tile type
+  const getAvailableConnections = (): ConnectionType[] => {
+    if (!newDevice.type) return [];
+    
+    const connections: ConnectionType[] = [];
+    Object.entries(driverOptions).forEach(([conn, types]) => {
+      if (types[newDevice.type!]) {
+        connections.push(conn as ConnectionType);
+      }
+    });
+    
+    // Add 'none' for logical tiles
+    if (['vessel', 'virtual_output', 'status_tile'].includes(newDevice.type)) {
+      connections.push('none');
+    }
+    
+    return connections;
+  };
+
   return (
     <div className="h-screen w-screen bg-background overflow-hidden flex flex-col">
       {/* Header */}
@@ -326,7 +380,12 @@ export default function ControlPanelPage() {
               )}
             </Button>
             {isEditMode && (
-              <Button variant="default" size="sm" className="gap-2" onClick={() => setIsAddDialogOpen(true)}>
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-2"
+                onClick={() => setIsAddDialogOpen(true)}
+              >
                 <Plus className="h-4 w-4" />
                 Add Device
               </Button>
@@ -347,10 +406,19 @@ export default function ControlPanelPage() {
               variant="outline"
               size="sm"
               className="gap-2 h-8"
-              onClick={() => handleQuickAdd('tank')}
+              onClick={() => handleQuickAdd('vessel')}
             >
               <Droplet className="h-3 w-3" />
-              Tank
+              Vessel
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-2 h-8"
+              onClick={() => handleQuickAdd('temp_sensor')}
+            >
+              <Thermometer className="h-3 w-3" />
+              Temp Sensor
             </Button>
             <Button
               variant="outline"
@@ -374,28 +442,19 @@ export default function ControlPanelPage() {
               variant="outline"
               size="sm"
               className="gap-2 h-8"
-              onClick={() => handleQuickAdd('sensor')}
+              onClick={() => handleQuickAdd('relay_ssr')}
             >
-              <Thermometer className="h-3 w-3" />
-              Sensor
+              <Power className="h-3 w-3" />
+              Relay/SSR
             </Button>
             <Button
               variant="outline"
               size="sm"
               className="gap-2 h-8"
-              onClick={() => handleQuickAdd('heater')}
+              onClick={() => handleQuickAdd('flow_meter')}
             >
-              <Thermometer className="h-3 w-3" />
-              Heater
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              className="gap-2 h-8"
-              onClick={() => handleQuickAdd('chiller')}
-            >
-              <Thermometer className="h-3 w-3" />
-              Chiller
+              <Gauge className="h-3 w-3" />
+              Flow Meter
             </Button>
             <div className="ml-auto text-sm text-muted-foreground">
               {devices.length} devices
@@ -451,109 +510,68 @@ export default function ControlPanelPage() {
               >
                 <CardHeader className="pb-3">
                   <div className="flex items-center justify-between">
+                    <CardTitle className="text-sm font-medium">{device.name}</CardTitle>
                     <div className="flex items-center gap-2">
-                      {getDeviceIcon(device.type)}
-                      <CardTitle className="text-sm font-medium">{device.name}</CardTitle>
+                      {device.status === 'online' && (
+                        <div className="h-2 w-2 rounded-full bg-green-500" />
+                      )}
+                      {device.status === 'offline' && (
+                        <div className="h-2 w-2 rounded-full bg-gray-400" />
+                      )}
+                      {device.status === 'error' && (
+                        <div className="h-2 w-2 rounded-full bg-red-500" />
+                      )}
+                      {device.status === 'warning' && (
+                        <div className="h-2 w-2 rounded-full bg-yellow-500" />
+                      )}
                     </div>
-                    <div className={`h-2 w-2 rounded-full ${getStatusColor(device.status)}`} />
                   </div>
+                  <p className="text-xs text-muted-foreground capitalize">
+                    {device.type.replace('_', ' ')}
+                    {device.connectionType && device.connectionType !== 'none' && (
+                      <> • {device.connectionType.toUpperCase()}</>
+                    )}
+                  </p>
                 </CardHeader>
                 <CardContent className="space-y-2">
-                  {/* Tank Display */}
-                  {device.type === 'tank' && (
+                  {device.type === 'vessel' && (
                     <>
-                      <div className="text-xs space-y-1">
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">Temp:</span>
-                          <span className="font-mono">{device.temperature?.toFixed(1)}°F</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">Target:</span>
-                          <span className="font-mono">{device.targetTemp?.toFixed(1)}°F</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">Level:</span>
-                          <span className="font-mono">{device.level}L / {device.capacity}L</span>
-                        </div>
+                      <div className="flex justify-between text-xs">
+                        <span>Temp:</span>
+                        <span className="font-mono">{device.temperature?.toFixed(1)}°F</span>
                       </div>
-                      <div className="w-full bg-muted rounded-full h-2 overflow-hidden">
-                        <div
-                          className="h-full bg-primary transition-all"
-                          style={{ width: `${(device.level! / device.capacity!) * 100}%` }}
-                        />
+                      <div className="flex justify-between text-xs">
+                        <span>Level:</span>
+                        <span className="font-mono">{device.level}%</span>
                       </div>
                     </>
                   )}
-
-                  {/* Pump Display */}
                   {device.type === 'pump' && (
-                    <div className="text-xs space-y-1">
-                      <div className="flex justify-between items-center">
-                        <span className="text-muted-foreground">Status:</span>
-                        <Badge variant={device.isOn ? 'default' : 'secondary'} className="text-xs">
-                          {device.isOn ? 'ON' : 'OFF'}
-                        </Badge>
-                      </div>
-                      {device.isOn && (
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">Flow:</span>
-                          <span className="font-mono">{device.flowRate} L/min</span>
-                        </div>
-                      )}
+                    <div className="flex justify-between text-xs">
+                      <span>Status:</span>
+                      <Badge variant={device.isOn ? 'default' : 'secondary'} className="h-5 text-xs">
+                        {device.isOn ? 'ON' : 'OFF'}
+                      </Badge>
                     </div>
                   )}
-
-                  {/* Valve Display */}
                   {device.type === 'valve' && (
-                    <div className="text-xs">
-                      <div className="flex justify-between items-center">
-                        <span className="text-muted-foreground">Position:</span>
-                        <Badge variant={device.isOn ? 'default' : 'secondary'} className="text-xs">
-                          {device.isOn ? 'OPEN' : 'CLOSED'}
-                        </Badge>
-                      </div>
+                    <div className="flex justify-between text-xs">
+                      <span>Status:</span>
+                      <Badge variant={device.isOn ? 'default' : 'secondary'} className="h-5 text-xs">
+                        {device.isOn ? 'OPEN' : 'CLOSED'}
+                      </Badge>
                     </div>
                   )}
-
-                  {/* Sensor Display */}
-                  {device.type === 'sensor' && (
-                    <div className="text-xs">
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Reading:</span>
-                        <span className="font-mono">{device.temperature?.toFixed(1)}°F</span>
-                      </div>
+                  {device.type === 'temp_sensor' && (
+                    <div className="flex justify-between text-xs">
+                      <span>Reading:</span>
+                      <span className="font-mono">{device.temperature?.toFixed(1)}°F</span>
                     </div>
                   )}
-
-                  {/* Heater Display */}
-                  {device.type === 'heater' && (
-                    <div className="text-xs space-y-1">
-                      <div className="flex justify-between items-center">
-                        <span className="text-muted-foreground">Status:</span>
-                        <Badge variant={device.isOn ? 'default' : 'secondary'} className="text-xs">
-                          {device.isOn ? 'ON' : 'OFF'}
-                        </Badge>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Target:</span>
-                        <span className="font-mono">{device.targetTemp?.toFixed(1)}°F</span>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Chiller Display */}
-                  {device.type === 'chiller' && (
-                    <div className="text-xs space-y-1">
-                      <div className="flex justify-between items-center">
-                        <span className="text-muted-foreground">Status:</span>
-                        <Badge variant={device.isOn ? 'default' : 'secondary'} className="text-xs">
-                          {device.isOn ? 'ON' : 'OFF'}
-                        </Badge>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Target:</span>
-                        <span className="font-mono">{device.targetTemp?.toFixed(1)}°F</span>
-                      </div>
+                  {device.driver && (
+                    <div className="text-xs text-muted-foreground pt-1 border-t">
+                      {device.driver}
+                      {device.channel && <> • {device.channel}</>}
                     </div>
                   )}
                 </CardContent>
@@ -563,133 +581,80 @@ export default function ControlPanelPage() {
         </div>
       </div>
 
-      {/* Control Panel - Bottom Right (Only in Control Mode) */}
+      {/* Control Panel - Bottom Right (Control Mode Only) */}
       {!isEditMode && selectedDevice && (
-        <div className="absolute bottom-6 right-6 w-96 z-20">
+        <div className="absolute bottom-6 right-6 w-80 z-20">
           <Card className="shadow-2xl">
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  {getDeviceIcon(selectedDevice.type)}
-                  <CardTitle className="text-base">{selectedDevice.name}</CardTitle>
-                </div>
+                <CardTitle className="text-lg">{selectedDevice.name}</CardTitle>
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="h-8 w-8 p-0"
                   onClick={() => setSelectedDevice(null)}
                 >
                   <X className="h-4 w-4" />
                 </Button>
               </div>
+              <p className="text-sm text-muted-foreground capitalize">
+                {selectedDevice.type.replace('_', ' ')}
+              </p>
             </CardHeader>
             <CardContent className="space-y-4">
-              {/* Tank Controls */}
-              {selectedDevice.type === 'tank' && (
-                <>
-                  <div>
-                    <Label className="text-sm">Target Temperature</Label>
-                    <div className="flex items-center gap-2 mt-2">
-                      <Slider
-                        value={[selectedDevice.targetTemp || 0]}
-                        onValueChange={(value) =>
-                          setDevices((prev) =>
-                            prev.map((d) =>
-                              d.id === selectedDevice.id ? { ...d, targetTemp: value[0] } : d
-                            )
-                          )
-                        }
-                        min={32}
-                        max={212}
-                        step={1}
-                        className="flex-1"
-                      />
-                      <span className="text-sm font-mono w-16 text-right">
-                        {selectedDevice.targetTemp?.toFixed(1)}°F
-                      </span>
-                    </div>
-                  </div>
-                  <Separator />
-                  <div className="grid grid-cols-2 gap-4 text-sm">
-                    <div>
-                      <span className="text-muted-foreground">Current Temp</span>
-                      <p className="font-mono text-lg">{selectedDevice.temperature?.toFixed(1)}°F</p>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground">Level</span>
-                      <p className="font-mono text-lg">{selectedDevice.level}L</p>
-                    </div>
-                  </div>
-                </>
-              )}
-
-              {/* Pump Controls */}
-              {selectedDevice.type === 'pump' && (
-                <>
-                  <div className="flex items-center justify-between">
-                    <Label>Power</Label>
-                    <Switch
-                      checked={selectedDevice.isOn}
-                      onCheckedChange={() => handleToggleDevice(selectedDevice.id)}
-                    />
-                  </div>
-                  {selectedDevice.isOn && (
-                    <>
-                      <Separator />
-                      <div>
-                        <span className="text-sm text-muted-foreground">Flow Rate</span>
-                        <p className="font-mono text-2xl">{selectedDevice.flowRate} L/min</p>
-                      </div>
-                    </>
-                  )}
-                </>
-              )}
-
-              {/* Valve Controls */}
-              {selectedDevice.type === 'valve' && (
+              {(selectedDevice.type === 'pump' || selectedDevice.type === 'valve' || selectedDevice.type === 'relay_ssr') && (
                 <div className="flex items-center justify-between">
-                  <Label>Position</Label>
+                  <Label>Power</Label>
                   <Switch
                     checked={selectedDevice.isOn}
                     onCheckedChange={() => handleToggleDevice(selectedDevice.id)}
                   />
                 </div>
               )}
-
-              {/* Heater Controls */}
-              {selectedDevice.type === 'heater' && (
+              {selectedDevice.type === 'vessel' && (
                 <>
-                  <div className="flex items-center justify-between">
-                    <Label>Power</Label>
-                    <Switch
-                      checked={selectedDevice.isOn}
-                      onCheckedChange={() => handleToggleDevice(selectedDevice.id)}
+                  <div className="space-y-2">
+                    <div className="flex justify-between">
+                      <Label>Target Temperature</Label>
+                      <span className="text-sm font-mono">
+                        {selectedDevice.targetTemp?.toFixed(0)}°F
+                      </span>
+                    </div>
+                    <Slider
+                      value={[selectedDevice.targetTemp || 32]}
+                      min={32}
+                      max={212}
+                      step={1}
+                      onValueChange={(value) => {
+                        setDevices((prev) =>
+                          prev.map((d) =>
+                            d.id === selectedDevice.id
+                              ? { ...d, targetTemp: value[0] }
+                              : d
+                          )
+                        );
+                      }}
                     />
                   </div>
                   <Separator />
-                  <div>
-                    <Label className="text-sm">Target Temperature</Label>
-                    <div className="flex items-center gap-2 mt-2">
-                      <Slider
-                        value={[selectedDevice.targetTemp || 0]}
-                        onValueChange={(value) =>
-                          setDevices((prev) =>
-                            prev.map((d) =>
-                              d.id === selectedDevice.id ? { ...d, targetTemp: value[0] } : d
-                            )
-                          )
-                        }
-                        min={32}
-                        max={212}
-                        step={1}
-                        className="flex-1"
-                      />
-                      <span className="text-sm font-mono w-16 text-right">
-                        {selectedDevice.targetTemp?.toFixed(1)}°F
-                      </span>
+                  <div className="space-y-1">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Current Temp:</span>
+                      <span className="font-mono">{selectedDevice.temperature?.toFixed(1)}°F</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Level:</span>
+                      <span className="font-mono">{selectedDevice.level}%</span>
                     </div>
                   </div>
                 </>
+              )}
+              {selectedDevice.type === 'temp_sensor' && (
+                <div className="space-y-1">
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Reading:</span>
+                    <span className="text-2xl font-mono">{selectedDevice.temperature?.toFixed(1)}°F</span>
+                  </div>
+                </div>
               )}
             </CardContent>
           </Card>
@@ -698,11 +663,11 @@ export default function ControlPanelPage() {
 
       {/* Edit Device Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="sm:max-w-[500px]">
+        <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
             <DialogTitle>Edit Device</DialogTitle>
             <DialogDescription>
-              Modify device properties and settings.
+              Modify device properties and configuration
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
@@ -718,26 +683,26 @@ export default function ControlPanelPage() {
               <Label htmlFor="edit-type">Device Type</Label>
               <Select
                 value={editingDevice.type}
-                onValueChange={(value) => setEditingDevice({ ...editingDevice, type: value as Device['type'] })}
+                onValueChange={(value) => setEditingDevice({ ...editingDevice, type: value as TileType })}
               >
                 <SelectTrigger id="edit-type">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="tank">Tank / Vessel</SelectItem>
+                  <SelectItem value="vessel">Vessel</SelectItem>
+                  <SelectItem value="temp_sensor">Temperature Sensor</SelectItem>
                   <SelectItem value="pump">Pump</SelectItem>
                   <SelectItem value="valve">Valve</SelectItem>
-                  <SelectItem value="sensor">Sensor</SelectItem>
-                  <SelectItem value="heater">Heater</SelectItem>
-                  <SelectItem value="chiller">Chiller</SelectItem>
+                  <SelectItem value="relay_ssr">Relay/SSR</SelectItem>
+                  <SelectItem value="flow_meter">Flow Meter</SelectItem>
                 </SelectContent>
               </Select>
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="grid gap-2">
-                <Label htmlFor="edit-pos-x">Position X</Label>
+                <Label htmlFor="edit-x">Position X</Label>
                 <Input
-                  id="edit-pos-x"
+                  id="edit-x"
                   type="number"
                   value={editingDevice.position?.x || 0}
                   onChange={(e) =>
@@ -749,9 +714,9 @@ export default function ControlPanelPage() {
                 />
               </div>
               <div className="grid gap-2">
-                <Label htmlFor="edit-pos-y">Position Y</Label>
+                <Label htmlFor="edit-y">Position Y</Label>
                 <Input
-                  id="edit-pos-y"
+                  id="edit-y"
                   type="number"
                   value={editingDevice.position?.y || 0}
                   onChange={(e) =>
@@ -763,19 +728,6 @@ export default function ControlPanelPage() {
                 />
               </div>
             </div>
-            {editingDevice.type === 'tank' && (
-              <div className="grid gap-2">
-                <Label htmlFor="edit-capacity">Capacity (L)</Label>
-                <Input
-                  id="edit-capacity"
-                  type="number"
-                  value={editingDevice.capacity || 1000}
-                  onChange={(e) =>
-                    setEditingDevice({ ...editingDevice, capacity: parseInt(e.target.value) })
-                  }
-                />
-              </div>
-            )}
           </div>
           <DialogFooter>
             <Button
@@ -793,16 +745,17 @@ export default function ControlPanelPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Add Device Dialog */}
+      {/* Add Device Dialog - Full Hardware Configuration */}
       <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-        <DialogContent className="sm:max-w-[425px]">
+        <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
-            <DialogTitle>Add New Device</DialogTitle>
+            <DialogTitle>Add Device Tile</DialogTitle>
             <DialogDescription>
-              Add a new device to the control panel canvas.
+              Configure tile type, connection interface, driver, and channel
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
+            {/* Step 1: Tile Name */}
             <div className="grid gap-2">
               <Label htmlFor="device-name">Device Name</Label>
               <Input
@@ -812,25 +765,98 @@ export default function ControlPanelPage() {
                 onChange={(e) => setNewDevice({ ...newDevice, name: e.target.value })}
               />
             </div>
+
+            {/* Step 2: Tile Type */}
             <div className="grid gap-2">
-              <Label htmlFor="device-type">Device Type</Label>
+              <Label htmlFor="device-type">Tile Type</Label>
               <Select
                 value={newDevice.type}
-                onValueChange={(value) => setNewDevice({ ...newDevice, type: value as Device['type'] })}
+                onValueChange={(value) => {
+                  const type = value as TileType;
+                  const defaultConn = type === 'vessel' || type === 'virtual_output' || type === 'status_tile' ? 'none' : 'gpio';
+                  setNewDevice({ ...newDevice, type, connectionType: defaultConn, driver: '', channel: '' });
+                }}
               >
                 <SelectTrigger id="device-type">
-                  <SelectValue placeholder="Select device type" />
+                  <SelectValue placeholder="Select tile type" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="tank">Tank / Vessel</SelectItem>
-                  <SelectItem value="pump">Pump</SelectItem>
-                  <SelectItem value="valve">Valve</SelectItem>
-                  <SelectItem value="sensor">Sensor</SelectItem>
-                  <SelectItem value="heater">Heater</SelectItem>
-                  <SelectItem value="chiller">Chiller</SelectItem>
+                  <SelectItem value="vessel">🫙 Vessel / Tank</SelectItem>
+                  <SelectItem value="temp_sensor">🌡️ Temperature Sensor</SelectItem>
+                  <SelectItem value="gravity_sensor">🍺 Gravity Sensor</SelectItem>
+                  <SelectItem value="flow_meter">🚰 Flow Meter</SelectItem>
+                  <SelectItem value="digital_input">🔌 Digital Input</SelectItem>
+                  <SelectItem value="analog_input">📟 Analog Input</SelectItem>
+                  <SelectItem value="pump">🔄 Pump</SelectItem>
+                  <SelectItem value="valve">🚪 Valve</SelectItem>
+                  <SelectItem value="relay_ssr">⚡ Relay / SSR</SelectItem>
+                  <SelectItem value="virtual_output">🧠 Virtual Output</SelectItem>
+                  <SelectItem value="status_tile">🚨 Status Tile</SelectItem>
                 </SelectContent>
               </Select>
             </div>
+
+            {/* Step 3: Connection Type */}
+            {newDevice.type && newDevice.type !== 'vessel' && newDevice.type !== 'virtual_output' && newDevice.type !== 'status_tile' && (
+              <div className="grid gap-2">
+                <Label htmlFor="connection-type">Connection / Interface</Label>
+                <Select
+                  value={newDevice.connectionType}
+                  onValueChange={(value) => setNewDevice({ ...newDevice, connectionType: value as ConnectionType, driver: '', channel: '' })}
+                >
+                  <SelectTrigger id="connection-type">
+                    <SelectValue placeholder="Select connection type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {getAvailableConnections().map((conn) => (
+                      <SelectItem key={conn} value={conn}>
+                        {conn.toUpperCase()}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
+            {/* Step 4: Driver */}
+            {newDevice.connectionType && newDevice.connectionType !== 'none' && getAvailableDrivers().length > 0 && (
+              <div className="grid gap-2">
+                <Label htmlFor="driver">Driver</Label>
+                <Select
+                  value={newDevice.driver}
+                  onValueChange={(value) => setNewDevice({ ...newDevice, driver: value })}
+                >
+                  <SelectTrigger id="driver">
+                    <SelectValue placeholder="Select driver" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {getAvailableDrivers().map((driver) => (
+                      <SelectItem key={driver} value={driver}>
+                        {driver}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
+            {/* Step 5: Channel */}
+            {newDevice.driver && (
+              <div className="grid gap-2">
+                <Label htmlFor="channel">Channel / Pin</Label>
+                <Input
+                  id="channel"
+                  placeholder="e.g., GPIO17, I2C 0x20, PWM0"
+                  value={newDevice.channel}
+                  onChange={(e) => setNewDevice({ ...newDevice, channel: e.target.value })}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Specify the hardware channel (GPIO pin, I2C address, etc.)
+                </p>
+              </div>
+            )}
+
+            {/* Position */}
             <div className="grid grid-cols-2 gap-4">
               <div className="grid gap-2">
                 <Label htmlFor="pos-x">Position X</Label>
@@ -866,7 +892,9 @@ export default function ControlPanelPage() {
             <Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>
               Cancel
             </Button>
-            <Button onClick={handleAddDevice}>Add Device</Button>
+            <Button onClick={handleAddDevice} disabled={!newDevice.name || !newDevice.type}>
+              Add Device
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
