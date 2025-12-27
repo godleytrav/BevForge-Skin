@@ -1,11 +1,29 @@
 import { useState } from 'react';
-import { Power, Droplet, Thermometer, Gauge, AlertCircle, CheckCircle2, XCircle } from 'lucide-react';
+import { Power, Droplet, Thermometer, Gauge, AlertCircle, CheckCircle2, XCircle, Plus, Trash2, Settings } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Switch } from '@/components/ui/switch';
 import { Slider } from '@/components/ui/slider';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
 interface Device {
   id: string;
@@ -103,6 +121,13 @@ const getStatusBadge = (status: Device['status']) => {
 
 export default function ControlPanelPage() {
   const [devices, setDevices] = useState<Device[]>(mockDevices);
+  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [newDevice, setNewDevice] = useState<Partial<Device>>({
+    name: '',
+    type: 'sensor',
+    status: 'online',
+    position: { x: 100, y: 100 },
+  });
 
   const handleToggleDevice = (deviceId: string) => {
     setDevices((prev) =>
@@ -118,6 +143,59 @@ export default function ControlPanelPage() {
         device.id === deviceId ? { ...device, targetTemp: value[0] } : device
       )
     );
+  };
+
+  const handleAddDevice = () => {
+    if (!newDevice.name || !newDevice.type) {
+      return;
+    }
+
+    const device: Device = {
+      id: `${newDevice.type}-${Date.now()}`,
+      name: newDevice.name,
+      type: newDevice.type as Device['type'],
+      status: 'online',
+      position: newDevice.position || { x: 100, y: 100 },
+      isOn: false,
+      temperature: newDevice.type === 'sensor' ? 20.0 : undefined,
+      targetTemp: newDevice.type === 'tank' || newDevice.type === 'heater' ? 20.0 : undefined,
+      pressure: newDevice.type === 'tank' ? 0 : undefined,
+      flowRate: newDevice.type === 'pump' ? 0 : undefined,
+      level: newDevice.type === 'tank' ? 0 : undefined,
+      capacity: newDevice.type === 'tank' ? 1000 : undefined,
+    };
+
+    setDevices((prev) => [...prev, device]);
+    setIsAddDialogOpen(false);
+    setNewDevice({
+      name: '',
+      type: 'sensor',
+      status: 'online',
+      position: { x: 100, y: 100 },
+    });
+  };
+
+  const handleDeleteDevice = (deviceId: string) => {
+    setDevices((prev) => prev.filter((d) => d.id !== deviceId));
+  };
+
+  const handleQuickAdd = (type: Device['type']) => {
+    const typeNames: Record<Device['type'], string> = {
+      tank: 'New Tank',
+      pump: 'New Pump',
+      valve: 'New Valve',
+      sensor: 'New Sensor',
+      heater: 'New Heater',
+      chiller: 'New Chiller',
+    };
+
+    setNewDevice({
+      name: typeNames[type],
+      type,
+      status: 'online',
+      position: { x: 100, y: 100 },
+    });
+    setIsAddDialogOpen(true);
   };
 
   const tanks = devices.filter((d) => d.type === 'tank');
@@ -138,6 +216,88 @@ export default function ControlPanelPage() {
               <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse" />
               System Online
             </Badge>
+            <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+              <DialogTrigger asChild>
+                <Button variant="default" size="sm" className="gap-2">
+                  <Plus className="h-4 w-4" />
+                  Add Device
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-[425px]">
+                <DialogHeader>
+                  <DialogTitle>Add New Device</DialogTitle>
+                  <DialogDescription>
+                    Add a new device to the control panel. Configure its type and initial settings.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="grid gap-4 py-4">
+                  <div className="grid gap-2">
+                    <Label htmlFor="device-name">Device Name</Label>
+                    <Input
+                      id="device-name"
+                      placeholder="e.g., HLT Temperature Sensor"
+                      value={newDevice.name}
+                      onChange={(e) => setNewDevice({ ...newDevice, name: e.target.value })}
+                    />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="device-type">Device Type</Label>
+                    <Select
+                      value={newDevice.type}
+                      onValueChange={(value) => setNewDevice({ ...newDevice, type: value as Device['type'] })}
+                    >
+                      <SelectTrigger id="device-type">
+                        <SelectValue placeholder="Select device type" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="tank">Tank / Vessel</SelectItem>
+                        <SelectItem value="pump">Pump</SelectItem>
+                        <SelectItem value="valve">Valve</SelectItem>
+                        <SelectItem value="sensor">Sensor</SelectItem>
+                        <SelectItem value="heater">Heater</SelectItem>
+                        <SelectItem value="chiller">Chiller</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="grid gap-2">
+                      <Label htmlFor="pos-x">Position X</Label>
+                      <Input
+                        id="pos-x"
+                        type="number"
+                        value={newDevice.position?.x || 100}
+                        onChange={(e) =>
+                          setNewDevice({
+                            ...newDevice,
+                            position: { ...newDevice.position!, x: parseInt(e.target.value) },
+                          })
+                        }
+                      />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="pos-y">Position Y</Label>
+                      <Input
+                        id="pos-y"
+                        type="number"
+                        value={newDevice.position?.y || 100}
+                        onChange={(e) =>
+                          setNewDevice({
+                            ...newDevice,
+                            position: { ...newDevice.position!, y: parseInt(e.target.value) },
+                          })
+                        }
+                      />
+                    </div>
+                  </div>
+                </div>
+                <DialogFooter>
+                  <Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>
+                    Cancel
+                  </Button>
+                  <Button onClick={handleAddDevice}>Add Device</Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
             <Button variant="outline" size="sm">
               Emergency Stop
             </Button>
@@ -145,8 +305,72 @@ export default function ControlPanelPage() {
         </div>
       </div>
 
+      {/* Quick Add Palette */}
+      <div className="border-b bg-muted/30 px-6 py-3">
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-medium text-muted-foreground">Quick Add:</span>
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-2 h-8"
+            onClick={() => handleQuickAdd('tank')}
+          >
+            <Droplet className="h-3 w-3" />
+            Tank
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-2 h-8"
+            onClick={() => handleQuickAdd('pump')}
+          >
+            <Power className="h-3 w-3" />
+            Pump
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-2 h-8"
+            onClick={() => handleQuickAdd('valve')}
+          >
+            <Settings className="h-3 w-3" />
+            Valve
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-2 h-8"
+            onClick={() => handleQuickAdd('sensor')}
+          >
+            <Thermometer className="h-3 w-3" />
+            Sensor
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-2 h-8"
+            onClick={() => handleQuickAdd('heater')}
+          >
+            <Thermometer className="h-3 w-3" />
+            Heater
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-2 h-8"
+            onClick={() => handleQuickAdd('chiller')}
+          >
+            <Thermometer className="h-3 w-3" />
+            Chiller
+          </Button>
+          <div className="ml-auto text-sm text-muted-foreground">
+            {devices.length} devices
+          </div>
+        </div>
+      </div>
+
       {/* Main Content */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 p-6 h-[calc(100vh-88px)] overflow-auto">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 p-6 h-[calc(100vh-136px)] overflow-auto">
         {/* Tanks Section */}
         <div className="space-y-4">
           <h2 className="text-lg font-semibold flex items-center gap-2">
@@ -161,6 +385,14 @@ export default function ControlPanelPage() {
                   <div className="flex items-center gap-2">
                     {getStatusIcon(tank.status)}
                     {getStatusBadge(tank.status)}
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-8 w-8 p-0 text-destructive hover:text-destructive"
+                      onClick={() => handleDeleteDevice(tank.id)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
                   </div>
                 </div>
               </CardHeader>
@@ -236,6 +468,14 @@ export default function ControlPanelPage() {
                   <div className="flex items-center gap-2">
                     {getStatusIcon(pump.status)}
                     {getStatusBadge(pump.status)}
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-8 w-8 p-0 text-destructive hover:text-destructive"
+                      onClick={() => handleDeleteDevice(pump.id)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
                   </div>
                 </div>
               </CardHeader>
@@ -288,6 +528,14 @@ export default function ControlPanelPage() {
                   <div className="flex items-center gap-2">
                     {getStatusIcon(valve.status)}
                     {getStatusBadge(valve.status)}
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-8 w-8 p-0 text-destructive hover:text-destructive"
+                      onClick={() => handleDeleteDevice(valve.id)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
                   </div>
                 </div>
               </CardHeader>

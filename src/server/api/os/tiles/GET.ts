@@ -91,7 +91,7 @@ export default async function handler(req: Request, res: Response) {
         const bindingCounts = await db
           .select({
             tileId: tileEndpointBindings.tileId,
-            count: sql<number>`count(*)`.
+            count: sql<number>`count(*)`
           })
           .from(tileEndpointBindings)
           .where(sql`${tileEndpointBindings.tileId} IN (${sql.join(tileIds, sql`, `)})`)

@@ -88,7 +88,7 @@ export default async function handler(req: Request, res: Response) {
       const endpointCounts = await db
         .select({
           nodeId: hardwareEndpoints.nodeId,
-          count: sql<number>`count(*)`.
+          count: sql<number>`count(*)`
         })
         .from(hardwareEndpoints)
         .where(sql`${hardwareEndpoints.nodeId} IN (${sql.join(nodeIds, sql`, `)})`)
