@@ -1,462 +1,539 @@
-# BevForge OS Module - Implementation Guide
+# BevForge OS Control Panel - Module Guide
 
 ## Overview
+This guide explains how to use the OS Control Panel system for managing brewery/winery automation hardware, devices, and real-time monitoring.
 
-The OS (Operating System) module is the source of truth for inventory, batches, and production tracking in BevForge. It uses a unified navigation system (AppShell) that provides seamless switching between all BevForge suites.
+## Database Schema Summary
 
-## Architecture
+### Core Tables (25 Total)
 
-### Unified Navigation System
+**Inventory Management (11 tables):**
+- `units_of_measure` - UOM definitions with conversions
+- `locations` - Hierarchical location tracking
+- `items` - Materials catalog with category-specific data
+- `lots` - Lot/batch traceability
+- `inventory_ledger` - Immutable movement log (canonical source)
+- `inventory_balances` - Current state (derived from ledger)
+- `batches` - Production runs
+- `batch_materials` - Planned vs actual usage
+- `batch_outputs` - What batches produce
+- `batch_transfers` - Tank/vessel movements
+- `fermentation_logs` - Temperature, gravity tracking
 
-All BevForge suites (OS, OPS, Lab, Connect, Flow) share the same navigation shell for a consistent user experience.
+**OS Control Panel (14 tables):**
+- `controller_nodes` - Physical hardware (Pi, ESP32, etc.)
+- `hardware_endpoints` - I/O channels with capability metadata
+- `endpoint_current` - Fast-access cache for current values
+- `device_tiles` - Virtual devices on canvas
+- `tile_endpoint_bindings` - Multi-bind tile-to-hardware mapping
+- `device_groups` - Layout/safety zones/manifolds
+- `system_safety_state` - E-stop and global safety state
+- `system_safety_log` - Safety state transitions
+- `telemetry_readings` - Time-series sensor data
+- `command_log` - Full audit trail with lifecycle tracking
+- `safety_interlocks` - Safety rules with explainability
+- `interlock_evaluations` - Interlock evaluation log
+- `device_state_history` - State change tracking
+- `alarm_events` - Alarm tracking and acknowledgment
 
-**Key Component:** `src/components/AppShell.tsx`
+---
 
-#### Features:
-- **Suite Selector**: Dropdown to switch between OS, OPS, Lab, Connect, Flow
-- **Top Navigation Bar**: Horizontal navigation with suite-specific menu items
-- **User Profile Menu**: User info, settings, notifications
-- **Mobile Responsive**: Collapsible menu for mobile devices
-- **Active Route Highlighting**: Visual indication of current page
+## Key Concepts
 
-#### Usage Pattern:
+### 1. Hardware Abstraction Layer
 
-```tsx
-import AppShell, { NavigationItem } from '@/components/AppShell';
-import { Home, Package, Beaker } from 'lucide-react';
+**Controller Nodes** represent physical hardware:
+- Raspberry Pi, ESP32, Arduino, I/O hubs
+- Track online/offline status, heartbeat, firmware version
+- Store capabilities (number of DI/DO/AI/AO/PWM channels)
 
-const osNavigation: NavigationItem[] = [
-  { name: 'Dashboard', href: '/os', icon: Home },
-  { name: 'Inventory', href: '/os/inventory', icon: Package },
-  { name: 'Batches', href: '/os/batches', icon: Beaker },
-];
+**Hardware Endpoints** represent individual I/O channels:
+- GPIO pins, sensors, relays, PWM outputs
+- Store capability metadata (kind, value type, units, scaling)
+- Support DI, DO, AI, AO, PWM, I2C, SPI, UART, 1-Wire, Modbus, VIRTUAL
 
-export default function OSPage() {
-  return (
-    <AppShell
-      currentSuite="os"
-      navigation={osNavigation}
-      userName="Travis Godley"
-      userEmail="travis@bevforge.com"
-    >
-      {/* Page content here */}
-    </AppShell>
-  );
+**Device Tiles** are virtual devices on the UI canvas:
+- Vessels, pumps, valves, sensors, virtual outputs, status tiles
+- Store configuration (PID settings, alarm thresholds, etc.)
+- Positioned on canvas for visual layout
+
+**Tile-Endpoint Bindings** connect tiles to hardware:
+- Multi-bind support (one tile → many endpoints)
+- Role-based (pv, sp, output, state, alarm, permissive)
+- Per-binding transforms (scale, offset, clamp, smoothing, etc.)
+
+### 2. Tile Types
+
+**Physical Device Tiles:**
+- `vessel` - Fermenters, brites, totes, kegs
+- `temp_sensor` - DS18B20, thermocouples, RTDs
+- `gravity_sensor` - Tilt hydrometers, iSpindel
+- `flow_meter` - Hall-effect, turbine, paddlewheel
+- `pump` - Transfer pumps with speed control
+- `valve` - Solenoid, motorized, pneumatic
+- `relay_ssr` - Generic relay/SSR outputs
+- `digital_input` - Switches, floats, e-stops
+- `analog_input` - Pressure, level, pH sensors
+
+**Virtual Tiles:**
+- `virtual_output` - Computed/control signals (mirrored, split, simulated)
+- `status_tile` - UI tiles for alarms/interlocks/node health
+
+### 3. Virtual Outputs (Critical for Control Module)
+
+Virtual outputs are computed/control signals that feed multiple endpoints:
+
+**Use Cases:**
+- **Mirrored outputs**: One signal → multiple SSRs (redundancy)
+- **Split control**: 0-50% → heater, 50-100% → cooler
+- **Simulation**: Test control logic without hardware
+- **Control module migration**: PID output → virtual → hardware
+
+**Configuration:**
+```typescript
+{
+  outputType: 'split',
+  valueType: 'float',
+  unit: '%',
+  rangeMin: 0,
+  rangeMax: 100,
+  splitRanges: [
+    { min: 0, max: 50, targetEndpointId: 101, scale: 2 },  // Heater
+    { min: 50, max: 100, targetEndpointId: 102, scale: 2 } // Cooler
+  ]
 }
 ```
 
-## OS Module Structure
+### 4. Safety System
 
-### Routes
+**System Safety State** (global):
+- E-stop active/inactive
+- Safety mode (normal, restricted, maintenance, emergency)
+- Latching and acknowledgment
 
-All OS routes are prefixed with `/os`:
+**Safety Interlocks** (rules):
+- Permissive (must be true to allow action)
+- Trip (force off when violated)
+- Advisory (warn only)
+- Timer-based (min on/off times)
+- Mutual exclusion (manifolds)
 
-- `/os` - Dashboard (overview)
-- `/os/inventory` - Inventory management
-- `/os/batches` - Production batch tracking
-- `/os/materials` - Raw materials catalog
-- `/os/locations` - Warehouse locations
-- `/os/movements` - Inventory movement history
+**Interlock Evaluations** (explainability):
+- Every blocked command logged
+- Details: which condition failed, current PVs, thresholds
+- Action taken: blocked, forced off, alarm triggered
 
-**File:** `src/routes.tsx`
-
-### Navigation Items
-
-OS navigation is defined in each page:
-
-```tsx
-const osNavigation: NavigationItem[] = [
-  { name: 'Dashboard', href: '/os', icon: Home },
-  { name: 'Inventory', href: '/os/inventory', icon: Package },
-  { name: 'Batches', href: '/os/batches', icon: Beaker },
-  { name: 'Materials', href: '/os/materials', icon: Box },
-  { name: 'Locations', href: '/os/locations', icon: MapPin },
-  { name: 'Movements', href: '/os/movements', icon: Truck },
-];
-```
-
-## Styling Guidelines
-
-### CSS Variables
-
-OS uses the same CSS variables as all other suites for consistency.
-
-**File:** `src/styles/globals.css`
-
-#### Core Colors (Light Theme):
-
-```css
---background: 0 0% 100%;           /* White background */
---foreground: 222.2 84% 4.9%;      /* Dark text */
---primary: 222.2 47.4% 11.2%;      /* Primary brand color */
---secondary: 210 40% 96.1%;        /* Secondary backgrounds */
---muted: 210 40% 96.1%;            /* Muted backgrounds */
---border: 214.3 31.8% 91.4%;       /* Border color */
---destructive: 0 84.2% 60.2%;      /* Error/danger color */
-```
-
-### Using Semantic Colors
-
-**✅ ALWAYS use semantic color classes:**
-
-```tsx
-<div className="bg-background text-foreground">
-<Button className="bg-primary text-primary-foreground">
-<Card className="bg-card border-border">
-```
-
-**❌ NEVER hard-code colors:**
-
-```tsx
-<div className="bg-blue-500">  // Wrong!
-<div className="text-gray-900"> // Wrong!
-```
-
-**Exception:** Status indicators can use specific colors:
-
-```tsx
-// Acceptable for status indicators
-<div className="bg-green-500">  // Operational status
-<div className="bg-yellow-500"> // Warning status
-<div className="bg-red-500">    // Error status
-```
-
-## UI Components
-
-### Available Components
-
-All shadcn UI components are pre-installed in `src/components/ui/`:
-
-- **Button** - All button variants
-- **Card** - Content containers
-- **Table** - Data tables
-- **Dialog** - Modals
-- **Input** - Form inputs
-- **Select** - Dropdowns
-- **Badge** - Status indicators
-- **Tabs** - Tab navigation
-- **DropdownMenu** - Dropdown menus
-
-### Custom OS Components
-
-#### DeviceCanvas
-
-**File:** `src/components/DeviceCanvas.tsx`
-
-Interactive canvas for visualizing production devices with drag-and-drop.
-
-**Features:**
-- Drag-and-drop device positioning
-- Grid snapping
-- Zoom controls
-- Connection lines between devices
-- Status indicators (operational, warning, error, offline)
-
-**Usage:**
-
-```tsx
-import DeviceCanvas, { Device } from '@/components/DeviceCanvas';
-
-const devices: Device[] = [
-  {
-    id: 'dev-1',
-    type: 'TANK',
-    name: 'Tank-01',
-    x: 100,
-    y: 100,
-    status: 'operational',
-    connections: ['dev-2'],
+**Example Interlock:**
+```typescript
+{
+  name: "Pump Dry Run Protection",
+  interlockType: "permissive",
+  mode: "trip",
+  condition: {
+    inputTileId: 5,  // Float switch
+    requiredState: true  // Must be HIGH (liquid present)
   },
-];
-
-<DeviceCanvas
-  devices={devices}
-  onDeviceMove={(id, x, y) => console.log('Moved', id, x, y)}
-  onDeviceClick={(device) => console.log('Clicked', device)}
-  className="h-[600px]"
-/>
-```
-
-#### InventoryTable
-
-**File:** `src/components/InventoryTable.tsx`
-
-Data table for displaying inventory items with stock levels and trends.
-
-**Features:**
-- Stock status badges (In Stock, Low Stock, Out of Stock)
-- Trend indicators (up, down, stable)
-- Reorder point tracking
-- Sortable columns
-
-**Usage:**
-
-```tsx
-import InventoryTable, { InventoryItem } from '@/components/InventoryTable';
-
-const items: InventoryItem[] = [
-  {
-    id: 'inv-1',
-    name: 'Malt Extract',
-    category: 'Raw Materials',
-    quantity: 450,
-    unit: 'kg',
-    reorderPoint: 200,
-    lastUpdated: '2 hours ago',
-    trend: 'down',
-  },
-];
-
-<InventoryTable
-  items={items}
-  onItemClick={(item) => console.log('Clicked', item)}
-/>
-```
-
-#### MetricCard
-
-**File:** `src/components/MetricCard.tsx`
-
-Display key metrics with status indicators and change percentages.
-
-**Usage:**
-
-```tsx
-import MetricCard from '@/components/MetricCard';
-import { Package } from 'lucide-react';
-
-<MetricCard
-  title="Inventory Items"
-  value={125}
-  unit="items"
-  icon={Package}
-  status="operational"
-  change={{ value: 5, label: 'from last week' }}
-/>
-```
-
-## Page Layout Pattern
-
-### Standard OS Page Structure
-
-```tsx
-import AppShell, { NavigationItem } from '@/components/AppShell';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Home, Package } from 'lucide-react';
-
-const osNavigation: NavigationItem[] = [
-  { name: 'Dashboard', href: '/os', icon: Home },
-  { name: 'Inventory', href: '/os/inventory', icon: Package },
-];
-
-export default function OSInventoryPage() {
-  return (
-    <AppShell
-      currentSuite="os"
-      navigation={osNavigation}
-      userName="Travis Godley"
-      userEmail="travis@bevforge.com"
-    >
-      <div className="space-y-6">
-        {/* Page Header */}
-        <div>
-          <h1 className="text-3xl font-bold text-foreground">Inventory</h1>
-          <p className="text-muted-foreground">
-            Manage your inventory and stock levels
-          </p>
-        </div>
-
-        {/* Page Content */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Current Stock</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {/* Content here */}
-          </CardContent>
-        </Card>
-      </div>
-    </AppShell>
-  );
+  affectedTiles: [10],  // Pump tile ID
+  blockActions: ["start", "turn_on"],
+  onViolationAction: "force_off",
+  severity: "critical"
 }
 ```
 
-## Database Schema (Future)
+### 5. Command Lifecycle
 
-### Required Tables
+Every command goes through a full lifecycle:
 
-When implementing the backend, these tables will be needed:
+1. **Requested** - User clicks button, API receives request
+2. **Queued** - Command enters queue
+3. **Safety Check** - Interlocks evaluated
+4. **Sent** - Command sent to hardware node
+5. **Acked** - Node acknowledges receipt
+6. **Completed** - Action confirmed
 
-**File:** `src/server/db/schema.ts`
+**Correlation IDs** link related commands:
+- One button click → multiple commands (open valve + start pump)
+- All share same `correlationId`
+- Enables tracing entire operation
+
+### 6. Telemetry Storage
+
+**endpoint_current** (fast cache):
+- Single row per endpoint
+- Latest value only
+- Used for UI display
+
+**telemetry_readings** (time-series):
+- All historical readings
+- Indexed by (endpointId, timestamp)
+- Supports batch context
+- Quality flags (good, uncertain, bad)
+- Source tracking (hardware, derived, manual, sim)
+
+---
+
+## Common Workflows
+
+### Workflow 1: Add a New Controller Node
 
 ```typescript
-import { mysqlTable, varchar, decimal, timestamp, int } from 'drizzle-orm/mysql-core';
-
-// Items (products, materials, packaging)
-export const items = mysqlTable('items', {
-  id: varchar('id', { length: 50 }).primaryKey(),
-  name: varchar('name', { length: 255 }).notNull(),
-  type: varchar('type', { length: 50 }).notNull(), // 'finished_good', 'raw_material', 'packaging'
-  unit: varchar('unit', { length: 20 }).notNull(), // 'L', 'kg', 'units'
-  createdAt: timestamp('created_at').defaultNow(),
-});
-
-// Inventory Ledger (canonical source of truth)
-export const inventoryLedger = mysqlTable('inventory_ledger', {
-  id: varchar('id', { length: 50 }).primaryKey(),
-  itemId: varchar('item_id', { length: 50 }).notNull(),
-  locationId: varchar('location_id', { length: 50 }).notNull(),
-  quantity: decimal('quantity', { precision: 10, scale: 2 }).notNull(),
-  movementType: varchar('movement_type', { length: 50 }).notNull(), // 'in', 'out', 'transfer'
-  timestamp: timestamp('timestamp').defaultNow(),
-});
-
-// Locations (warehouse bins/locations)
-export const locations = mysqlTable('locations', {
-  id: varchar('id', { length: 50 }).primaryKey(),
-  name: varchar('name', { length: 255 }).notNull(),
-  type: varchar('type', { length: 50 }).notNull(), // 'warehouse', 'production', 'shipping'
-});
-
-// Batches (production runs)
-export const batches = mysqlTable('batches', {
-  id: varchar('id', { length: 50 }).primaryKey(),
-  itemId: varchar('item_id', { length: 50 }).notNull(),
-  quantity: decimal('quantity', { precision: 10, scale: 2 }).notNull(),
-  status: varchar('status', { length: 50 }).notNull(), // 'planned', 'in_progress', 'completed'
-  startedAt: timestamp('started_at'),
-  completedAt: timestamp('completed_at'),
-});
-```
-
-## API Endpoints (Future)
-
-### Required Endpoints
-
-When implementing the backend API:
-
-**File:** `src/server/api/os/`
-
-```
-GET  /api/os/items                    # All products/materials
-GET  /api/os/inventory/on-hand        # Current stock levels
-GET  /api/os/batches                  # Production batches
-GET  /api/os/inventory/movements      # Movement history
-POST /api/os/inventory/movements      # Record new movement
-GET  /api/os/locations                # Warehouse locations
-```
-
-## Development Workflow
-
-### Adding a New OS Page
-
-1. **Create the page component** in `src/pages/os/`
-2. **Import AppShell** and define navigation
-3. **Add route** to `src/routes.tsx`
-4. **Use semantic colors** from CSS variables
-5. **Follow the standard layout pattern**
-
-### Example: Adding Batches Page
-
-```tsx
-// src/pages/os/batches.tsx
-import AppShell, { NavigationItem } from '@/components/AppShell';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Home, Package, Beaker } from 'lucide-react';
-
-const osNavigation: NavigationItem[] = [
-  { name: 'Dashboard', href: '/os', icon: Home },
-  { name: 'Inventory', href: '/os/inventory', icon: Package },
-  { name: 'Batches', href: '/os/batches', icon: Beaker },
-];
-
-export default function OSBatchesPage() {
-  return (
-    <AppShell
-      currentSuite="os"
-      navigation={osNavigation}
-      userName="Travis Godley"
-      userEmail="travis@bevforge.com"
-    >
-      <div className="space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold text-foreground">Batches</h1>
-          <p className="text-muted-foreground">
-            Track production batches and outputs
-          </p>
-        </div>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Active Batches</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {/* Batch list here */}
-          </CardContent>
-        </Card>
-      </div>
-    </AppShell>
-  );
-}
-```
-
-Then add to routes:
-
-```tsx
-// src/routes.tsx
-import OSBatchesPage from './pages/os/batches';
-
-export const routes: RouteObject[] = [
-  // ...
-  {
-    path: '/os/batches',
-    element: <OSBatchesPage />,
+// 1. Insert controller node
+const node = await db.insert(controllerNodes).values({
+  nodeId: 'pi-brewhouse-01',
+  name: 'Brewhouse Raspberry Pi',
+  nodeType: 'raspberry_pi',
+  ipAddress: '192.168.1.100',
+  status: 'online',
+  capabilities: {
+    digitalOutputs: 8,
+    digitalInputs: 8,
+    oneWireBus: true
   },
-];
+  config: {
+    pollingIntervalMs: 1000,
+    timeoutMs: 5000,
+    failsafeMode: 'all_off'
+  }
+});
+
+// 2. Add endpoints for this node
+const endpoints = await db.insert(hardwareEndpoints).values([
+  {
+    controllerId: node.insertId,
+    channelId: 'GPIO17',
+    endpointKind: 'DO',
+    valueType: 'bool',
+    direction: 'output',
+    writeMode: 'latched',
+    failsafeValue: 'false'
+  },
+  {
+    controllerId: node.insertId,
+    channelId: '1WIRE_0',
+    endpointKind: '1WIRE',
+    valueType: 'float',
+    direction: 'input',
+    unit: '°C',
+    samplePeriodMs: 5000,
+    config: {
+      sensorAddress: '28-0000000a1b2c'
+    }
+  }
+]);
 ```
 
-## Testing Checklist
+### Workflow 2: Create a Vessel Tile with Sensors
 
-Before considering a page complete:
+```typescript
+// 1. Create vessel tile
+const vessel = await db.insert(deviceTiles).values({
+  tileId: 'vessel-fv01',
+  name: 'Fermenter FV-01',
+  tileType: 'vessel',
+  positionX: 100,
+  positionY: 200,
+  config: {
+    vesselType: 'fermenter',
+    capacity: 10,
+    capacityUnit: 'bbl',
+    pidConfig: {
+      enabled: true,
+      mode: 'auto',
+      setpoint: 68,
+      kp: 10,
+      ki: 0.5,
+      kd: 2,
+      outputMin: 0,
+      outputMax: 100,
+      direction: 'reverse'  // Cooling
+    },
+    alarms: {
+      tempHighC: 25,
+      tempLowC: 10
+    }
+  }
+});
 
-- [ ] Uses AppShell with `currentSuite="os"`
-- [ ] Navigation switches between OS/OPS/Lab work correctly
-- [ ] All colors use CSS variables (no hard-coded colors)
-- [ ] Responsive on mobile/tablet/desktop
-- [ ] Active route is highlighted in navigation
-- [ ] Page header follows standard pattern
-- [ ] TypeScript compiles without errors
-- [ ] Components use shadcn UI library
+// 2. Create temp sensor tile
+const tempSensor = await db.insert(deviceTiles).values({
+  tileId: 'temp-fv01-primary',
+  name: 'FV-01 Primary Temp',
+  tileType: 'temp_sensor',
+  parentTileId: vessel.insertId,
+  config: {
+    sensorType: 'ds18b20',
+    unit: 'C',
+    smoothingWindow: 5
+  }
+});
 
-## Key Files Reference
+// 3. Bind temp sensor to hardware endpoint
+await db.insert(tileEndpointBindings).values({
+  tileId: tempSensor.insertId,
+  endpointId: 2,  // 1-Wire endpoint from above
+  bindingRole: 'pv',
+  direction: 'read',
+  role: 'primary_temp',
+  transform: {
+    smoothing: 5,
+    clamp: { min: -10, max: 40 }
+  }
+});
 
-### Navigation & Layout
-- `src/components/AppShell.tsx` - Unified navigation shell
-- `src/routes.tsx` - Route definitions
-- `src/App.tsx` - App setup
+// 4. Link temp sensor to vessel
+await db.update(deviceTiles)
+  .set({
+    config: {
+      ...vessel.config,
+      primaryTempSensorId: tempSensor.insertId
+    }
+  })
+  .where(eq(deviceTiles.id, vessel.insertId));
+```
 
-### Styling
-- `src/styles/globals.css` - CSS variables and theme
-- `tailwind.config.js` - Tailwind configuration
+### Workflow 3: Create a Virtual Output with Split Control
 
-### UI Components
-- `src/components/ui/*` - All shadcn components
-- `src/components/DeviceCanvas.tsx` - Device visualization
-- `src/components/InventoryTable.tsx` - Inventory data table
-- `src/components/MetricCard.tsx` - Metric display cards
+```typescript
+// 1. Create virtual output tile
+const virtualOutput = await db.insert(deviceTiles).values({
+  tileId: 'virtual-fv01-temp-control',
+  name: 'FV-01 Temperature Control Output',
+  tileType: 'virtual_output',
+  config: {
+    outputType: 'split',
+    valueType: 'float',
+    unit: '%',
+    rangeMin: 0,
+    rangeMax: 100,
+    splitRanges: [
+      {
+        min: 0,
+        max: 50,
+        targetEndpointId: 10,  // Heater SSR
+        scale: 2,
+        offset: 0
+      },
+      {
+        min: 50,
+        max: 100,
+        targetEndpointId: 11,  // Cooler SSR
+        scale: 2,
+        offset: -100
+      }
+    ]
+  }
+});
 
-### Pages
-- `src/pages/index.tsx` - OS Dashboard (main page)
+// 2. Link virtual output to vessel
+await db.update(deviceTiles)
+  .set({
+    config: {
+      ...vessel.config,
+      coolingOutputId: virtualOutput.insertId
+    }
+  })
+  .where(eq(deviceTiles.id, vessel.insertId));
+```
 
-## Summary
+### Workflow 4: Log a Command with Full Lifecycle
 
-The OS module is built with:
+```typescript
+import { v4 as uuidv4 } from 'uuid';
 
-✅ **Unified AppShell navigation** - Seamless suite switching
-✅ **Semantic CSS variables** - Consistent styling across suites
-✅ **shadcn UI components** - Professional, accessible UI
-✅ **Standard layout patterns** - Predictable page structure
-✅ **Mobile responsive** - Works on all screen sizes
-✅ **TypeScript** - Type-safe development
+// 1. Create command
+const commandId = uuidv4();
+const correlationId = uuidv4();
 
-The result: OS looks and feels like part of the same unified BevForge platform, with seamless navigation between all suites.
+const command = await db.insert(commandLog).values({
+  commandId,
+  correlationId,
+  requestedAt: new Date(),
+  commandType: 'manual',
+  action: 'start_pump',
+  targetTileId: 10,
+  requestedValue: 'true',
+  status: 'queued',
+  requestedByUserId: 'user-123',
+  requestedByService: 'control_panel'
+});
+
+// 2. Check interlocks
+const interlocks = await db.select()
+  .from(safetyInterlocks)
+  .where(and(
+    eq(safetyInterlocks.isActive, true),
+    // Check if this tile is affected
+  ));
+
+for (const interlock of interlocks) {
+  const passed = evaluateInterlock(interlock);
+  
+  await db.insert(interlockEvaluations).values({
+    interlockId: interlock.id,
+    evaluatedAt: new Date(),
+    result: passed ? 'pass' : 'fail',
+    details: {
+      conditionFailed: passed ? null : 'float_switch_low',
+      currentPVs: { floatSwitch: false },
+      affectedCommand: 'start_pump'
+    },
+    actionTaken: passed ? null : 'blocked_command',
+    commandLogId: command.insertId
+  });
+  
+  if (!passed) {
+    await db.update(commandLog)
+      .set({
+        status: 'blocked',
+        interlockCheckPassed: false,
+        blockedByInterlockId: interlock.id,
+        failureReason: 'Dry run protection: float switch indicates no liquid'
+      })
+      .where(eq(commandLog.id, command.insertId));
+    return;
+  }
+}
+
+// 3. Send to hardware
+await db.update(commandLog)
+  .set({ status: 'sent', sentAt: new Date() })
+  .where(eq(commandLog.id, command.insertId));
+
+// 4. Node acknowledges
+await db.update(commandLog)
+  .set({ status: 'acked', ackedAt: new Date() })
+  .where(eq(commandLog.id, command.insertId));
+
+// 5. Command completes
+await db.update(commandLog)
+  .set({
+    status: 'succeeded',
+    completedAt: new Date(),
+    appliedValue: 'true',
+    nodeResponse: {
+      message: 'Pump started successfully'
+    }
+  })
+  .where(eq(commandLog.id, command.insertId));
+```
+
+### Workflow 5: Store Telemetry Reading
+
+```typescript
+// 1. Insert into time-series table
+await db.insert(telemetryReadings).values({
+  timestamp: new Date(),
+  endpointId: 2,
+  tileId: tempSensor.insertId,
+  valueNum: 18.5,
+  unit: '°C',
+  quality: 'good',
+  source: 'hardware',
+  batchId: 42
+});
+
+// 2. Update current value cache
+await db.insert(endpointCurrent).values({
+  endpointId: 2,
+  timestamp: new Date(),
+  valueFloat: 18.5,
+  quality: 'good',
+  source: 'hardware'
+}).onDuplicateKeyUpdate({
+  timestamp: new Date(),
+  valueFloat: 18.5,
+  quality: 'good',
+  updatedAt: new Date()
+});
+```
+
+---
+
+## API Endpoint Patterns
+
+### GET /api/os/nodes
+List all controller nodes with status
+
+### GET /api/os/nodes/:nodeId/endpoints
+List all endpoints for a node
+
+### GET /api/os/tiles
+List all device tiles (for canvas rendering)
+
+### GET /api/os/tiles/:tileId
+Get single tile with bindings and current values
+
+### POST /api/os/command
+Send command to device (with interlock checking)
+
+### GET /api/os/telemetry/:endpointId
+Get time-series data for endpoint
+
+### GET /api/os/telemetry/current
+Get current values for all endpoints (fast cache)
+
+### GET /api/os/interlocks
+List active interlocks
+
+### GET /api/os/alarms
+List active alarms
+
+---
+
+## Next Steps
+
+1. ✅ Phase 1: Schema design complete
+2. ✅ Phase 2: Drizzle schema implementation complete
+3. ⏳ Phase 3: Create API endpoints
+4. ⏳ Phase 4: Build seed data for testing
+5. ⏳ Phase 5: Implement WebSocket for real-time updates
+6. ⏳ Phase 6: Build Control Panel UI components
+
+---
+
+## TypeScript Types
+
+All Drizzle schema definitions automatically generate TypeScript types:
+
+```typescript
+import { controllerNodes, hardwareEndpoints, deviceTiles } from '@/server/db/schema';
+import type { InferSelectModel, InferInsertModel } from 'drizzle-orm';
+
+// Select types (reading from DB)
+type ControllerNode = InferSelectModel<typeof controllerNodes>;
+type HardwareEndpoint = InferSelectModel<typeof hardwareEndpoints>;
+type DeviceTile = InferSelectModel<typeof deviceTiles>;
+
+// Insert types (writing to DB)
+type NewControllerNode = InferInsertModel<typeof controllerNodes>;
+type NewHardwareEndpoint = InferInsertModel<typeof hardwareEndpoints>;
+type NewDeviceTile = InferInsertModel<typeof deviceTiles>;
+```
+
+---
+
+## Performance Considerations
+
+### Telemetry Storage
+- Use `endpoint_current` for UI display (fast)
+- Query `telemetry_readings` for charts/history
+- Consider downsampling old data (90 days → hourly averages)
+
+### Indexing
+- All critical query patterns have indexes
+- Composite index on (endpointId, timestamp) for time-series queries
+- Correlation ID index for tracing related commands
+
+### Partitioning (Future)
+- When moving to Postgres, partition `telemetry_readings` by month
+- Archive old `command_log` entries after 1 year
+
+---
+
+## Security Notes
+
+- All commands logged with user attribution
+- Interlock evaluations provide audit trail
+- Safety interlocks cannot be bypassed without explicit override
+- E-stop state requires manual acknowledgment
+- Command correlation IDs enable forensic analysis
