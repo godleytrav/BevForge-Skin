@@ -21,7 +21,8 @@
     "clean": "rm -rf dist node_modules/.vite",
     "reset": "npm run clean && npm install",
     "db:generate": "drizzle-kit generate",
-    "db:migrate": "drizzle-kit migrate"
+    "db:migrate": "drizzle-kit migrate",
+    "seed": "tsx src/server/db/seed.ts"
   },
   "dependencies": {
     "@babel/core": "^7.26.4",
