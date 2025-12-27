@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Power, Droplet, Thermometer, Gauge, AlertCircle, CheckCircle2, XCircle, Plus, Trash2, Settings, Edit, Play, Save, X } from 'lucide-react';
+import { Power, Droplet, Thermometer, Gauge, Plus, Trash2, Settings, Edit, Save, X } from 'lucide-react';
 import { EquipmentRenderer } from '@/components/EquipmentRenderer';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -321,7 +321,7 @@ export default function ControlPanelPage() {
       status_tile: 'none',
     };
 
-    setNewDevice({
+    const newDeviceData: Partial<Device> = {
       name: typeNames[type],
       type,
       connectionType: defaultConnection[type],
@@ -329,7 +329,21 @@ export default function ControlPanelPage() {
       channel: '',
       status: 'online',
       position: { x: 300, y: 300 },
-    });
+    };
+
+    // Default to SVG mode for vessels
+    if (type === 'vessel') {
+      newDeviceData.config = {
+        displayMode: 'svg',
+        vesselType: 'generic',
+        currentLevel: 50,
+        currentTemp: 70,
+        capacity: 10,
+        capacityUnit: 'gal',
+      };
+    }
+
+    setNewDevice(newDeviceData);
     setIsAddDialogOpen(true);
   };
 
@@ -683,6 +697,62 @@ export default function ControlPanelPage() {
                 </SelectContent>
               </Select>
             </div>
+            {editingDevice.type === 'vessel' && (
+              <>
+                <div className="grid gap-2">
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="edit-display-mode">Display Mode</Label>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-muted-foreground">
+                        {editingDevice.config?.displayMode === 'svg' ? 'SVG' : 'Tile'}
+                      </span>
+                      <Switch
+                        id="edit-display-mode"
+                        checked={editingDevice.config?.displayMode === 'svg'}
+                        onCheckedChange={(checked) =>
+                          setEditingDevice({
+                            ...editingDevice,
+                            config: {
+                              ...editingDevice.config,
+                              displayMode: checked ? 'svg' : 'tile',
+                            },
+                          })
+                        }
+                      />
+                    </div>
+                  </div>
+                </div>
+                {editingDevice.config?.displayMode === 'svg' && (
+                  <div className="grid gap-2">
+                    <Label htmlFor="edit-vessel-type">Vessel Type</Label>
+                    <Select
+                      value={editingDevice.config?.vesselType || 'generic'}
+                      onValueChange={(value) =>
+                        setEditingDevice({
+                          ...editingDevice,
+                          config: {
+                            ...editingDevice.config,
+                            vesselType: value as 'conical' | 'bright' | 'hlt' | 'mash' | 'kettle' | 'generic',
+                          },
+                        })
+                      }
+                    >
+                      <SelectTrigger id="edit-vessel-type">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="hlt">🔥 Hot Liquor Tank (HLT)</SelectItem>
+                        <SelectItem value="mash">🌾 Mash Tun</SelectItem>
+                        <SelectItem value="kettle">⚗️ Brew Kettle</SelectItem>
+                        <SelectItem value="conical">🍺 Conical Fermentor</SelectItem>
+                        <SelectItem value="bright">✨ Bright Tank</SelectItem>
+                        <SelectItem value="generic">📦 Generic Vessel</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+              </>
+            )}
             <div className="grid grid-cols-2 gap-4">
               <div className="grid gap-2">
                 <Label htmlFor="edit-x">Position X</Label>
@@ -780,6 +850,64 @@ export default function ControlPanelPage() {
                 </SelectContent>
               </Select>
             </div>
+
+            {/* Display Mode & Vessel Type (for vessels only) */}
+            {newDevice.type === 'vessel' && (
+              <>
+                <div className="grid gap-2">
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="add-display-mode">Display Mode</Label>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-muted-foreground">
+                        {newDevice.config?.displayMode === 'svg' ? 'SVG' : 'Tile'}
+                      </span>
+                      <Switch
+                        id="add-display-mode"
+                        checked={newDevice.config?.displayMode === 'svg'}
+                        onCheckedChange={(checked) =>
+                          setNewDevice({
+                            ...newDevice,
+                            config: {
+                              ...newDevice.config,
+                              displayMode: checked ? 'svg' : 'tile',
+                            },
+                          })
+                        }
+                      />
+                    </div>
+                  </div>
+                </div>
+                {newDevice.config?.displayMode === 'svg' && (
+                  <div className="grid gap-2">
+                    <Label htmlFor="add-vessel-type">Vessel Type</Label>
+                    <Select
+                      value={newDevice.config?.vesselType || 'generic'}
+                      onValueChange={(value) =>
+                        setNewDevice({
+                          ...newDevice,
+                          config: {
+                            ...newDevice.config,
+                            vesselType: value as 'conical' | 'bright' | 'hlt' | 'mash' | 'kettle' | 'generic',
+                          },
+                        })
+                      }
+                    >
+                      <SelectTrigger id="add-vessel-type">
+                        <SelectValue placeholder="Select vessel type" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="hlt">🔥 Hot Liquor Tank (HLT)</SelectItem>
+                        <SelectItem value="mash">🌾 Mash Tun</SelectItem>
+                        <SelectItem value="kettle">⚗️ Brew Kettle</SelectItem>
+                        <SelectItem value="conical">🍺 Conical Fermentor</SelectItem>
+                        <SelectItem value="bright">✨ Bright Tank</SelectItem>
+                        <SelectItem value="generic">📦 Generic Vessel</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+              </>
+            )}
 
             {/* Step 3: Connection Type */}
             {newDevice.type && newDevice.type !== 'vessel' && newDevice.type !== 'virtual_output' && newDevice.type !== 'status_tile' && (
