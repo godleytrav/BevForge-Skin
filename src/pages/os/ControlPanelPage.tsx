@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Power, Droplet, Thermometer, Gauge, AlertCircle, CheckCircle2, XCircle, Plus, Trash2, Settings, Edit, Play, Save, X } from 'lucide-react';
+import { EquipmentRenderer } from '@/components/EquipmentRenderer';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -59,6 +60,15 @@ interface Device {
   flowRate?: number;
   level?: number;
   capacity?: number;
+  // Display configuration
+  config?: {
+    displayMode?: 'svg' | 'tile';
+    vesselType?: 'conical' | 'bright' | 'hlt' | 'mash' | 'kettle' | 'generic';
+    currentLevel?: number;
+    currentTemp?: number;
+    capacity?: number;
+    capacityUnit?: string;
+  };
 }
 
 // Driver options by connection type
@@ -107,11 +117,59 @@ const mockDevices: Device[] = [
     type: 'vessel',
     connectionType: 'none',
     status: 'online',
-    position: { x: 100, y: 150 },
+    position: { x: 200, y: 250 },
     temperature: 75.5,
     targetTemp: 168.0,
     level: 80,
     capacity: 1000,
+    config: {
+      displayMode: 'svg',
+      vesselType: 'hlt',
+      currentLevel: 65,
+      currentTemp: 180,
+      capacity: 20,
+      capacityUnit: 'gal',
+    },
+  },
+  {
+    id: 'vessel-2',
+    name: 'Mash Tun',
+    type: 'vessel',
+    connectionType: 'none',
+    status: 'online',
+    position: { x: 400, y: 250 },
+    temperature: 152.0,
+    targetTemp: 152.0,
+    level: 75,
+    capacity: 15,
+    config: {
+      displayMode: 'svg',
+      vesselType: 'mash',
+      currentLevel: 75,
+      currentTemp: 152,
+      capacity: 15,
+      capacityUnit: 'gal',
+    },
+  },
+  {
+    id: 'vessel-3',
+    name: 'Conical Fermentor',
+    type: 'vessel',
+    connectionType: 'none',
+    status: 'online',
+    position: { x: 600, y: 250 },
+    temperature: 68.0,
+    targetTemp: 68.0,
+    level: 90,
+    capacity: 7,
+    config: {
+      displayMode: 'svg',
+      vesselType: 'conical',
+      currentLevel: 90,
+      currentTemp: 68,
+      capacity: 7,
+      capacityUnit: 'gal',
+    },
   },
   {
     id: 'pump-1',
@@ -485,99 +543,26 @@ export default function ControlPanelPage() {
 
           {/* Devices */}
           {devices.map((device) => (
-            <div
+            <EquipmentRenderer
               key={device.id}
-              className={`absolute transition-all duration-200 ${
-                isEditMode ? 'cursor-move' : 'cursor-pointer'
-              } ${draggedDevice === device.id ? 'z-50 scale-105' : 'z-10'}`}
-              style={{
-                left: device.position.x,
-                top: device.position.y,
-                transform: 'translate(-50%, -50%)',
+              device={{
+                id: device.id as unknown as number,
+                name: device.name,
+                tileType: device.type,
+                positionX: String(device.position.x),
+                positionY: String(device.position.y),
+                width: '120',
+                height: '180',
+                status: device.status === 'online' ? 'operational' : device.status,
+                config: device.config,
               }}
-              onMouseDown={(e) => isEditMode ? handleMouseDown(e, device.id) : undefined}
+              mode={isEditMode ? 'edit' : 'control'}
+              isSelected={selectedDevice?.id === device.id}
+              isDragging={draggedDevice === device.id}
               onClick={() => !draggedDevice && handleDeviceClick(device)}
-              onDoubleClick={() => handleDeviceDoubleClick(device)}
-            >
-              <Card
-                className={`w-48 shadow-lg hover:shadow-xl transition-all ${
-                  selectedDevice?.id === device.id && !isEditMode ? 'ring-2 ring-primary' : ''
-                } ${
-                  device.isOn && !isEditMode ? 'bg-primary/5 border-primary' : ''
-                } ${
-                  isEditMode ? 'hover:ring-2 hover:ring-muted-foreground/50' : ''
-                }`}
-              >
-                <CardHeader className="pb-3">
-                  <div className="flex items-center justify-between">
-                    <CardTitle className="text-sm font-medium">{device.name}</CardTitle>
-                    <div className="flex items-center gap-2">
-                      {device.status === 'online' && (
-                        <div className="h-2 w-2 rounded-full bg-green-500" />
-                      )}
-                      {device.status === 'offline' && (
-                        <div className="h-2 w-2 rounded-full bg-gray-400" />
-                      )}
-                      {device.status === 'error' && (
-                        <div className="h-2 w-2 rounded-full bg-red-500" />
-                      )}
-                      {device.status === 'warning' && (
-                        <div className="h-2 w-2 rounded-full bg-yellow-500" />
-                      )}
-                    </div>
-                  </div>
-                  <p className="text-xs text-muted-foreground capitalize">
-                    {device.type.replace('_', ' ')}
-                    {device.connectionType && device.connectionType !== 'none' && (
-                      <> • {device.connectionType.toUpperCase()}</>
-                    )}
-                  </p>
-                </CardHeader>
-                <CardContent className="space-y-2">
-                  {device.type === 'vessel' && (
-                    <>
-                      <div className="flex justify-between text-xs">
-                        <span>Temp:</span>
-                        <span className="font-mono">{device.temperature?.toFixed(1)}°F</span>
-                      </div>
-                      <div className="flex justify-between text-xs">
-                        <span>Level:</span>
-                        <span className="font-mono">{device.level}%</span>
-                      </div>
-                    </>
-                  )}
-                  {device.type === 'pump' && (
-                    <div className="flex justify-between text-xs">
-                      <span>Status:</span>
-                      <Badge variant={device.isOn ? 'default' : 'secondary'} className="h-5 text-xs">
-                        {device.isOn ? 'ON' : 'OFF'}
-                      </Badge>
-                    </div>
-                  )}
-                  {device.type === 'valve' && (
-                    <div className="flex justify-between text-xs">
-                      <span>Status:</span>
-                      <Badge variant={device.isOn ? 'default' : 'secondary'} className="h-5 text-xs">
-                        {device.isOn ? 'OPEN' : 'CLOSED'}
-                      </Badge>
-                    </div>
-                  )}
-                  {device.type === 'temp_sensor' && (
-                    <div className="flex justify-between text-xs">
-                      <span>Reading:</span>
-                      <span className="font-mono">{device.temperature?.toFixed(1)}°F</span>
-                    </div>
-                  )}
-                  {device.driver && (
-                    <div className="text-xs text-muted-foreground pt-1 border-t">
-                      {device.driver}
-                      {device.channel && <> • {device.channel}</>}
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            </div>
-          ))}
+              onMouseDown={(e) => isEditMode ? handleMouseDown(e, device.id) : undefined}
+            />
+          ))
         </div>
       </div>
 
