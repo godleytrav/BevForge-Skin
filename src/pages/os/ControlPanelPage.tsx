@@ -157,13 +157,18 @@ export default function ControlPanelPage() {
   const [dragOffset, setDragOffset] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
 
   const handleDeviceClick = (device: Device) => {
-    if (isEditMode) {
-      // Edit mode: Open edit dialog
-      setEditingDevice(device);
-      setIsEditDialogOpen(true);
-    } else {
+    // Only handle clicks in control mode (edit mode uses drag)
+    if (!isEditMode) {
       // Control mode: Select device to show control panel
       setSelectedDevice(selectedDevice?.id === device.id ? null : device);
+    }
+  };
+
+  const handleDeviceDoubleClick = (device: Device) => {
+    if (isEditMode) {
+      // Edit mode: Double-click opens edit dialog
+      setEditingDevice(device);
+      setIsEditDialogOpen(true);
     }
   };
 
@@ -294,7 +299,7 @@ export default function ControlPanelPage() {
           <div>
             <h1 className="text-2xl font-bold">Control Panel</h1>
             <p className="text-sm text-muted-foreground">
-              {isEditMode ? 'Edit Mode: Click devices to edit, drag to reposition' : 'Control Mode: Click devices to activate'}
+              {isEditMode ? 'Edit Mode: Drag to reposition, double-click to edit' : 'Control Mode: Click devices to activate'}
             </p>
           </div>
           <div className="flex items-center gap-4">
@@ -431,8 +436,9 @@ export default function ControlPanelPage() {
                 top: device.position.y,
                 transform: 'translate(-50%, -50%)',
               }}
-              onMouseDown={(e) => handleMouseDown(e, device.id)}
+              onMouseDown={(e) => isEditMode ? handleMouseDown(e, device.id) : undefined}
               onClick={() => !draggedDevice && handleDeviceClick(device)}
+              onDoubleClick={() => handleDeviceDoubleClick(device)}
             >
               <Card
                 className={`w-48 shadow-lg hover:shadow-xl transition-all ${
