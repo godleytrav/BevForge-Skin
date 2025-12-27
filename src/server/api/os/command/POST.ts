@@ -214,28 +214,81 @@ async function evaluateInterlocks(
     .from(safetyInterlocks)
     .where(eq(safetyInterlocks.isActive, true));
 
-  // For now, implement simple logic:
-  // - Check if any interlock condition would be violated
-  // - Log evaluation to interlock_evaluations
-  // - Return blocked if mode=trip or mode=permissive and condition fails
+  // Filter interlocks by affected tiles if tileId provided
+  const relevantInterlocks = tileId
+    ? interlocks.filter((il) => {
+        const affectedTiles = il.affectedTiles as number[];
+        return affectedTiles && affectedTiles.includes(tileId);
+      })
+    : interlocks;
 
-  for (const interlock of interlocks) {
-    // Parse condition (simplified for Phase 3.2)
-    // In production, this would be a full expression evaluator
+  for (const interlock of relevantInterlocks) {
     const condition = interlock.condition as any;
-
-    // Example condition: { "type": "range", "min": 0, "max": 100 }
     let violated = false;
     let reason = '';
 
-    if (condition?.type === 'range') {
-      const numValue = typeof value === 'number' ? value : parseFloat(value);
-      if (isNaN(numValue)) {
-        violated = true;
-        reason = 'Value is not a number';
-      } else if (numValue < condition.min || numValue > condition.max) {
-        violated = true;
-        reason = `Value ${numValue} outside allowed range [${condition.min}, ${condition.max}]`;
+    // CONDITION TYPE: range (check endpoint current value against min/max)
+    if (condition?.type === 'range' && condition.endpointId) {
+      // Fetch current value from endpoint_current
+      const [currentState] = await db
+        .select()
+        .from(endpointCurrent)
+        .where(eq(endpointCurrent.endpointId, condition.endpointId));
+
+      if (currentState && currentState.valueNum !== null) {
+        const currentValue = currentState.valueNum;
+        if (currentValue < condition.min || currentValue > condition.max) {
+          violated = true;
+          reason = `Endpoint ${condition.endpointId} value ${currentValue}°F outside safe range [${condition.min}, ${condition.max}]`;
+        }
+      }
+    }
+
+    // CONDITION TYPE: require_level (check boolean endpoint state)
+    if (condition?.type === 'require_level' && condition.endpointId) {
+      const [currentState] = await db
+        .select()
+        .from(endpointCurrent)
+        .where(eq(endpointCurrent.endpointId, condition.endpointId));
+
+      if (currentState && currentState.valueBool !== null) {
+        if (currentState.valueBool !== condition.requiredState) {
+          violated = true;
+          reason = `Endpoint ${condition.endpointId} level check failed (required: ${condition.requiredState}, actual: ${currentState.valueBool})`;
+        }
+      }
+    }
+
+    // CONDITION TYPE: require_closed (check door/valve is closed)
+    if (condition?.type === 'require_closed' && condition.endpointId) {
+      const [currentState] = await db
+        .select()
+        .from(endpointCurrent)
+        .where(eq(endpointCurrent.endpointId, condition.endpointId));
+
+      if (currentState && currentState.valueBool !== null) {
+        if (currentState.valueBool !== false) {
+          // false = closed
+          violated = true;
+          reason = `Endpoint ${condition.endpointId} must be closed (door/valve open)`;
+        }
+      }
+    }
+
+    // CONDITION TYPE: require_state (generic state check)
+    if (condition?.type === 'require_state' && condition.endpointId) {
+      const [currentState] = await db
+        .select()
+        .from(endpointCurrent)
+        .where(eq(endpointCurrent.endpointId, condition.endpointId));
+
+      if (currentState) {
+        const actualValue =
+          currentState.valueBool ?? currentState.valueNum ?? currentState.valueString;
+        if (actualValue !== condition.requiredValue) {
+          violated = true;
+          reason = `Endpoint ${condition.endpointId} state mismatch (required: ${condition.requiredValue}, actual: ${actualValue})`;
+        }
       }
     }
 
