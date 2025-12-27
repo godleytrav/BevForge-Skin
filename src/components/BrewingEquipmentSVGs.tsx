@@ -55,25 +55,48 @@ export const ConicalFermentor: React.FC<EquipmentSVGProps> = ({
       className={className}
       xmlns="http://www.w3.org/2000/svg"
     >
+      <defs>
+        {/* Gradient for vessel body */}
+        <linearGradient id="vessel-gradient" x1="0%" y1="0%" x2="100%" y2="0%">
+          <stop offset="0%" stopColor="hsl(var(--muted))" stopOpacity="0.3" />
+          <stop offset="50%" stopColor="hsl(var(--background))" stopOpacity="0.1" />
+          <stop offset="100%" stopColor="hsl(var(--muted))" stopOpacity="0.3" />
+        </linearGradient>
+        {/* Liquid gradient */}
+        <linearGradient id="liquid-gradient" x1="0%" y1="0%" x2="100%" y2="0%">
+          <stop offset="0%" stopColor={liquidColor} stopOpacity="0.6" />
+          <stop offset="50%" stopColor={liquidColor} stopOpacity="0.8" />
+          <stop offset="100%" stopColor={liquidColor} stopOpacity="0.6" />
+        </linearGradient>
+      </defs>
+
+      {/* Vessel body background */}
+      <g>
+        {/* Cylinder body */}
+        <rect x="25" y="30" width="70" height="70" fill="url(#vessel-gradient)" />
+        {/* Conical bottom */}
+        <path d="M 25 100 L 60 150 L 95 100 Z" fill="url(#vessel-gradient)" />
+      </g>
+
       {/* Outer vessel outline */}
-      <g stroke={statusColor} strokeWidth="2" fill="none">
+      <g stroke={statusColor} strokeWidth="2.5" fill="none">
         {/* Top cylinder */}
-        <ellipse cx="60" cy="30" rx="35" ry="8" fill="hsl(var(--background))" />
+        <ellipse cx="60" cy="30" rx="35" ry="8" fill="hsl(var(--background))" stroke={statusColor} strokeWidth="2" />
         <line x1="25" y1="30" x2="25" y2="100" />
         <line x1="95" y1="30" x2="95" y2="100" />
         
         {/* Conical bottom */}
-        <path d="M 25 100 L 60 150 L 95 100" />
+        <path d="M 25 100 L 60 150 L 95 100" strokeWidth="2.5" />
         
         {/* Bottom valve */}
-        <circle cx="60" cy="150" r="4" fill={statusColor} />
-        <line x1="60" y1="154" x2="60" y2="165" strokeWidth="3" />
-        <rect x="55" y="165" width="10" height="8" rx="2" fill={statusColor} />
+        <circle cx="60" cy="150" r="5" fill={statusColor} stroke="none" />
+        <line x1="60" y1="155" x2="60" y2="165" strokeWidth="4" stroke={statusColor} />
+        <rect x="54" y="165" width="12" height="10" rx="2" fill={statusColor} stroke="none" />
       </g>
 
       {/* Liquid fill */}
       {showLevel && fillLevel > 0 && (
-        <g opacity="0.7">
+        <g>
           <defs>
             <clipPath id="conical-clip">
               <rect x="25" y="30" width="70" height="70" />
@@ -88,7 +111,7 @@ export const ConicalFermentor: React.FC<EquipmentSVGProps> = ({
               y={Math.max(30, 150 - liquidHeight)}
               width="70"
               height={Math.min(liquidHeight, 120)}
-              fill={liquidColor}
+              fill="url(#liquid-gradient)"
               clipPath="url(#conical-clip)"
             />
           )}
@@ -109,16 +132,19 @@ export const ConicalFermentor: React.FC<EquipmentSVGProps> = ({
 
       {/* Temperature display */}
       {temperature !== undefined && (
-        <text
-          x="60"
-          y="20"
-          textAnchor="middle"
-          fontSize="12"
-          fill={statusColor}
-          fontWeight="600"
-        >
-          {temperature}°F
-        </text>
+        <g>
+          <rect x="40" y="8" width="40" height="18" rx="4" fill="hsl(var(--background))" stroke={statusColor} strokeWidth="1.5" />
+          <text
+            x="60"
+            y="20"
+            textAnchor="middle"
+            fontSize="11"
+            fill="hsl(var(--foreground))"
+            fontWeight="600"
+          >
+            {temperature}°F
+          </text>
+        </g>
       )}
 
       {/* Level percentage */}

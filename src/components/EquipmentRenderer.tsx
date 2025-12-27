@@ -37,6 +37,7 @@ interface EquipmentRendererProps {
   isDragging?: boolean;
   onClick?: () => void;
   onMouseDown?: (e: React.MouseEvent) => void;
+  onDoubleClick?: () => void;
   className?: string;
 }
 
@@ -47,6 +48,7 @@ export const EquipmentRenderer: React.FC<EquipmentRendererProps> = ({
   isDragging = false,
   onClick,
   onMouseDown,
+  onDoubleClick,
   className = '',
 }) => {
   const displayMode = device.config?.displayMode || 'tile';
@@ -110,6 +112,7 @@ export const EquipmentRenderer: React.FC<EquipmentRendererProps> = ({
         }}
         onClick={onClick}
         onMouseDown={onMouseDown}
+        onDoubleClick={onDoubleClick}
       >
         <div className="relative w-full h-full flex items-center justify-center">
           <SVGComponent
@@ -153,6 +156,7 @@ export const EquipmentRenderer: React.FC<EquipmentRendererProps> = ({
       }}
       onClick={onClick}
       onMouseDown={onMouseDown}
+      onDoubleClick={onDoubleClick}
     >
       <div className="w-full h-full bg-card border-2 border-border rounded-lg p-3 flex flex-col">
         {/* Status indicator */}

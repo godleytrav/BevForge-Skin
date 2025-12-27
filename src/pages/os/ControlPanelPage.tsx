@@ -272,6 +272,7 @@ export default function ControlPanelPage() {
       flowRate: newDevice.type === 'pump' ? 0 : undefined,
       level: newDevice.type === 'vessel' ? 0 : undefined,
       capacity: newDevice.type === 'vessel' ? 1000 : undefined,
+      config: newDevice.config, // Preserve config (displayMode, vesselType, etc.)
     };
 
     setDevices((prev) => [...prev, device]);
@@ -575,6 +576,7 @@ export default function ControlPanelPage() {
               isDragging={draggedDevice === device.id}
               onClick={() => !draggedDevice && handleDeviceClick(device)}
               onMouseDown={(e) => isEditMode ? handleMouseDown(e, device.id) : undefined}
+              onDoubleClick={() => handleDeviceDoubleClick(device)}
             />
           ))}
         </div>
