@@ -1,4 +1,4 @@
-# BevForge OS Control Panel - Database Schema Design
+# BevForge OS Control Panel - Database Schema Design (v2)
 
 ## Overview
 This document defines the complete database schema for the OS Control Panel system, including device tiles, hardware endpoints, telemetry, safety interlocks, and audit logging.
@@ -7,9 +7,10 @@ This document defines the complete database schema for the OS Control Panel syst
 1. **Separation of Concerns**: Device configuration (layout) vs runtime state (telemetry)
 2. **Hardware Abstraction**: Tiles reference hardware endpoints, not physical pins directly
 3. **Extensibility**: JSON fields for device-specific configurations
-4. **Safety First**: Interlock rules stored and enforced at database level
-5. **Audit Everything**: Complete command/response logging
-6. **Time-Series Ready**: Telemetry tables optimized for time-series queries
+4. **Safety First**: Interlock rules stored and enforced with full explainability
+5. **Audit Everything**: Complete command/response logging with correlation IDs
+6. **Time-Series Ready**: Telemetry tables optimized for time-series queries + current value cache
+7. **Control Module Ready**: Virtual outputs and computed signals for future automation
 
 ---
 
@@ -72,13 +73,31 @@ interface HardwareEndpoint {
   id: number;
   controllerId: number;        // FK to controller_nodes
   channelId: string;           // Physical identifier ("GPIO17", "PIN_A0", "1WIRE_0")
-  channelType: EndpointType;
   
-  // Capability
+  // Capability metadata (critical for UI rendering)
+  endpointKind: EndpointKind;
+  valueType: 'bool' | 'int' | 'float' | 'string' | 'json';
   direction: 'input' | 'output' | 'bidirectional';
-  dataType: 'digital' | 'analog' | 'pwm' | 'pulse' | 'onewire' | 'i2c' | 'ble';
   
-  // Configuration
+  // Units and scaling
+  unit: string | null;         // "°C", "SG", "L/min", "psi", etc.
+  rangeMin: number | null;     // For analog/PWM
+  rangeMax: number | null;
+  scale: number | null;        // Raw → engineering units
+  offset: number | null;
+  invert: boolean;             // Super common for relays/float switches
+  
+  // Timing
+  samplePeriodMs: number | null; // For sensors
+  
+  // Output behavior
+  writeMode: 'latched' | 'momentary' | 'pulse' | null; // For outputs
+  pulseDurationMs: number | null; // If writeMode = pulse
+  
+  // Safety
+  failsafeValue: number | boolean | string | null; // What to do if node offline
+  
+  // Configuration (endpoint-specific)
   config: {
     // Digital output
     invertLogic?: boolean;     // True = active low
@@ -103,6 +122,11 @@ interface HardwareEndpoint {
     // BLE device
     bleAddress?: string;       // MAC address
     bleServiceUuid?: string;
+    
+    // Modbus
+    modbusAddress?: number;
+    modbusRegister?: number;
+    modbusFunction?: number;
   };
   
   // Status
@@ -110,33 +134,61 @@ interface HardwareEndpoint {
   lastRead: Date | null;
   lastWrite: Date | null;
   
-  // Current value (cached for quick access)
-  currentValue: number | boolean | string | null;
-  currentValueUpdatedAt: Date | null;
-  
   notes: string | null;
   isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
 
-type EndpointType = 
-  | 'digital_output'    // Relay, solenoid
-  | 'digital_input'     // Switch, float, e-stop
-  | 'pwm_output'        // SSR, VFD speed control
-  | 'analog_input'      // Pressure transducer, level sensor
-  | 'pulse_input'       // Flow meter
-  | 'onewire_temp'      // DS18B20 temperature probe
-  | 'ble_tilt'          // Tilt hydrometer
-  | 'i2c_device'        // Generic I2C sensor
-  | 'modbus_device';    // Modbus RTU/TCP device
+type EndpointKind = 
+  | 'DI'           // Digital input
+  | 'DO'           // Digital output
+  | 'AI'           // Analog input
+  | 'AO'           // Analog output
+  | 'PWM'          // PWM output
+  | 'I2C'          // I2C device
+  | 'SPI'          // SPI device
+  | 'UART'         // UART/serial device
+  | '1WIRE'        // 1-Wire (DS18B20)
+  | 'MODBUS'       // Modbus RTU/TCP
+  | 'VIRTUAL';     // Computed/soft endpoint
 ```
 
-**Indexes**: `controllerId`, `channelType`, `status`, `isActive`
+**Indexes**: `controllerId`, `endpointKind`, `status`, `isActive`
 
 ---
 
-### 3. `device_tiles`
+### 3. `endpoint_current`
+**Purpose**: Fast-access cache of current endpoint values (avoids querying time-series table)
+
+```typescript
+interface EndpointCurrent {
+  endpointId: number;          // PK, FK to hardware_endpoints
+  timestamp: Date;             // When value was last updated
+  
+  // Value (use appropriate column based on valueType)
+  valueBool: boolean | null;
+  valueInt: number | null;
+  valueFloat: number | null;
+  valueString: string | null;
+  valueJson: any | null;
+  
+  // Quality
+  quality: 'good' | 'uncertain' | 'bad';
+  qualityReason: string | null;
+  
+  // Source
+  source: 'hardware' | 'derived' | 'manual' | 'sim';
+  
+  updatedAt: Date;
+}
+```
+
+**Indexes**: `endpointId` (unique primary key)
+
+---
+
+### 4. `device_tiles`
 **Purpose**: Virtual devices on the control panel canvas
 
 ```typescript
@@ -181,7 +233,9 @@ type TileType =
   | 'valve'            // Solenoid or motorized valve
   | 'relay_ssr'        // Generic relay/SSR output
   | 'digital_input'    // Switch, float, e-stop
-  | 'analog_input';    // Generic analog sensor
+  | 'analog_input'     // Generic analog sensor
+  | 'virtual_output'   // Computed/control signal (0-100%, on/off, PWM duty)
+  | 'status_tile';     // UI tile for alarms, interlocks, node status
 
 // Type-specific configurations
 type TileConfig = 
@@ -193,7 +247,9 @@ type TileConfig =
   | ValveConfig
   | RelaySSRConfig
   | DigitalInputConfig
-  | AnalogInputConfig;
+  | AnalogInputConfig
+  | VirtualOutputConfig
+  | StatusTileConfig;
 
 interface VesselConfig {
   vesselType: 'fermenter' | 'brite' | 'tote' | 'keg' | 'barrel' | 'generic';
@@ -208,23 +264,29 @@ interface VesselConfig {
   pressureSensorId?: number;
   phSensorId?: number;
   
-  // Associated actuators (FK to device_tiles)
-  coolingOutputId?: number;    // SSR/relay for cooling
-  heatingOutputId?: number;    // SSR/relay for heating
+  // Associated actuators (FK to device_tiles or virtual_outputs)
+  coolingOutputId?: number;    // SSR/relay/virtual for cooling
+  heatingOutputId?: number;    // SSR/relay/virtual for heating
   mixerOutputId?: number;      // Agitator/mixer
   
-  // Virtual PID data (stored but not used by OS)
+  // Virtual PID data (stored but not used by OS - for Control module)
   pidConfig?: {
     enabled: boolean;
+    mode: 'off' | 'manual' | 'auto';
     setpoint?: number;
+    manualOutput?: number;     // If in manual mode
     kp?: number;
     ki?: number;
     kd?: number;
     outputMin?: number;
     outputMax?: number;
+    outputClampMin?: number;
+    outputClampMax?: number;
     cycleTimeSeconds?: number;
     minOnTimeSeconds?: number;
     minOffTimeSeconds?: number;
+    integratorHold?: boolean;  // Useful later
+    direction?: 'direct' | 'reverse'; // Heating vs cooling
   };
   
   // Alarm thresholds
@@ -341,58 +403,121 @@ interface AnalogInputConfig {
   alarmHigh?: number;
   alarmLow?: number;
 }
+
+interface VirtualOutputConfig {
+  // Virtual output = computed/control signal (not hardware)
+  // Huge for: mirrored outputs, split control, simulation, Control module migration
+  outputType: 'computed' | 'mirrored' | 'split' | 'simulated';
+  valueType: 'bool' | 'float' | 'int';
+  unit: string | null;
+  rangeMin?: number;
+  rangeMax?: number;
+  
+  // Computation
+  computeExpression?: string;  // Formula or logic
+  sourceInputIds?: number[];   // FK to other tiles (for mirroring/splitting)
+  
+  // Target endpoints (this virtual output feeds these)
+  targetEndpointIds?: number[]; // FK to hardware_endpoints
+  
+  // Split control (e.g., 0-50% → output A, 50-100% → output B)
+  splitRanges?: Array<{
+    min: number;
+    max: number;
+    targetEndpointId: number;
+    scale?: number;
+    offset?: number;
+  }>;
+}
+
+interface StatusTileConfig {
+  // UI tile that binds to alarms, interlock states, node status, boolean expressions
+  // Prevents hacking "vessel tile shows alarm" forever
+  displayType: 'alarm_summary' | 'interlock_status' | 'node_health' | 'custom_expression';
+  
+  // Sources
+  alarmTileIds?: number[];     // FK to device_tiles (show alarms from these)
+  interlockIds?: number[];     // FK to safety_interlocks (show status)
+  nodeIds?: number[];          // FK to controller_nodes (show online/offline)
+  
+  // Custom expression
+  expression?: string;         // Boolean logic ("(input1 AND input2) OR NOT input3")
+  
+  // Display
+  showSeverity?: boolean;
+  showTimestamp?: boolean;
+  autoAcknowledge?: boolean;
+}
 ```
 
 **Indexes**: `tileId` (unique), `tileType`, `status`, `groupId`, `parentTileId`, `isActive`
 
 ---
 
-### 4. `tile_endpoint_bindings`
-**Purpose**: Map device tiles to hardware endpoints
+### 5. `tile_endpoint_bindings`
+**Purpose**: Map device tiles to hardware endpoints (supports multi-bind, direction, transforms)
 
 ```typescript
 interface TileEndpointBinding {
   id: number;
   tileId: number;              // FK to device_tiles
   endpointId: number;          // FK to hardware_endpoints
-  bindingType: BindingType;
+  
+  // Binding semantics
+  bindingRole: BindingRole;    // What this binding represents
+  direction: 'read' | 'write' | 'bidirectional';
   
   // For tiles with multiple endpoints
   role: string | null;         // "primary_temp", "cooling_output", "inlet_valve"
   
-  // Scaling/transformation
+  // Scaling/transformation per binding
   transform: {
     scale?: number;
     offset?: number;
     invert?: boolean;
+    clamp?: { min: number; max: number };
+    deadband?: number;         // Ignore changes smaller than this
+    smoothing?: number;        // Moving average window
+    mapTable?: Array<{ input: number; output: number }>; // Lookup table
     formula?: string;          // For complex transformations
+    debounceMs?: number;
   } | null;
+  
+  // Priority (when multiple bindings exist)
+  priority: number;            // Higher = more important
+  order: number;               // Execution order
   
   isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
 
-type BindingType = 'read_pv' | 'write_output' | 'read_status';
+type BindingRole = 
+  | 'pv'           // Process value (sensor reading)
+  | 'sp'           // Setpoint
+  | 'output'       // Control output
+  | 'state'        // Device state (on/off, open/closed)
+  | 'alarm'        // Alarm condition
+  | 'permissive';  // Permissive interlock input
 ```
 
-**Indexes**: `tileId`, `endpointId`, `bindingType`, `isActive`
+**Indexes**: `tileId`, `endpointId`, `bindingRole`, `direction`, `isActive`
 **Unique Constraint**: `(tileId, endpointId, role)`
 
 ---
 
-### 5. `device_groups`
-**Purpose**: Logical grouping of devices (manifolds, process zones, etc.)
+### 6. `device_groups`
+**Purpose**: Logical grouping of devices (manifolds, process zones, safety zones, layout groups)
 
 ```typescript
 interface DeviceGroup {
   id: number;
   name: string;
-  groupType: 'manifold' | 'process_zone' | 'safety_zone' | 'custom';
+  groupType: GroupType;        // Clarify what this group represents
   
   // Rules
   rules: {
-    mutualExclusion?: boolean;   // Only one device active at a time
+    mutualExclusion?: boolean;   // Only one device active at a time (manifolds)
     sequenceRequired?: boolean;  // Devices must activate in order
     interlockGroupId?: number;   // FK to another group
   };
@@ -402,29 +527,103 @@ interface DeviceGroup {
   createdAt: Date;
   updatedAt: Date;
 }
+
+type GroupType = 
+  | 'layout'         // Canvas grouping (purely UI: move together)
+  | 'safety_zone'    // Interlocks apply within zone
+  | 'manifold'       // Mutual exclusion group (only one valve open)
+  | 'batch_area'     // Process area for batch tracking
+  | 'custom';        // User-defined
 ```
 
 **Indexes**: `groupType`, `isActive`
 
 ---
 
-### 6. `telemetry_readings`
+### 7. `system_safety_state`
+**Purpose**: System-wide safety state (E-stop, global interlocks)
+
+```typescript
+interface SystemSafetyState {
+  id: number;                  // Single row per system/site
+  siteId: string;              // "brewhouse", "cellar", "packaging"
+  
+  // E-stop state
+  estopActive: boolean;
+  estopSource: string | null;  // Which DI endpoint triggered it
+  estopActivatedAt: Date | null;
+  estopLatched: boolean;       // Requires manual reset
+  
+  // Global safety mode
+  safetyMode: 'normal' | 'restricted' | 'maintenance' | 'emergency';
+  
+  // Acknowledgment
+  ackRequired: boolean;
+  ackedBy: string | null;
+  ackedAt: Date | null;
+  
+  notes: string | null;
+  updatedAt: Date;
+}
+```
+
+**Indexes**: `siteId` (unique)
+
+---
+
+### 8. `system_safety_log`
+**Purpose**: Log of system safety state transitions
+
+```typescript
+interface SystemSafetyLog {
+  id: number;
+  timestamp: Date;
+  siteId: string;
+  
+  // Transition
+  previousState: string;       // Previous safetyMode or estop state
+  newState: string;
+  
+  // Cause
+  triggeredBy: string;         // "estop_button_1", "user:john", "interlock_5"
+  reason: string;
+  
+  // Action taken
+  actionsTaken: string[];      // ["all_outputs_off", "pumps_stopped", "alarms_triggered"]
+  
+  createdAt: Date;
+}
+```
+
+**Indexes**: `timestamp` (DESC), `siteId`
+
+---
+
+### 9. `telemetry_readings`
 **Purpose**: Time-series process values (temperatures, gravity, flow, etc.)
 
 ```typescript
 interface TelemetryReading {
   id: number;
   timestamp: Date;             // Reading timestamp
-  tileId: number;              // FK to device_tiles
-  endpointId: number | null;   // FK to hardware_endpoints (optional)
+  endpointId: number;          // FK to hardware_endpoints
+  tileId: number | null;       // FK to device_tiles (optional, for computed vessel temp)
   
-  // Value
-  value: number | boolean | string;
+  // Value (use appropriate column based on valueType)
+  valueBool: boolean | null;
+  valueNum: number | null;     // For int/float (don't put everything in JSON)
+  valueString: string | null;
+  valueJson: any | null;
+  
+  // Metadata
   unit: string | null;
   
   // Quality
   quality: 'good' | 'uncertain' | 'bad';
   qualityReason: string | null; // "sensor_fault", "out_of_range", etc.
+  
+  // Source
+  source: 'hardware' | 'derived' | 'manual' | 'sim';
   
   // Context
   batchId: number | null;      // FK to batches (if applicable)
@@ -433,57 +632,88 @@ interface TelemetryReading {
 }
 ```
 
-**Indexes**: `timestamp` (DESC), `tileId`, `batchId`, `quality`
-**Partitioning**: Consider partitioning by timestamp (monthly) for large datasets
+**Indexes**: 
+- `(endpointId, timestamp DESC)` - Primary query pattern
+- `timestamp` (DESC) - Time-range queries
+- `tileId` - Tile-based queries
+- `batchId` - Batch-based queries
+- `quality` - Filter by quality
+
+**Partitioning Strategy**: Monthly partitioning when moving to Postgres
 
 ---
 
-### 7. `command_log`
-**Purpose**: Audit log of all manual commands and automation actions
+### 10. `command_log`
+**Purpose**: Audit log of all manual commands and automation actions (with full lifecycle)
 
 ```typescript
 interface CommandLog {
   id: number;
-  timestamp: Date;
+  commandId: string;           // UUID for this specific command
+  correlationId: string;       // Same for all commands from one "button click"
+  
+  // Timing (full lifecycle)
+  requestedAt: Date;
+  sentAt: Date | null;
+  ackedAt: Date | null;
+  completedAt: Date | null;
   
   // Command details
   commandType: 'manual' | 'automation' | 'safety' | 'system';
   action: string;              // "set_output", "start_pump", "open_valve", "estop"
   
   // Target
-  tileId: number | null;       // FK to device_tiles
-  endpointId: number | null;   // FK to hardware_endpoints
+  targetTileId: number | null;       // FK to device_tiles
+  targetEndpointId: number | null;   // FK to hardware_endpoints
   
   // Command data
+  requestedValue: number | boolean | string | null;
+  appliedValue: number | boolean | string | null;
+  previousValue: number | boolean | string | null;
+  
   commandData: {
-    targetValue?: number | boolean;
-    previousValue?: number | boolean;
     duration?: number;         // For timed operations
     reason?: string;
-  };
+    parameters?: any;          // Additional params
+  } | null;
   
   // Result
-  status: 'pending' | 'success' | 'failed' | 'blocked';
+  status: 'queued' | 'sent' | 'acked' | 'succeeded' | 'failed' | 'blocked';
   failureReason: string | null; // "interlock_active", "device_offline", etc.
   
   // Attribution
-  initiatedBy: string;         // User ID or "system" or "automation"
-  initiatedFrom: string | null; // "control_panel", "api", "recipe_step"
+  requestedByUserId: string | null;   // User ID
+  requestedByService: string | null;  // "control_panel", "api", "recipe_step"
   
   // Safety
   interlockCheckPassed: boolean;
+  blockedByInterlockId: number | null; // FK to safety_interlocks
   interlockDetails: string | null;
   
+  // Node response
+  nodeResponse: {
+    errorCode?: string;
+    message?: string;
+    rawResponse?: any;
+  } | null;
+  
+  notes: string | null;
   createdAt: Date;
 }
 ```
 
-**Indexes**: `timestamp` (DESC), `tileId`, `commandType`, `status`, `initiatedBy`
+**Indexes**: 
+- `requestedAt` (DESC) - Time-based queries
+- `correlationId` - Trace related commands
+- `commandId` (unique) - Direct lookup
+- `status` - Filter by status
+- `targetTileId` - Tile-based queries
+- `requestedByUserId` - User audit
 
 ---
 
-### 8. `safety_interlocks`
-**Purpose**: Define safety rules that can block commands
+### 11. `safety_interlocks`
+**Purpose**: Define safety rules that can block commands (with full action types)
 
 ```typescript
 interface SafetyInterlock {
@@ -493,6 +723,7 @@ interface SafetyInterlock {
   
   // Scope
   interlockType: 'estop' | 'permissive' | 'conditional' | 'timer';
+  mode: 'permissive' | 'trip' | 'advisory';
   priority: number;            // Higher = more critical
   
   // Condition
@@ -518,8 +749,16 @@ interface SafetyInterlock {
   blockActions: string[];      // ["turn_on", "open", "start"]
   
   // Response
-  onViolation: 'block' | 'alarm' | 'force_off';
+  onViolationAction: 'block' | 'force_off' | 'force_value' | 'latch_until_ack';
+  forceValue: number | boolean | null; // If onViolationAction = force_value
   alarmMessage: string | null;
+  
+  // Latching and acknowledgment
+  latched: boolean;            // Stays active until manually cleared
+  ackRequired: boolean;        // Requires operator acknowledgment
+  
+  // Severity
+  severity: 'info' | 'warning' | 'critical';
   
   // Status
   isActive: boolean;
@@ -530,11 +769,46 @@ interface SafetyInterlock {
 }
 ```
 
-**Indexes**: `interlockType`, `priority`, `isActive`
+**Indexes**: `interlockType`, `mode`, `priority`, `severity`, `isActive`
 
 ---
 
-### 9. `device_state_history`
+### 12. `interlock_evaluations`
+**Purpose**: Explainability log - "who blocked it, why, when, what did we do instead?"
+
+```typescript
+interface InterlockEvaluation {
+  id: number;
+  interlockId: number;         // FK to safety_interlocks
+  evaluatedAt: Date;
+  
+  // Result
+  result: 'pass' | 'fail';
+  
+  // Details (explainability)
+  details: {
+    conditionFailed?: string;  // Which condition failed
+    currentPVs?: Record<string, number | boolean>; // Current process values
+    thresholds?: Record<string, number | boolean>; // Thresholds checked
+    involvedBindings?: number[]; // FK to tile_endpoint_bindings
+    affectedCommand?: string;  // Command that was blocked
+  };
+  
+  // Action taken
+  actionTaken: string | null;  // "blocked_command", "forced_output_off", "alarm_triggered"
+  
+  // Context
+  commandLogId: number | null; // FK to command_log (if blocking a command)
+  
+  createdAt: Date;
+}
+```
+
+**Indexes**: `interlockId`, `evaluatedAt` (DESC), `result`, `commandLogId`
+
+---
+
+### 13. `device_state_history`
 **Purpose**: Track state changes for devices (on/off, open/closed, etc.)
 
 ```typescript
@@ -562,7 +836,7 @@ interface DeviceStateHistory {
 
 ---
 
-### 10. `alarm_events`
+### 14. `alarm_events`
 **Purpose**: Track alarm conditions and acknowledgments
 
 ```typescript
@@ -572,6 +846,7 @@ interface AlarmEvent {
   
   // Source
   tileId: number | null;       // FK to device_tiles
+  endpointId: number | null;   // FK to hardware_endpoints
   alarmType: 'high' | 'low' | 'fault' | 'offline' | 'safety' | 'custom';
   severity: 'info' | 'warning' | 'critical';
   
@@ -595,7 +870,7 @@ interface AlarmEvent {
 }
 ```
 
-**Indexes**: `timestamp` (DESC), `tileId`, `status`, `severity`, `alarmType`
+**Indexes**: `timestamp` (DESC), `tileId`, `endpointId`, `status`, `severity`, `alarmType`
 
 ---
 
@@ -603,6 +878,8 @@ interface AlarmEvent {
 
 ```
 controller_nodes (1) ──→ (N) hardware_endpoints
+
+hardware_endpoints (1) ──→ (1) endpoint_current
 
 device_tiles (1) ──→ (N) tile_endpoint_bindings ←── (N) hardware_endpoints
 device_tiles (1) ──→ (N) telemetry_readings
@@ -613,21 +890,27 @@ device_tiles (1) ──→ (N) alarm_events
 device_tiles (N) ──→ (1) device_groups
 device_tiles (N) ──→ (1) device_tiles (parent/child)
 
+safety_interlocks (1) ──→ (N) interlock_evaluations
 safety_interlocks (N) ──→ (N) device_tiles (affected tiles)
+
+command_log (1) ──→ (N) interlock_evaluations
 
 batches (1) ──→ (N) telemetry_readings
 batches (1) ──→ (N) alarm_events
+
+system_safety_state (1) ──→ (N) system_safety_log
 ```
 
 ---
 
 ## Migration Strategy
 
-1. **Phase 1a**: Create controller_nodes, hardware_endpoints tables
+1. **Phase 1a**: Create controller_nodes, hardware_endpoints, endpoint_current tables
 2. **Phase 1b**: Create device_tiles, tile_endpoint_bindings tables
-3. **Phase 1c**: Create device_groups table
+3. **Phase 1c**: Create device_groups, system_safety_state, system_safety_log tables
 4. **Phase 1d**: Create telemetry_readings, command_log tables
-5. **Phase 1e**: Create safety_interlocks, device_state_history, alarm_events tables
+5. **Phase 1e**: Create safety_interlocks, interlock_evaluations tables
+6. **Phase 1f**: Create device_state_history, alarm_events tables
 
 ---
 
@@ -637,12 +920,32 @@ batches (1) ──→ (N) alarm_events
 - **command_log**: Keep 1 year, then archive
 - **device_state_history**: Keep 1 year, then archive
 - **alarm_events**: Keep indefinitely (or until acknowledged + 1 year)
+- **interlock_evaluations**: Keep 1 year, then archive
+- **endpoint_current**: Always current (single row per endpoint)
+
+---
+
+## Key Improvements from v1
+
+### ✅ Added:
+1. **`virtual_output` tile type** - Computed/control signals for Control module
+2. **`status_tile` tile type** - UI tiles for alarms/interlocks/status
+3. **`endpoint_current` table** - Fast-access cache for current values
+4. **Endpoint capability metadata** - `endpointKind`, `valueType`, `unit`, `rangeMin/Max`, `scale/offset`, `invert`, `samplePeriodMs`, `writeMode`, `failsafeValue`
+5. **Multi-bind support** - `bindingRole`, `direction`, `transform` per binding
+6. **`interlock_evaluations` table** - Explainability for blocked commands
+7. **Command lifecycle** - `commandId`, `correlationId`, full timing (requested → sent → acked → completed)
+8. **E-stop system state** - `system_safety_state` + `system_safety_log` tables
+9. **Group type clarification** - `layout` vs `safety_zone` vs `manifold` vs `batch_area`
+10. **Telemetry improvements** - `source`, `valueBool`/`valueNum` columns, better indexing
+11. **Safety interlock enhancements** - `mode`, `onViolationAction`, `latched`, `ackRequired`, `severity`
+12. **PID mode fields** - `mode`, `manualOutput`, `outputClamp`, `integratorHold`, `direction`
 
 ---
 
 ## Next Steps
 
-1. ✅ Review this schema design
+1. ✅ Review this schema design (v2)
 2. ⏳ Implement Drizzle schema definitions
 3. ⏳ Generate and run migrations
 4. ⏳ Create TypeScript types
