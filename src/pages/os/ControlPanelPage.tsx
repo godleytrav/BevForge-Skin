@@ -781,17 +781,17 @@ export default function ControlPanelPage() {
                   <SelectValue placeholder="Select tile type" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="vessel">🫙 Vessel / Tank</SelectItem>
-                  <SelectItem value="temp_sensor">🌡️ Temperature Sensor</SelectItem>
-                  <SelectItem value="gravity_sensor">🍺 Gravity Sensor</SelectItem>
-                  <SelectItem value="flow_meter">🚰 Flow Meter</SelectItem>
-                  <SelectItem value="digital_input">🔌 Digital Input</SelectItem>
-                  <SelectItem value="analog_input">📟 Analog Input</SelectItem>
-                  <SelectItem value="pump">🔄 Pump</SelectItem>
-                  <SelectItem value="valve">🚪 Valve</SelectItem>
-                  <SelectItem value="relay_ssr">⚡ Relay / SSR</SelectItem>
-                  <SelectItem value="virtual_output">🧠 Virtual Output</SelectItem>
-                  <SelectItem value="status_tile">🚨 Status Tile</SelectItem>
+                  <SelectItem value="vessel">Vessel / Tank</SelectItem>
+                  <SelectItem value="temp_sensor">Temperature Sensor</SelectItem>
+                  <SelectItem value="gravity_sensor">Gravity Sensor</SelectItem>
+                  <SelectItem value="flow_meter">Flow Meter</SelectItem>
+                  <SelectItem value="digital_input">Digital Input</SelectItem>
+                  <SelectItem value="analog_input">Analog Input</SelectItem>
+                  <SelectItem value="pump">Pump</SelectItem>
+                  <SelectItem value="valve">Valve</SelectItem>
+                  <SelectItem value="relay_ssr">Relay / SSR</SelectItem>
+                  <SelectItem value="virtual_output">Virtual Output</SelectItem>
+                  <SelectItem value="status_tile">Status Tile</SelectItem>
                 </SelectContent>
               </Select>
             </div>
