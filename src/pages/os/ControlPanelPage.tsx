@@ -162,11 +162,8 @@ export default function ControlPanelPage() {
       setEditingDevice(device);
       setIsEditDialogOpen(true);
     } else {
-      // Control mode: Toggle device or show control panel
-      setSelectedDevice(device);
-      if (device.type === 'pump' || device.type === 'valve' || device.type === 'heater' || device.type === 'chiller') {
-        handleToggleDevice(device.id);
-      }
+      // Control mode: Select device to show control panel
+      setSelectedDevice(selectedDevice?.id === device.id ? null : device);
     }
   };
 
@@ -394,28 +391,30 @@ export default function ControlPanelPage() {
       {/* Canvas Area */}
       <div className="flex-1 overflow-hidden relative">
         <div
-          className="absolute inset-0 bg-grid-pattern"
+          className="absolute inset-0 bg-background"
           onMouseMove={handleMouseMove}
           onMouseUp={handleMouseUp}
           onMouseLeave={handleMouseUp}
         >
-          {/* Grid background */}
-          <svg className="absolute inset-0 w-full h-full pointer-events-none" style={{ zIndex: 0 }}>
-            <defs>
-              <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
-                <path d="M 40 0 L 0 0 0 40" fill="none" stroke="currentColor" strokeWidth="0.5" className="text-muted/20" />
-              </pattern>
-            </defs>
-            <rect width="100%" height="100%" fill="url(#grid)" />
-          </svg>
+          {/* Grid background - only visible in edit mode */}
+          {isEditMode && (
+            <svg className="absolute inset-0 w-full h-full pointer-events-none" style={{ zIndex: 0 }}>
+              <defs>
+                <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+                  <path d="M 40 0 L 0 0 0 40" fill="none" stroke="currentColor" strokeWidth="0.5" className="text-muted/20" />
+                </pattern>
+              </defs>
+              <rect width="100%" height="100%" fill="url(#grid)" />
+            </svg>
+          )}
 
           {/* Devices */}
           {devices.map((device) => (
             <div
               key={device.id}
-              className={`absolute transition-shadow ${
+              className={`absolute transition-all duration-200 ${
                 isEditMode ? 'cursor-move' : 'cursor-pointer'
-              } ${draggedDevice === device.id ? 'z-50' : 'z-10'}`}
+              } ${draggedDevice === device.id ? 'z-50 scale-105' : 'z-10'}`}
               style={{
                 left: device.position.x,
                 top: device.position.y,
@@ -426,9 +425,11 @@ export default function ControlPanelPage() {
             >
               <Card
                 className={`w-48 shadow-lg hover:shadow-xl transition-all ${
-                  selectedDevice?.id === device.id ? 'ring-2 ring-primary' : ''
+                  selectedDevice?.id === device.id && !isEditMode ? 'ring-2 ring-primary' : ''
                 } ${
-                  device.isOn ? 'bg-primary/5 border-primary' : ''
+                  device.isOn && !isEditMode ? 'bg-primary/5 border-primary' : ''
+                } ${
+                  isEditMode ? 'hover:ring-2 hover:ring-muted-foreground/50' : ''
                 }`}
               >
                 <CardHeader className="pb-3">
