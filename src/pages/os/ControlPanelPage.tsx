@@ -154,7 +154,7 @@ export default function ControlPanelPage() {
     position: { x: 300, y: 300 },
   });
   const [draggedDevice, setDraggedDevice] = useState<string | null>(null);
-  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
+  const [dragOffset, setDragOffset] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
 
   const handleDeviceClick = (device: Device) => {
     if (isEditMode) {
@@ -248,24 +248,35 @@ export default function ControlPanelPage() {
     const device = devices.find(d => d.id === deviceId);
     if (!device) return;
 
-    setDraggedDevice(deviceId);
+    // Get the canvas position
+    const canvas = e.currentTarget.parentElement?.getBoundingClientRect();
+    if (!canvas) return;
+
+    // Calculate offset from mouse to device position (relative to canvas)
+    const mouseX = e.clientX - canvas.left;
+    const mouseY = e.clientY - canvas.top;
+    
     setDragOffset({
-      x: e.clientX - device.position.x,
-      y: e.clientY - device.position.y,
+      x: mouseX - device.position.x,
+      y: mouseY - device.position.y,
     });
+    setDraggedDevice(deviceId);
   };
 
   const handleMouseMove = (e: React.MouseEvent) => {
     if (!draggedDevice || !isEditMode) return;
 
     const canvas = e.currentTarget.getBoundingClientRect();
-    const newX = e.clientX - canvas.left - dragOffset.x;
-    const newY = e.clientY - canvas.top - dragOffset.y;
+    const mouseX = e.clientX - canvas.left;
+    const mouseY = e.clientY - canvas.top;
+    
+    const newX = mouseX - dragOffset.x;
+    const newY = mouseY - dragOffset.y;
 
     setDevices((prev) =>
       prev.map((device) =>
         device.id === draggedDevice
-          ? { ...device, position: { x: Math.max(0, newX), y: Math.max(0, newY) } }
+          ? { ...device, position: { x: Math.max(100, Math.min(canvas.width - 100, newX)), y: Math.max(100, Math.min(canvas.height - 100, newY)) } }
           : device
       )
     );
