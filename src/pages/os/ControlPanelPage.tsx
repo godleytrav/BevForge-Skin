@@ -741,12 +741,12 @@ export default function ControlPanelPage() {
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="hlt">🔥 Hot Liquor Tank (HLT)</SelectItem>
-                        <SelectItem value="mash">🌾 Mash Tun</SelectItem>
-                        <SelectItem value="kettle">⚗️ Brew Kettle</SelectItem>
-                        <SelectItem value="conical">🍺 Conical Fermentor</SelectItem>
-                        <SelectItem value="bright">✨ Bright Tank</SelectItem>
-                        <SelectItem value="generic">📦 Generic Vessel</SelectItem>
+                        <SelectItem value="hlt">Hot Liquor Tank (HLT)</SelectItem>
+                        <SelectItem value="mash">Mash Tun</SelectItem>
+                        <SelectItem value="kettle">Brew Kettle</SelectItem>
+                        <SelectItem value="conical">Conical Fermentor</SelectItem>
+                        <SelectItem value="bright">Bright Tank</SelectItem>
+                        <SelectItem value="generic">Generic Vessel</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -896,12 +896,12 @@ export default function ControlPanelPage() {
                         <SelectValue placeholder="Select vessel type" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="hlt">🔥 Hot Liquor Tank (HLT)</SelectItem>
-                        <SelectItem value="mash">🌾 Mash Tun</SelectItem>
-                        <SelectItem value="kettle">⚗️ Brew Kettle</SelectItem>
-                        <SelectItem value="conical">🍺 Conical Fermentor</SelectItem>
-                        <SelectItem value="bright">✨ Bright Tank</SelectItem>
-                        <SelectItem value="generic">📦 Generic Vessel</SelectItem>
+                        <SelectItem value="hlt">Hot Liquor Tank (HLT)</SelectItem>
+                        <SelectItem value="mash">Mash Tun</SelectItem>
+                        <SelectItem value="kettle">Brew Kettle</SelectItem>
+                        <SelectItem value="conical">Conical Fermentor</SelectItem>
+                        <SelectItem value="bright">Bright Tank</SelectItem>
+                        <SelectItem value="generic">Generic Vessel</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
