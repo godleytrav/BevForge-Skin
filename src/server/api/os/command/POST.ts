@@ -208,17 +208,11 @@ async function evaluateInterlocks(
   value: any,
   tileId?: number
 ): Promise<InterlockResult> {
-  // Get all active interlocks for this endpoint or tile
-  const conditions = [eq(safetyInterlocks.enabled, true)];
-
-  if (tileId) {
-    conditions.push(eq(safetyInterlocks.tileId, tileId));
-  }
-
+  // Get all active interlocks
   const interlocks = await db
     .select()
     .from(safetyInterlocks)
-    .where(and(...conditions));
+    .where(eq(safetyInterlocks.isActive, true));
 
   // For now, implement simple logic:
   // - Check if any interlock condition would be violated
