@@ -1,10 +1,10 @@
-# BevForge OPS (Operations System)
+# BevForge OS (Operations System)
 
 **Complete brewing operations control system with real-time monitoring and safety interlocks.**
 
 ## Overview
 
-The OPS directory contains the full-stack BevForge Operations System - a production-ready control panel for managing brewing equipment, monitoring telemetry, and ensuring safe operations through comprehensive safety interlocks.
+The OS directory contains the full-stack BevForge Operations System - a production-ready control panel for managing brewing equipment, monitoring telemetry, and ensuring safe operations through comprehensive safety interlocks.
 
 ## Features
 
@@ -33,7 +33,7 @@ The OPS directory contains the full-stack BevForge Operations System - a product
 ### Installation
 
 ```bash
-cd OPS
+cd OS
 npm install
 ```
 
@@ -61,7 +61,7 @@ Open http://localhost:5007/os/control-panel
 ## Project Structure
 
 ```
-OPS/
+OS/
 ├── src/
 │   ├── components/
 │   │   ├── BrewingEquipmentSVGs.tsx    # 6 professional SVG vessels
@@ -237,4 +237,4 @@ For questions or issues, refer to the comprehensive documentation in the `*.md` 
 
 ## License
 
-BevForge OPS - Brewing Operations Control System
+BevForge OS - Brewing Operations Control System
