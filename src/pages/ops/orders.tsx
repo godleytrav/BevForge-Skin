@@ -242,6 +242,9 @@ export default function Orders() {
 
   // Stats calculations - MUST be before any conditional returns to avoid hooks violation
   const stats = useMemo(() => {
+    if (!orders || !Array.isArray(orders)) {
+      return { total: 0, pending: 0, processing: 0, fulfilled: 0, cancelled: 0 };
+    }
     return {
       total: orders.length,
       pending: orders.filter(o => ['draft', 'confirmed'].includes(o.status)).length,
