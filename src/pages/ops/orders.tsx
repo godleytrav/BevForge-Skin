@@ -257,6 +257,9 @@ export default function Orders() {
 
   // Filtered orders
   const filteredOrders = useMemo(() => {
+    if (!orders || !Array.isArray(orders)) {
+      return [];
+    }
     return orders.filter((order) => {
       // Search filter
       const matchesSearch = (order.customer_name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
